@@ -1,51 +1,9 @@
-Some basic ways to manipulate text are \textit{italics} and \textbf{bold}. One can reference Figures (see Figure \ref{fig:taltech} for an example) as well as cite references which are defined in the \textit{references.bib} file.\cite{spectre,example-reference} 
+Most modern text editors provide code autocompletion features that allow the developer to autocomplete the code fragment they are currently typing.
+This means that the developer doesn't have to memorize all the identifiers in scope but rather can rely on knowing part of them.
+The autocomplete feature is also used to speed up writing as the developers doesn't have to type out all the characters when using it. \textcite{how-programmers-interact-with-code-generation-models}
+The autocomplete usually works by comparing the partial identifier being written with valid indetifiers and it suggest the ones that are the most similar.
+Autocomplete alogithms that use edit based distances usually work with only completing a single token at a time as predicting longer distance relations is not accurate enough.
+Recently, with developments in natural language processing, there have been attempts to use deep learning models that are capable of predecting multiple tokens ahead. \textcite{automated-code-generation-using-deeplearning}
+However deep learning models require a lot of training data and computing power and there have been questions whether it is ethical to use code licensed under strong copyleft licenses to train a model that generates code without any copyleft license.\footfullcite{copilot-latest-challange-to-copyleft}
+However there hasn't been so much popularity in searching for an analytical solution for the problem instead of machine learning based.
 
-The \textit{Bibliography}, \textit{List of Figures} and \textit{List of Tables} are all automatically generated and references will be updated automatically as well. This means that if you've defined a citation but are not referencing it, it will not appear in the \textit{Bibliography}. This also means that any Figure / Table / Citations numbers are automatically updated as well. Numbering is done by order-of-appearance.
-
-One can create an itemized list:
-\begin{itemize}
-    \item item a
-    \item item b
-    \item ...
-\end{itemize}
-
-Or enumerate them:
-\begin{enumerate}
-    \item item x
-    \item item y
-    \item ...
-\end{enumerate}
-
-
-\begin{figure}[ht]
-    \centering
-    \includegraphics[width=.5\textwidth]{figures/taltech.jpg}
-    \caption{\textit{An image of the TalTech logo.}}
-    \label{fig:taltech}
-\end{figure}
-
-
-A table with three columns can be seen in Table \ref{tab:requirements}.
-\begin{longtable}{|p{0,5cm}|p{10cm}|p{3cm}|}
-	\caption{\it{A table with some requirements}}
-	\label{tab:requirements}\\ \hline
-	\textbf{Nr} &  \textbf{Requirement} & \textbf{Weight}  \\
-	\hline
-	\endfirsthead
-	\multicolumn{3}{l}%
-	{\tablename\ \thetable\ -- \textit{Continues...}} \\
-	\hline
-	\textbf{Nr} &  \textbf{Requirement} & \textbf{Importance}  \\
-	\hline
-	\endhead
-	\hline \multicolumn{3}{l}{\textit{Continues...}} \\
-	\endfoot
-	\hline
-	\endlastfoot
-1 & Price & High\\ \hline
-2 & Variety& Middle\\ \hline
-3 & Support& Low\\ \hline
-
-\end{longtable}
-
-We can use variables set in the \textit{main.tex} file to render values like our title (\doctitle) or supervisor names (\textbf{Supervisor}: \supervisor, \textbf{Co-supervisor}: \cosupervisor{}).
