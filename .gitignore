@@ -1,0 +1,13 @@
+/.gtm/
+/.idea/
+*.log
+*.aux
+*.bcf
+*.lof
+*.lot
+*.out
+*.pdf
+*.run.xml
+*.toc
+*.bbl
+*.blg

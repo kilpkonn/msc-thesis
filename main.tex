@@ -1,0 +1,144 @@
+%
+% Tallinn University of Technology - bachelor, master thesis template for LaTeX
+%
+% Public version 1.2
+% 2022 Updated by Karl Janson to match the new formatting guidelines
+%
+% Public Version 1.1
+% 2019 Adjusted by Frank Korving for his Bachelor Thesis, with contributions from Sander Arnus
+%
+% Public version 1.0
+% 2010 - 2013 Thijs Nugteren and Joos Buijs for Master Thesis
+%
+% THIS IS THE MAIN FILE (i.e. compile this file, compiling the others directly won't work)
+%
+
+\documentclass[12pt, a4paper]{report}
+
+% all the other includes etc. are done in the thesis.sty file.
+\usepackage{thesis}
+\usepackage{ifthen}
+\usepackage{datetime}
+
+\renewcommand{\dateseparator}{.}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% NOTE:                                                     %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% * Content chapter files are located in "chapters" folder, %
+%   included using the "chapters_main.tex" file             %
+%                                                           %
+% * Appendices are located in "appendices" folder,          %
+%   included using the "appendices_main.tex" file           %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% The commands below need to be defined.                    %
+% Estonian title page will be generated automatically       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\doctitle}{[Thesis Title]}
+\newcommand{\doctitleEst}{[Lõputöö pealkiri]} % Title in Estonian
+
+% Choose one
+\newcommand{\doctype}{[Bachelor's Thesis / Master's Thesis]}
+
+% Thesis author
+\newcommand{\authorName}{[Author name]}
+\newcommand{\studentcode}{[Student Code]}
+
+% Main supervisor
+\newcommand{\supervisor}{[Supervisor's Name]}
+\newcommand{\supervisortitle}{[Academic degree]}
+
+% Co-supervisor. If you have only one supervisor, leave it as it is
+\newcommand{\cosupervisor}{[Co-Supervisor's Name]}
+\newcommand{\cosupervisortitle}{[Academic degree]}
+
+% Dates. Default to current current date. 
+% You can hard code a value by replacing the parameter with a text
+% Year of publication (defaults to current year).
+\newcommand{\Year}{\the\year{}}
+
+% Signature date (defaults to today).
+\newcommand{\signatureDate}{\ddmmyyyydate\today}
+
+% PDF Metadata
+\newcommand{\version}{0.1 version}
+\newcommand{\keywords}{Important, comma, separated, keywords, applicable, to, your, thesis}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%            DO NOT EDIT BELOW THIS LINE                    %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\university}{TALLINN UNIVERSITY OF TECHNOLOGY}
+\newcommand{\school}{School of Information Technologies}
+\newcommand{\universityEst}{TALLINNA TEHNIKAÜLIKOOL}
+\newcommand{\schoolEst}{Infotehnoloogia teaduskond}
+
+% For Estonian title page generation
+\newcommand{\meEst}[1]
+{
+  \ifthenelse{\equal{#1}{[Author name]}}{[Ees- ja perenimi]}{\authorName}
+}
+
+\newcommand{\studentcodeEst}[1]
+{
+  \ifthenelse{\equal{#1}{[Student Code]}}{[Üliõpilaskood]}{\studentcode}
+}
+
+\newcommand{\doctypeEst}[1]
+{
+  \ifthenelse{\equal{#1}{[Bachelor's Thesis / Master's Thesis]}}{[Bakalaureusetöö / Magistritöö]}{}
+  \ifthenelse{\equal{#1}{Bachelor's Thesis}}{Bakalaureusetöö}{}
+  \ifthenelse{\equal{#1}{Master's Thesis}}{Magistritöö}{}
+}
+
+\newcommand{\supervisorEst}[1]
+{
+  \ifthenelse{\equal{#1}{[Supervisor's Name]}}{[Juhendaja nimi]}{\supervisor}
+}
+\newcommand{\supervisortitleEst}[1]
+{
+  \ifthenelse{\equal{#1}{[Academic degree]}}{[Teaduskraad]}{\supervisortitle}
+}
+
+%
+% PDF settings
+%
+\hypersetup
+{
+    pdfauthor={\authorName},
+    pdfsubject={\doctitle},
+    pdfkeywords={\keywords}
+}
+
+\begin{document}
+
+% Pages like title, auhtor's declaration, etc.
+\input{misc/misc_main}
+
+% Content chapters
+\input{chapters/chapters_main.tex}
+
+\pagebreak
+\phantomsection
+\addcontentsline{toc}{chapter}{References}
+\printbibliography[title=References]
+
+\pagebreak
+\phantomsection
+\appendix
+% \addcontentsline{toc}{chapter}{Appendices}
+% \chapter*{Appendices}
+\renewcommand{\thechapter}{\arabic{chapter}}
+
+% License
+\newcommand{\licenseFootnote}{The non-exclusive licence is not valid during the validity of access restriction indicated in the student's application for restriction on access to the graduation thesis that has been signed by the school's dean, except in case of the university's right to reproduce the thesis for preservation purposes only. If a graduation thesis is based on the joint creative activity of two or more persons and the co-author(s) has/have not granted, by the set deadline, the student defending his/her graduation thesis consent to reproduce and publish the graduation thesis in compliance with clauses 1.1 and 1.2 of the non-exclusive licence, the non-exclusive license shall not be valid for the period.}
+\addcontentsline{toc}{chapter}{Appendix 1 -- Non-Exclusive License for Reproduction and Publication of a Graduation Thesis}\label{chapter:license}
+{\let\clearpage\relax\chapter*{Appendix 1 -- Non-Exclusive License for Reproduction and Publication of a Graduation Thesis\footnote{\licenseFootnote}}}
+\input{misc/license.tex}
+
+% Other appendices
+\input{appendices/appendices_main.tex}
+
+\end{document}

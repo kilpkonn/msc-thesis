@@ -1,0 +1,24 @@
+% Generates the list of supervisors. Do not edit
+\newcommand{\supervisorList}[1]
+{
+  \ifthenelse{\equal{#1}{[Co-Supervisor's Name]}}{\mbox{\supervisor}}{\mbox{\supervisor}~and \mbox{\cosupervisor}}
+}
+
+% The license should be automatically filled, please double check that everything is fine before submitting
+I \authorName
+
+\begin{enumerate}[label*=\arabic*.]
+    \item Grant Tallinn University of Technology free licence (non-exclusive licence) for my thesis ``\doctitle'', supervised by\supervisorList{\cosupervisor}
+    \begin{enumerate}[label*=\arabic*.]
+        \item to be reproduced for the purposes of preservation and electronic publication of the
+graduation thesis, incl. to be entered in the digital collection of the library of Tallinn
+University of Technology until expiry of the term of copyright;
+        \item to be published via the web of Tallinn University of Technology, incl. to be entered in the digital collection of the library of Tallinn University of Technology until expiry of
+the term of copyright.
+    \end{enumerate}
+    \item I am aware that the author also retains the rights specified in clause 1 of the non-exclusive licence.
+    \item I confirm that granting the non-exclusive licence does not infringe other persons' intellectual property rights, the rights arising from the Personal Data Protection Act or rights arising from other legislation.
+\end{enumerate}
+
+% Defaults to current date. If you want a specific date, replace \signaturedate with hardcoded value
+\signatureDate

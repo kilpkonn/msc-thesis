@@ -1,0 +1,77 @@
+% ENGLISH TITLE PAGE
+
+\begin{titlepage}
+\headheight = 57pt
+\footskip = 5pt
+\headsep = 0pt
+
+\centering
+\university\\
+\school
+
+\vspace*{4.5 cm}
+
+\begin{center}
+
+\authorName~~\studentcode\\
+\vspace*{1.5 cm}
+
+\begin{Large}
+\textsc{\textbf{\doctitle}}\\
+\end{Large}
+
+\vspace*{1.5 cm}
+\doctype\\
+\end{center}
+
+\vspace*{0.6 cm}
+
+\begin{flushright}
+Supervisor: \supervisor\\\supervisortitle\\
+\vspace*{0.2 cm}
+
+\ifthenelse{\equal{\cosupervisor}{[Co-Supervisor's Name]}}{}{Co-supervisor: \cosupervisor\\\cosupervisortitle}
+\end{flushright}
+\vfill
+
+Tallinn \Year
+\end{titlepage}
+
+\pagebreak
+
+% ESTONIAN TITLE PAGE
+\begin{titlepage}
+\headheight = 57pt
+\footskip = 5pt
+\headsep = 0pt
+
+\centering
+\universityEst\\
+\schoolEst
+
+\vspace*{4.5 cm}
+
+\begin{center}
+
+\meEst{\authorName}\studentcodeEst{\studentcode}\\
+\vspace*{1.5 cm}
+
+\begin{Large}
+\textsc{\textbf{\doctitleEst}}\\
+\end{Large}
+
+\vspace*{1.5 cm}
+\doctypeEst{\doctype}\\
+\end{center}
+
+\vspace*{0.6 cm}
+
+\begin{flushright}
+Juhendaja: \supervisorEst{\supervisor}\\\supervisortitleEst{\supervisortitle}\\
+\vspace*{0.2 cm}
+\ifthenelse{\equal{\cosupervisor}{[Co-Supervisor's Name]}}{}{Kaasjuhendaja: \cosupervisor\\\cosupervisortitle}
+\end{flushright}
+\vfill
+
+Tallinn \Year
+\end{titlepage}
