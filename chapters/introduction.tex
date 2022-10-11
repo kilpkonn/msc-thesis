@@ -1,14 +1,21 @@
 Most modern text editors provide code autocompletion features that allow the developer to autocomplete the code fragment they are currently typing.
 This means that the developer doesn't have to memorize all the identifiers in scope but rather can rely on knowing part of them.
-The autocomplete feature is also used to speed up writing as the developers doesn't have to type out all the characters when using it.\cite{how-programmers-interact-with-code-generation-models}
-The autocomplete usually works by comparing the partial identifier being written with valid identifiers and it suggest the ones that are the most similar.
-Autocomplete algorithms that use edit based distances usually work with only completing a single token at a time as predicting longer distance relations is not accurate enough.
-Recently, with developments in natural language processing, there have been attempts to use deep learning models that are capable of predicting multiple tokens ahead.\cite{automated-code-generation-using-deeplearning}
-However deep learning models require a lot of training data and computing power to train.
-There have been questions whether it is ethical to use code licensed under strong copyleft licenses to train a model that generates code without any copyleft license.\footnote{Bruce Byfield. The latest challenge to copyleft. URL: https://www.linux-magazine.com/Issues/2021/251/GitHub-s-Copilot}
-However there hasn't been so much popularity in searching for an analytical solution for the problem instead of machine learning based.
+The autocomplete feature is also used to speed up writing as the developers doesn't have to type out all the characters when using it. \cite{how-programmers-interact-with-code-generation-models}
 
-There are some dependently typed functional programming languages such as Agda and Idris that use concept of programs as proofs.
+Most autocomplete algorithms attempt to complete only the current token being typed.
+For single token completion, usually an edit based distance is used to measure the similarity between the unfinished token and available options.
+Edit based distance works quite well for single token completion, however it yields poor result for predicting multiple tokens ahead.
+Snippets are used to complete multiple tokens ahead, but they are predefined rather than context dependent.
+For example in IntelliJ the pattern \textit{psvm} is always expanded to \textit{public static void main(String[] args) \{ \}}. \footnote{Live templates, URL: https://www.jetbrains.com/help/idea/using-live-templates.html}
+
+Recently, with developments in natural language processing, there have been attempts to use deep learning models that are capable of predicting multiple tokens ahead.
+Some deep learning models solve the problem of predicting multiple tokens ahead really well.
+They even allow people with small prior experience in the language to write non-trivial code by exploring the options provided. \cite{automated-code-generation-using-deeplearning}
+However deep learning models require a lot of training data and computing power to train.
+There have been questions whether it is ethical to use code licensed under strong copyleft licenses to train a model that generates code without any copyleft license. \footnote{Bruce Byfield. The latest challenge to copyleft. URL: https://www.linux-magazine.com/Issues/2021/251/GitHub-s-Copilot}
+
+However there is also a different approach to the problem that is analytical rather than machine learning based.
+Some dependently typed functional programming languages such as Agda and Idris that use concept of programs as proofs.
 The idea is to use Curry-Howard isomorphism and write programs as proofs to some mathematical properties defined in types.
 During the proving process the developer is allowed to leave holes in program which can sometimes be auto-filled by term search.
 Later a tool such as Agsy can be used to automatically search for programs that can be used to fill the holes.\cite{tool-for-automatic-theorem-proving-in-agda}
