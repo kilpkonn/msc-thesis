@@ -76,7 +76,7 @@
   
   pagebreak()
 
-  set page(numbering: "1", number-align: center)
+  set page(numbering: "I", number-align: center)
   counter(page).update(1)
 
 
@@ -100,6 +100,13 @@ align(center)[
 
   // Main body.
   set par(justify: true)
+  set page(numbering: "1", number-align: center)
+  counter(page).update(1)
 
   body
+
+  pagebreak()
+  bibliography("references.bib")
 }
+
+#let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
