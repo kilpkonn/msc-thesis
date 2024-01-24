@@ -72,95 +72,198 @@ However, there seems to be a bigger advantage for term search in _exploration mo
 In @how-programmers-interact-with-code-generation-models[p. 10], they also stated that programmers tend to explore only if they have confidence in the tool.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
-= Research Objectives
+== Research Objectives
 The main objective of this thesis is to implement tactics-based term search for a programming language Rust.
 Other objectives include:
-- Evaluating the fittness of tactics on existing large codebases
+- Evaluating the fitness of tactics on existing large codebases
 - Investigating term search usability for autocompletion
 
-#todo("Where should I compare to existing?")
+== Research Questions
+The research questions for this thesis are:
+- How to implement tactic based term search for programming language Rust?
+- How to evealuate the fitness of the term search?
+- How can term serch be used for autocompletion?
+#todo("This and previous subsection seeb kind of same. Should I delete one or...? On the other hand people keep telling we should have both but I've yet to see an example where both exist without duplication.")
 
-= Background / State of the art
-#todo("Is State of the art legit title?")"
+= Background / State of the art (week 1)
+#todo("Is State of the art legit title?")
 
-== Autocomplete
-Should I describe what it is or is it obvious.
-All the very high level items should be well known and specifics depend on implementation.
-
-=== Language Server Protocol
-Or is it irrelavant as this is not something I change?
-On the other hand I guess this should give reader the idea that this work is not exclusive to some exotic IDE.
-
-=== TODO
-Anything else? Everything else feels like legacy now as we have  LSP.
-Perhaps Jetbrains built in stuff is relavant, but why that and not anything else.
-Also very language dependent so hard to say anything meaningful about that.
-
-== Term search
+== Term search (week 2)
 I guess I can take the base from the document I have...
 
-=== Term search in Agda
-Should it have subsections or merge?
+=== Term search in Agda (week 2)
+#todo("Should it have subsections or merge?")
 
-==== Agsy
+==== Agsy (week 2)
 
-==== Some alternatives
+==== Some alternatives (week 2)
 I've found some papers on improved versions of Agsy or alternatives to it.
 I imagine I should compare them and see what is different.
 
-=== Term search in Idris2
+=== Term search in Idris2 (week 3)
 I think there is one and the only term serach implementation in Idris2.
 
-== GitHub Copilot / LLM based autocompletions?
-Should I talk about them?
+== Autocomplete (week 1)
+No deep dive, but some brief overview.
+
+=== Language Server Protocol (week 1)
+Again some high level overview to show some technological limitations / standard solutions.
+
+=== TODO
+#todo("Anything else? Everything else feels like legacy now as we have  LSP.
+Perhaps Jetbrains built in stuff is relavant, but why that and not anything else.
+Also very language dependent so hard to say anything meaningful about that.")
+
+== LLM based autocompletions? (week 4)
+#todo("Should I talk about them?
 They are legit alternative.
 On the other hand I do not really want to go into neural nets and LLMs and not sure if talking about them only on the high level is a good idea.
-Feels like if I point out shortcomings etc someone is like but there is another model that fixes it...
+Feels like if I point out shortcomings etc someone is like but there is another model that fixes it...")
 
-= Methods
-Should this be somewhere before?
+= Methods (week 5)
+#todo("Should this be somewhere before?")
 
-Should I list the implemention here as well? or is this kind of obvious?
+#todo("Should I list the implemention here as well? or is this kind of obvious?")
 
-== Usability
+== Usability (week 5)
 I guess this is explanation and justification what it does not do and why?
-This is gonna be like 5 sentences max here as contents goes to results?
+Latency, incorrect stuff, etc
 
-== Resynthesis
+== Resynthesis (week 5)
 
-=== Chosen metrics
+=== Chosen metrics (week 5)
 
-=== Chosen crates
-Should I just say top5 or also list them out here?
-I guess other option would be to list them in the validation paragraph
+=== Chosen crates (week 5)
+#todo("Should I just say top5 or also list them out here?
+I guess other option would be to list them in the validation paragraph")
 
-== Limitations of the methods
-Or should it be under either of them
+== Limitations of the methods (week 5)
+#todo("Or should it be under either of them")
 
-= Algorithm design
-I guess very general overview here
+= Term search design (week 6)
+Before diving into the technical aspects of term search implementation, we will first explore it by giving
+examples of its usages in `rust-analyzer`. 
+We will first take a look at using it for filling "holes" in the program and later dive into using it for autocompletion.
 
-=== Breath First Search
-Why BFS and limitations of DFS (as the first implementation was DFS).
+== Filling holes
+One of the most known examples of holes in Rust programs is the `todo!()` macro.
+It is a "hole" as it denotes that there should be a program in the future but there isn't now.
+These holes can be filled using term search to search for programs that fit in the hole.
+All the programs generated by term search are valid programs meaning that they compile.
 
-=== Tactics
-Should I measure something per tactic?
-Like how much does it help? There are many combinations so maybe not so good idea.
+Example usages can be found in the snippet below:
+```rs
 
-==== Tactic foo bar baz
+fn main() {
+    let a: i32 = 0;  // Suppose we have a variable a in scope
+    let b: i32 = todo!();  // Term search finds `a`
+    let c: Option<i32> = todo!();  // Finds `Some(a)`, `Some(b)` and `None`
+}
+```
+
+In addition to `todo!()` holes `rust-analyzer` has concept of typed holes.
+They are underscore characters at illegal positions, for example in rvalues.
+From term search perspective they work similarly to `todo!()` macros - term search needs to come up with a term of some type to fill them.
+
+The same example with typed holed instead of `todo!()` macros can be found in the snippet below:
+```rs
+
+fn main() {
+    let a: i32 = 0;  // Suppose we have a variable a in scope
+    let b: i32 = _;  // Term search finds `a`
+    let c: Option<i32> = _;  // Finds `Some(a)`, `Some(b)` and `None`
+}
+```
+
+== Autocomplete
+Term search can also be used to give user "smarter" autocomplete suggestions as he is typing.
+The general idea is the same as in filling holes.
+We attempt to infer the expected type at the cursor.
+If we manage to infer the type then we run the term search in order to get the suggestions.
+
+The main difference between using term search for autocomplete and using it to fill holes is that we've decided to disable borrowchecking when generating
+suggestions for autocompletion.
+This means that not all the suggestions are valid programs and may need some modifications by user.
+
+The rationale for it comes from both technical limitations of the tool as well as different expectations from the user.
+The main techincal limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering
+partial (user is still typing) programs to MIR.
+
+However there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
+We found that it is quite often that when writing the code the user jumps back and forward to fix borrow checking issues.
+#todo("would be good to have reference to something here")
+For example consider the snippet below:
+```rs
+/// A function that takes an argument by value
+fn foo(x: String) { todo!() }
+/// Another function that takes an argument by value
+fn bar(x: String) { todo!() }
+
+fn main() {
+  let my_string = String::new();
+
+  foo(my_string);
+  bar(my_string); // error[E0382]: use of moved value: `my_string`
+}
+```
+The most logical fix for it is to go back to where the function `foo` is called and change the call to `foo(my_string.clone())` so that the variable of `my_string` doesnt get moved.
+However if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
+
+
+=== Implementation (week 6)
+We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
+The main implementation is done in the High-Level Intermediate Representation (HIR) level of abstraction and borrow checking queries are made in MIR level of abstraction.
+
+Term search entry point can be found in `crates/hir/src/term_search/mod.rs` and is named as `term_search`.
+The most important inputs to term search are scope of the program we are performing the search at and target type.
+
+The main algorithm for the term search is based on Breadth-first search (BFS).
+We consider types of all values in scope as starting nodes of the BFS graph.
+Then we use transitions such as type constructors and functions to get from one node of the graph to others.
+The transitions are grouped into tactics to have more clear overview of the algorithm.
+
+The high level overview of the main loop can be seen in the @term-search-main-loop.
+#figure(
+  image("fig/term_search_loop.svg", width: 60%),
+  caption: [
+    Term search main loop
+  ],
+) <term-search-main-loop>
+We start by initializing the lookup table which keeps track of the state.
+It has information of types we have reached, types we've searched for but didn't find and transitions we've used.
+Before entering the main loop we populate the lookup table by running a tactic called `trivial`.
+More information about the `trivial` tactic can be found in @tactic-trivial, but essentially it attempts to fulfill the goal by trying
+variables we have in scope.
+All the types get added to lookup table and can be later used in other tactics.
+After we iteratively expand the search space by attempting different tactics untill we've exceeded the preconfigured search depth.
+We keep iterating after finding the first match as there may be many possible options.
+For example otherwise ve would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has less arguments.
+During every iteration we sequentally attempt different tactics.
+More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different type transformations (type constructors, functions, methods).
+The search space is expanded by adding new types to lookup table.
+Once we've reached the maximum depth we filter out the duplicates and return all the paths that take us to goal type.
+
+
+
+=== Tactics (week 6) <tactics>
+#todo("Should I measure something per tactic?
+Like how much does it help? There are many combinations so maybe not so good idea.")
+
+==== Tactic trivial <tactic-trivial>
 Describe every tactic, what it does, what it does not do and why.
 
-= Results
+= Results (week 7-8)
 
-== Usability
+== Usability (week 8)
 
-== Resynthesis
+== Resynthesis (week 8)
 
-= Future work
-Or after related work?
+= Future work (week 9)
+#todo("Or after related work?")
 
 
-= Related Work
-What here?
-Kind of similar to what is in Backgeround section.
+= Related Work (week 9)
+#todo("What here?
+Kind of similar to what is in Backgeround section.")
+Maybe subsection to state of the art.
 

@@ -97,6 +97,9 @@ align(center)[
   outline(depth: 3, indent: true)
   pagebreak()
 
+  // Abbreviations
+  include("abbreviations.typ")
+
 
   // Main body.
   set par(justify: true)
