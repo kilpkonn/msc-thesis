@@ -210,7 +210,7 @@ The most logical fix for it is to go back to where the function `foo` is called 
 However if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
-=== Implementation (week 6)
+== Implementation (week 6)
 We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
 The main implementation is done in the High-Level Intermediate Representation (HIR) level of abstraction and borrow checking queries are made in MIR level of abstraction.
 
@@ -243,13 +243,60 @@ More on the tactics can be found in @tactics, but all of them attempt to expand 
 The search space is expanded by adding new types to lookup table.
 Once we've reached the maximum depth we filter out the duplicates and return all the paths that take us to goal type.
 
+==== Lookup table <lookup-table>
+The main task for lookup table throughout the algorithm is to keep track of the state.
+The state consists of following components:
+1. Terms reached (grouped by types)
+2. New types reached (since last round)
+3. Definitions used / exhausted.
+4. Types queried, but not reached
 
+Terms reached serves the most obvious purpose of them.
+It keeps track of the search space we have already covered (visited types) and allows quering terms for time in `O(1)` complexity.
+Important thing to note here that it also performs transformation of taking a reference if we query for reference type.
+This is only to keep the implementation simple and memory footprint low.
+Otherwise having separate tactic for taking a reference of the type would be preferred.
+
+New types reached keeps track of new types added to terms reached so that we can iterate only over them in some tactics to speed up the execution.
+
+Definitions used serves also only purpose for speeding up the algorithm by avoiding definitions that have already been used.
+#todo("What to do with type transformations that take generics. I guess ignore now, but throwing them away decreases available search place")
+
+Types queried keeps track of all the types we have tried to look up from terms reached but not found.
+They are used in static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
+This is another optimization for speed described in @tactic-static-method.
 
 === Tactics (week 6) <tactics>
+Tactics are used to expand the search space for the term serch algorithm.
+All the tactics are applied sequentially.
+
+All the tactic function signatures follow the simplified function signature shown in the snippet below
+```rs
+fn tactic_name(
+    ctx: &TermSearchCtx,
+    defs: &HashSet<ScopeDef>,
+    lookup: &mut LookupTable,
+) -> impl Iterator<Item = Expr>
+```
+All the tactics take in the context of term search, definitions in scope and a lookup table and the tactics produce an iterator that yields expressions that unify with the goal type (provided by the context).
+The context encampsulates semantics of the program, configuration for the term search and the goal type.
+Definitions are all the definitions in scope that can be used by tactics.
+Some of the examples of definitions are local variables, functions, constants and macros.
+The definitions in scope can also be derived from the context, but they are kept track of sepparately to speed up the execution by filtering out definitions that have already been used.
+Keeping track of them separately also allows quering them only once as the do not change throughout the execution of the algorithm.
+Lookup table is used to keep track of the state of the term search as described in @lookup-table.
+The iterator produced by tactics is allowed to have duplicates as filtering of them is done at the end of the algorithm.
+We decided to filter at the end because it is hard to guarantee that different tactics do not produce same elements, but without the guarantee of uniqueness there would have to be another round of deduplication nevertheless.
+
+
+
 #todo("Should I measure something per tactic?
 Like how much does it help? There are many combinations so maybe not so good idea.")
 
-==== Tactic trivial <tactic-trivial>
+==== Tactic "trivial" <tactic-trivial>
+Describe every tactic, what it does, what it does not do and why.
+
+==== Tactic "static method" <tactic-static-method>
 Describe every tactic, what it does, what it does not do and why.
 
 = Results (week 7-8)
