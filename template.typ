@@ -18,7 +18,16 @@
   set document(author: doc_authors, title: title)
   set text(font: "New Computer Modern", lang: "en")
   show math.equation: set text(weight: 400)
+
+  // Heading numbering
   set heading(numbering: "1.1")
+  show heading: it => {
+    if (it.level > 3){
+        block(it.body)
+    } else {
+        block(counter(heading).display() + " " + it.body)
+    }
+  }
 
   // Title page.
   // The page can contain a logo if you pass one with `logo: "logo.png"`.

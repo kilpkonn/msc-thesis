@@ -294,7 +294,32 @@ We decided to filter at the end because it is hard to guarantee that different t
 Like how much does it help? There are many combinations so maybe not so good idea.")
 
 ==== Tactic "trivial" <tactic-trivial>
-Describe every tactic, what it does, what it does not do and why.
+Tactic called "trivial" is one of the most trivial tactics we have.
+It only attempts items we have in scope and does not perform any type transitions.
+The items in scope contains:
+1. Constants
+2. Static items
+3. Generic parameters (constant generics#footnote(link("https://doc.rust-lang.org/reference/items/generics.html")))
+4. Local items
+
+As this tactic only depends on the values in scope we don't have to call it every round.
+In fact we only call it once before any of the other tactics to populate the lookup table with the values in scope.
+
+==== Tactic "famous types"
+"Famous types" is another rather trivial tactic.
+The idea of the tactic is to attempt values of well known types.
+Types and values are:
+1. `true` and `false` of type bool
+2. `()` of type unit
+Whilst we usually try to avoid creating values out of the blue we make an exception here.
+The rationale of making types we generate depend on types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
+Suggesting something else can be considered distracting.
+However we find these values to be common enough to also suggest them.
+Another reson is that we experienced our algorithm "cheating" around depending on values anyway.
+It constructed expressions like `None.is_none()`, `None.is_some()` for `true`/`false` which are valid but all most never what the user wants.
+For unit types it uses any function that has "no return type" meaning it returns unit type.
+There is all most always at least one that cind of function in scope but suggesting it is wrong more often than suggesting `()`.
+
 
 ==== Tactic "static method" <tactic-static-method>
 Describe every tactic, what it does, what it does not do and why.
