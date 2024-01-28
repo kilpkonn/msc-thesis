@@ -321,8 +321,80 @@ For unit types it uses any function that has "no return type" meaning it returns
 There is all most always at least one that cind of function in scope but suggesting it is wrong more often than suggesting `()`.
 
 
+==== Tactic "type constructor"
+"Type constructor" is first of our tactics that takes us from some types to another types.
+The idea is to try type constructors for types we have in scope.
+This includes both sum and product types (`enum` and `struct` for rust).
+The tactic ignores all types that contain constant generics as we couldn't find a way to efficiently come up with constant values to try.
+Trying anything doesn't work as the search space grows so big that it doesn't fit into memory.
+Another performance optimization for this tactic is that it only attempts types with generics if they directly unify with goal type.
+This mean that `Some(inner)` is possible but `Some(Some(inner))` is not possible outcome of our algorithm.
+This decision was made to disallow exponential growth of search space.
+
+The tactic also avoids types that have unstable generic parameters that do not have default values.
+Unstable generics with default values are allowed as many of the well known types have unstable generic parameters that have default values.
+For example the definition for `Vec` type in Rust is following:
+```rs 
+struct Vec<T, #[unstable] A: Allocator = Global>
+```
+As the users normally avoid providing generics arguments that have default values we also decided to avoid filling them.
+This means that for the `Vec` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
+
+==== Tactic "free function"
+"Free function" is a tactic that tries different functions in scope.
+It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
+To speed up the tactic we've decided to filter out all of the functions that have non-default generic parameters.
+By trial and error we've found that functions that have generic parameters seem to be not that common.
+However attempting the function with every type we've reached slows the algorithm down quite a bit.
+At the worst case the slowdown is exponential again.
+As described in @tactics the tactic avoids functions that return types that contain references.
+However we do allow function arguments to take items by shared references.
+
+==== Tactic "impl method"
+"Impl method" is a tactic that attempts functions that have `self` parameter.
+This includes both trait methods as well as methods implemented directly on type.
+Similarly to "free function" tactic it also ignores functions that have non-default generic parameters for the same reasons.
+Only difference is that now both the function and the `impl` block may contain generics.
+We treat them the same, meaning we ignore the function if there are any generic parameters present.
+
+Another performace tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not
+present in the last round.
+This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costy operation.
+However this optimization does reduce search space as it may happen that we can use some method later when we have reached more types and covered a type that we need for an argument of the function.
+
+One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the self param is of the same type.
+This is because Rust allows following method signatures and also uses them in standard library#footnote(link("https://doc.rust-lang.org/src/core/option.rs.html#715")).
+```rs
+impl<T> Option<T> {
+    pub fn as_pin_ref(self: Pin<&Self>) -> Option<Pin<&T>> { /* ... */ }
+}
+```
+As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
+However the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
+
+We've also decided to ignore all the methods that return the same type as the type of `self` paremeter.
+This is because they do not take us any closer to goal type and we've considered it unhelpful to show user all the possible options.
+I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
+
+==== Tactic "struct projection"
+"Struct projection" is a simple tactic that attempts all field accesses of struct.
+As a single round it only goes one level deep, but with multiple round we cover also all the fields of substructs.
+
+This tactic highly benefitted from the use of BFS over DFS as the implementation for accessing all the fields of parent struct is rather trivial and with multiple rounds we get the full coverage including substruct fields.
+With DFS the implementation was much more cumbersome as simple recurring on all the fields leaves out the the fields themselves.
+As a result the implementation for DFS was about 2 times longer than the implementation for BFS.
+
+As a performace optimization we only run this tactic on every type once.
+For this tactic this optimization does not reduce the total search space covered as accessing the fields doesn't depend on rest of the search space covered.
+
 ==== Tactic "static method" <tactic-static-method>
-Describe every tactic, what it does, what it does not do and why.
+"Static method" tactic attempts static methods of `impl` blocks, that is methods that are associated with either type or trait, but do not take `self` parameter.
+One of the most common examples of static methods are `Vec::new()` and `Default::default()`.
+
+As a performance optimization we qurey the `impl` block for types that we have previously queried from the lookup table but not found.
+This is because we figured that the most common usecase for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
+Similarly to "Impl method" tactic we ignore all the methods that have more than 1 generic parameter either at the `impl` or the method level.
+The motivation is the same as for the "Impl method" tactic but as the static methods are more rare and we wanthed the tactic to also work on container types such as `Vec<T>` we decided to raise the thresold to 1.
 
 = Results (week 7-8)
 
