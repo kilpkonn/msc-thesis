@@ -164,6 +164,7 @@ fn main() {
 In addition to `todo!()` holes `rust-analyzer` has concept of typed holes.
 They are underscore characters at illegal positions, for example in rvalues.
 From term search perspective they work similarly to `todo!()` macros - term search needs to come up with a term of some type to fill them.
+#todo("what ra has before")
 
 The same example with typed holed instead of `todo!()` macros can be found in the snippet below:
 ```rs
@@ -176,18 +177,17 @@ fn main() {
 ```
 
 == Autocomplete
-Term search can also be used to give user "smarter" autocomplete suggestions as he is typing.
+Term search can also be used to give user "smarter" autocomplete suggestions as they are typing.
+#todo("he -> they")
 The general idea is the same as in filling holes.
 We attempt to infer the expected type at the cursor.
 If we manage to infer the type then we run the term search in order to get the suggestions.
 
-The main difference between using term search for autocomplete and using it to fill holes is that we've decided to disable borrowchecking when generating
-suggestions for autocompletion.
+The main difference between using term search for autocomplete and using it to fill holes is that we've decided to disable borrowchecking when generating suggestions for autocompletion.
 This means that not all the suggestions are valid programs and may need some modifications by user.
 
 The rationale for it comes from both technical limitations of the tool as well as different expectations from the user.
-The main techincal limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering
-partial (user is still typing) programs to MIR.
+The main techincal limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering partial (user is still typing) programs to MIR.
 
 However there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
 We found that it is quite often that when writing the code the user jumps back and forward to fix borrow checking issues.
@@ -206,11 +206,14 @@ fn main() {
   bar(my_string); // error[E0382]: use of moved value: `my_string`
 }
 ```
+#todo("Indicate cursor position somehow")
+#todo("Explain the error, sepparate section")
 The most logical fix for it is to go back to where the function `foo` is called and change the call to `foo(my_string.clone())` so that the variable of `my_string` doesnt get moved.
 However if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
 == Implementation (week 6)
+#todo("What happens in ra outside term search, what are hir, mir etc. how the term search is triggered")
 We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
 The main implementation is done in the High-Level Intermediate Representation (HIR) level of abstraction and borrow checking queries are made in MIR level of abstraction.
 
@@ -229,11 +232,13 @@ The high level overview of the main loop can be seen in the @term-search-main-lo
     Term search main loop
   ],
 ) <term-search-main-loop>
+
+#todo("DFS stuff")
 We start by initializing the lookup table which keeps track of the state.
-It has information of types we have reached, types we've searched for but didn't find and transitions we've used.
+It has information of types we have reached, transitions we've taken and types we've searched for but didn't find and transitions we've used.
 Before entering the main loop we populate the lookup table by running a tactic called `trivial`.
-More information about the `trivial` tactic can be found in @tactic-trivial, but essentially it attempts to fulfill the goal by trying
-variables we have in scope.
+Essentially it attempts to fulfill the goal by trying variables we have in scope.
+More information about the `trivial` tactic can be found in @tactic-trivial.
 All the types get added to lookup table and can be later used in other tactics.
 After we iteratively expand the search space by attempting different tactics untill we've exceeded the preconfigured search depth.
 We keep iterating after finding the first match as there may be many possible options.
@@ -241,14 +246,26 @@ For example otherwise ve would never get suggestions for `Option::Some(..)` as `
 During every iteration we sequentally attempt different tactics.
 More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different type transformations (type constructors, functions, methods).
 The search space is expanded by adding new types to lookup table.
-Once we've reached the maximum depth we filter out the duplicates and return all the paths that take us to goal type.
+Example for it can be seen in @term-search-state-expansion.
+
+#figure(
+  image("fig/state_expansion.svg", width: 60%),
+  caption: [
+    Term search state expansion
+  ],
+) <term-search-state-expansion>
+We start with variables `a` of type `A` and `b` of type `B`.
+In the first iteration we are able to use function $f: A -> C$ on `a` and get something of type `C`.
+The iteration after that we are able to use $g: C times B -> D$ and produce something of type `D`.
+
+Once we've reached the maximum depth we take all the elements that unify with the goal type and filter out the duplicates returning all the unique paths that take us to goal type.
 
 ==== Lookup table <lookup-table>
 The main task for lookup table throughout the algorithm is to keep track of the state.
 The state consists of following components:
 1. Terms reached (grouped by types)
-2. New types reached (since last round)
-3. Definitions used / exhausted.
+2. New types reached (since last iteration)
+3. Definitions used / exhausted (for example functions applied)
 4. Types queried, but not reached
 
 Terms reached serves the most obvious purpose of them.
@@ -268,7 +285,10 @@ This is another optimization for speed described in @tactic-static-method.
 
 === Tactics (week 6) <tactics>
 Tactics are used to expand the search space for the term serch algorithm.
-All the tactics are applied sequentially.
+All the tactics are applied sequentially which causes a phase ordering problem.
+Some tactics may depend on results of others.
+However for the order of tactics it can be fixed by running the algorithm for more iterations.
+Note that some tactics also use heuristics for performace optimization and these optimizations also suffer from the phase ordering problem but they can not be fixed by running the algorithm for more iterations.
 
 All the tactic function signatures follow the simplified function signature shown in the snippet below
 ```rs
@@ -295,14 +315,14 @@ Like how much does it help? There are many combinations so maybe not so good ide
 
 ==== Tactic "trivial" <tactic-trivial>
 Tactic called "trivial" is one of the most trivial tactics we have.
-It only attempts items we have in scope and does not perform any type transitions.
+It only attempts items we have in scope and does not perform any type transitions. #todo("what are type transitions")
 The items in scope contains:
 1. Constants
 2. Static items
 3. Generic parameters (constant generics#footnote(link("https://doc.rust-lang.org/reference/items/generics.html")))
 4. Local items
 
-As this tactic only depends on the values in scope we don't have to call it every round.
+As this tactic only depends on the values in scope we don't have to call it every iteration.
 In fact we only call it once before any of the other tactics to populate the lookup table with the values in scope.
 
 ==== Tactic "famous types"
@@ -345,6 +365,8 @@ This means that for the `Vec` type above the algorithm only tries different type
 It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
 To speed up the tactic we've decided to filter out all of the functions that have non-default generic parameters.
 By trial and error we've found that functions that have generic parameters seem to be not that common.
+#todo("Get some numbers here")
+
 However attempting the function with every type we've reached slows the algorithm down quite a bit.
 At the worst case the slowdown is exponential again.
 As described in @tactics the tactic avoids functions that return types that contain references.
@@ -358,12 +380,15 @@ Only difference is that now both the function and the `impl` block may contain g
 We treat them the same, meaning we ignore the function if there are any generic parameters present.
 
 Another performace tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not
-present in the last round.
+present in the last iteration.
 This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costy operation.
-However this optimization does reduce search space as it may happen that we can use some method later when we have reached more types and covered a type that we need for an argument of the function.
+However this optimization does suffer from the phase ordering problem.
+For example it may happen that we can use some method from the `impl` block later when we have reached more types and covered a type that we need for an argument of the function.
 
-One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the self param is of the same type.
-This is because Rust allows following method signatures and also uses them in standard library#footnote(link("https://doc.rust-lang.org/src/core/option.rs.html#715")).
+One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
+This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
+These types include but are not limited to `Box<S>`, `Rc<S>`, `Arc<S>`, `Pin<S>`.
+For example there is a following method signatures for `Option<T>` type in standard library#footnote(link("https://doc.rust-lang.org/src/core/option.rs.html#715")).
 ```rs
 impl<T> Option<T> {
     pub fn as_pin_ref(self: Pin<&Self>) -> Option<Pin<&T>> { /* ... */ }
@@ -374,13 +399,13 @@ However the type of `self` parameter in the method is `Pin<&Self>` which means t
 
 We've also decided to ignore all the methods that return the same type as the type of `self` paremeter.
 This is because they do not take us any closer to goal type and we've considered it unhelpful to show user all the possible options.
-I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
+I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for. #todo("builder won't work, but here re good arguments for not to work anyway, order, lack of info")
 
 ==== Tactic "struct projection"
 "Struct projection" is a simple tactic that attempts all field accesses of struct.
-As a single round it only goes one level deep, but with multiple round we cover also all the fields of substructs.
+In a single iteration it only goes one level deep, but with multiple iterations we cover also all the fields of substructs.
 
-This tactic highly benefitted from the use of BFS over DFS as the implementation for accessing all the fields of parent struct is rather trivial and with multiple rounds we get the full coverage including substruct fields.
+This tactic highly benefitted from the use of BFS over DFS as the implementation for accessing all the fields of parent struct is rather trivial and with multiple iterations we get the full coverage including substruct fields.
 With DFS the implementation was much more cumbersome as simple recurring on all the fields leaves out the the fields themselves.
 As a result the implementation for DFS was about 2 times longer than the implementation for BFS.
 
@@ -408,6 +433,6 @@ The motivation is the same as for the "Impl method" tactic but as the static met
 
 = Related Work (week 9)
 #todo("What here?
-Kind of similar to what is in Backgeround section.")
+Kind of similar to what is in Background section.")
 Maybe subsection to state of the art.
 
