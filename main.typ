@@ -207,6 +207,15 @@ However they noted in @mimer that the costs for the tactics need to be tweaked i
 === Term search in Idris2 (week 3)
 I think there is one and the only term serach implementation in Idris2.
 
+=== Term search in Haskell
+#todo("Standard ML has RedPRL that is also based on same paper, so grouping by language seems not right for this.")
+Wingman#footnote(link("https://hackage.haskell.org/package/hls-tactics-plugin-1.6.2.0")) is a plugin for Haskell Language Server that provides term search.
+For term search Wingman uses library called Refinery#footnote(link("https://github.com/TOTBWF/refinery")) that is based on @algebraic-foundations-of-proof-refinement.
+Refinery differes from the tools descibed above by building the main algorithm around BFS rather than DFS.
+The idea is to run all tactics on a subgoal repeatedly.
+#todo("Lots of complicated stuff in the article, seem irrelavant as well so idk what to do with it... BFS is important tho")
+
+
 === Term search in Elm with Smyth
 Smyth#footnote(link("https://uchicago-pl.github.io/smyth/")) is a systen for program sketching in a typed functional language, approximately Elm.
 In @smyth they describe that it uses evaluation of ordinary assertions that give rise to input-output examples, which are then used to guide the search to complete the holes.
