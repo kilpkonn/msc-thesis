@@ -29,10 +29,10 @@
 = Introduction
 Rust#footnote(link("https://www.rust-lang.org/")) is a new programming language for developing reliable and efficient systems.
 The language was originally created by Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
-Rust has expressive type system that guarantees no undefined behaviour even though it has reference types.
+Rust has expressive type system that guarantees no undefined behavior even though it has reference types.
 This is done by rejecting all programs that may contain undefined behavior during the compilation.
 We will call the set of programs that can be compiled valid, as they are guaranteed to not cause undefined behavior.
-Many programming languages with type systems that guarantee the progam to be valid have tools that help the programmer with term search i.e. by searching for valid programs (also called expressions in Rust) that satisfy the type system.
+Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (also called expressions in Rust) that satisfy the type system.
 Rust, however, does not have tools for term search, although the type system makes it a perfect candidate for one.
 Consider the following Rust program:
 ```rs
@@ -81,8 +81,8 @@ Other objectives include:
 == Research Questions
 The research questions for this thesis are:
 - How to implement tactic based term search for programming language Rust?
-- How to evealuate the fitness of the term search?
-- How can term serch be used for autocompletion?
+- How to evaluate the fitness of the term search?
+- How can term search be used for autocompletion?
 #todo("This and previous subsection seeb kind of same. Should I delete one or...? On the other hand people keep telling we should have both but I've yet to see an example where both exist without duplication.")
 
 = Background / State of the art (week 1)
@@ -94,7 +94,6 @@ It is the basic idea in proof assistants such as Coq and Isabelle and also in de
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
 
 For example, if we have addition on natural numbers defined as following Idris code:
-// Todo rename add, say idris
 ```hs
 add : Nat -> Nat -> Nat
 add Z     m = m
@@ -112,23 +111,23 @@ However, if there are more steps required, writing proofs manually gets cumberso
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
 
 === Term search in Agda
-Agda is one of the "more famous" languages that has that has tools leveraging term search.
+Agda is one of the "more famous" languages that has tools leveraging term search.
 In @dependently-typed-programming-in-agda they describe Agda as a dependently typed functional programming language and also a proof assistant.
 We'll be more interested in the proof assistants as they are the ones leveraging the term search to help the programmer with coming up with proofs. 
-As there are many alternatives we've picked two that seem the most popular or relavant for our use case.
-We chose Agsy as this is the well known tool that comes with Agda and Mimer that atemptes to improve on Agsy.
+As there are many alternatives we've picked two that seem the most popular or relevant for our use case.
+We chose Agsy as this is the well known tool that comes with Agda and Mimer that attempts to improve on Agsy.
 
 ==== Agsy <agsy>
 Agsy is the term search based proof assistant that comes with Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#footnote(link("https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html")).
 
-We will be looking at the high level implementation of the algorithm used by Agsy for term search desvribed in @tool-for-automated-theorem-proving-in-agda.
+We will be looking at the high level implementation of the algorithm used by Agsy for term search described in @tool-for-automated-theorem-proving-in-agda.
 In @tool-for-automated-theorem-proving-in-agda they say that in Agsy search space is explored using iterated deepening.
 This is necessary since a problem may in general be refined to infinite depth.
 The proof search can have multiple branches with subproblems.
 In some cases we need to solve one subproblem to solve the "top level" problem.
 This is the case when we try different approaches to come up with a term.
-For example we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
+For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
 #figure(
   image("fig/agsy_transformation_branches.svg", width: 60%),
@@ -154,7 +153,7 @@ Solution collections (`SolColl`) are used to keep track of solutions for particu
 
 The intuition for the tool is following:
 1. Given a problem we create set of possible subproblem collections out of which we need to solve one as show in @agsy_transformation_branches.
-2. We attempt to solve all the subproblem collections by recursevely solving all the problems in collection
+2. We attempt to solve all the subproblem collections by recursively solving all the problems in collection
 3. If we manage to solve all the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
 
 The algorithm itself is based around DFS and consists of two subfunctions.
@@ -205,13 +204,13 @@ In the end we return the set of all possible solutions.
 ]
 With `searchColl` we attempt to solve problem collection by finding .
 To do that we iterate over all the problems and attempt to solve them by calling `search` function.
-If we cannot find solution for a problem in problem colloection we discard the whole problem collection by returning empty solution immideately.
+If we cannot find solution for a problem in problem collection we discard the whole problem collection by returning empty solution immediately.
 This is because problems in the problem collection need to be solved for the solution to hold.
 In case we find solutions to the problem we add them to solutions collection.
 In the end we return solutions collection.
 
 As described above the algorithm is built around DFS.
-However the authors of @tool-for-automated-theorem-proving-in-agda note that while the performace of the tool is good enough to be useful it performs poorly on larger problems.
+However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful it performs poorly on larger problems.
 They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not suffer from automatic memory management.
 It is also noted that there seems to be many false subproblems that can never be solved so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems potentially faster to reduce the search space.
 
@@ -226,9 +225,9 @@ The main differences to original Agsy implementation are:
 2. Mimer guides the search with branch costs
 
 Branch costs is a heuristic to hopefully guide the search to an answer faster that randomly picking branches.
-In @mimer they gave lower cost to branches that contain more local variables and less external definitions.
+In @mimer, they gave lower cost to branches that contain more local variables and less external definitions.
 The rationale for that is that it is more likely that user wishes to use variables from local scope than from outside of it.
-However they noted in @mimer that the costs for the tactics need to be tweaked in future work as this was not their focus.
+However, they noted in @mimer that the costs for the tactics need to be tweaked in future work as this was not their focus.
 #todo("Read about paper")
 
 === Term search in Standard ML <standardml>
@@ -236,7 +235,7 @@ In @algebraic-foundations-of-proof-refinement they implemented term search for S
 
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subgoals in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
-The telescope is required to work on typesystems with dependent types.
+The telescope is required to work on type systems with dependent types.
 For typesystems without dependent types ordinary `List` data structure can be used as there are no relations between subgoals.
 
 In @algebraic-foundations-of-proof-refinement they suggest to use BFS instead of DFS to more effectively propagete substitutions to subgoals in telescope.
@@ -244,7 +243,7 @@ The idea is to run all the tactics once on each subgoal, repeatedly.
 This way substitutions propagate along the subgoals telescope after every iteration.
 In the case of DFS we would propagate the constraints only after exhausting the search on the first subgoal in the sequence.
 
-In practice the Refinery uses interleaving of subgoals generated by tactics to acieve something similar.
+In practice the Refinery uses interleaving of subgoals generated by tactics to achieve something similar.
 Consider the example where we are searching for a pair of list of some type and a function of that type to `Integer` (`?goal :: ([a], a -> Integer)`).
 We have `bar` of type `Bar` in scope as well as functions `mk_foo` (creates `Foo` from `Bar`) `mk_list` (create list for type) and `bar_to_int` that takes us from type `Bar` to `Integer`.
 ```hs
@@ -259,15 +258,15 @@ First we can split the goal of finding a pair to two subgoals `[?subgoal1 : [a],
 This is the same step for BFS and DFS as there is not much else to do with `?goal`.
 
 Now we are at where the differences between DFS and BFS start playing out.
-First lets look at how the DFS would handle the goals.
+First let's look at how the DFS would handle the goals.
 First we focus on the `?subgoal1`.
 We can use `mk_list_foo` to transform the goal to finding of something of type `Foo`.
-Now we have following goals `[?subgoal3 : Foo, ?subgoal2 : a -> Integer]`.
+Now we have the following goals `[?subgoal3 : Foo, ?subgoal2 : a -> Integer]`.
 Note that although the `a` in the `?subgoal2` has to be of type `Foo` we do not propagate this knowledge there yet as we are focusing on `?subgoal3`.
 We use `mk_foo` to create new goal `?subgoal4 : Bar` which we solve by providing `bar`.
 Now we propagate the constraints to the remaining subgoals, `?subgoal2` in this example.
 This means that the second subgoal becomes `?subgoal2 : Foo -> Integer`.
-However we cannot find anything of type `Foo -> Integer` so we have to revert all the way to `?subgoal1`.
+However, we cannot find anything of type `Foo -> Integer` so we have to revert all the way to `?subgoal1`.
 This time we use `mk_list_bar` to fill `?subgoal1` meaning that the remaining subgoal becomes `?subgoal2 : Bar -> Integer`.
 We can fill it by providing `bar_to_int`.
 As there are no more subgoals remaining the problem is solved.
@@ -284,7 +283,7 @@ An overview of the steps we took can be seen in the snippet below.
 (mk_list_bar(bar), bar_to_int)
 ```
 
-Now lets take a look at the algorithm that uses BFS for to handle the goals.
+Now let's take a look at the algorithm that uses BFS for to handle the goals.
 The first iteration is the same as described above after which we have two subgoals `[?subgoal1, ?subgoal2]` to fill.
 Once again we use `mk_list_foo` to transform the first subgoal to `?subgoal3 : Foo`.
 But this time we also propagate the information to other subgoals so that we constrain the `?subgoal2` to `Foo -> Integer`.
@@ -293,7 +292,7 @@ We find `bar` for the first goal, but not anything for the second goal.
 This means we have to revert to `?subgoal1`.
 Note that at this point we still have `?subgoal4` pending, meaning we have not yet exhausted the search in current "branch".
 Reverting now means that we save some work that was guaranteed to have no effect on the overall outcome.
-Having reverted back to `?subgoal1` we replace it with `mk_list_bar` transforming the goal to `?subgoal5 : Bar` and constraining the other subgoal to 
+Having reverted to `?subgoal1` we replace it with `mk_list_bar` transforming the goal to `?subgoal5 : Bar` and constraining the other subgoal to 
 `?subgoal2 : Bar -> Integer`.
 In the next iteration we can find solutions for both of the goals.
 ```hs
@@ -306,18 +305,18 @@ In the next iteration we can find solutions for both of the goals.
 ```
 
 In the example above we see that BFS and propagating constraints to other subgoals can help us cut some search branches to speed up the search.
-However this is not always the case.
+However, this is not always the case.
 BFS is faster only if we manage to cut the proof before exhausting the search at the current goal.
 In case the first goal we focus at cannot be filled DFS is faster as it doesn't do any work on filling other goals.
 
 === Term search in Haskell
 Wingman#footnote(link("https://hackage.haskell.org/package/hls-tactics-plugin-1.6.2.0")) is a plugin for Haskell Language Server that provides term search.
-For term search Wingman uses library called Refinery#footnote(link("https://github.com/TOTBWF/refinery")) that is also based on @algebraic-foundations-of-proof-refinement similarly to the Standar ML tool we described in @standardml.
+For term search Wingman uses library called Refinery#footnote(link("https://github.com/TOTBWF/refinery")) that is also based on @algebraic-foundations-of-proof-refinement similarly to the Standard ML tool we described in @standardml.
 
 As we described the core ideas in @standardml we won't cover them here.
-However we will take a look at some implementation details.
+However, we will take a look at some implementation details.
 
-The most interesting implementation detail for us is how BFS is acieved.
+The most interesting implementation detail for us is how BFS is achieved.
 Refinery uses interleaving of subgoal generated by each tactic to get the desired effect.
 Let's look at the example to get a better idea what is going on.
 Suppose that at some point of the term search we have three pending subgoals: `[?sg1, ?sg2, ?sg3]` and we have some thactic that prduces two new subgoals when refining `?sg1`.
@@ -335,7 +334,7 @@ Note that there is also a way to insert the new goals to back of the goals list 
 ```
 However in Refinery they have decided to go with interleaving as it works well with tactics that produce infinite amounts of new holes due to not making any new process.
 Note that this works especially well because of the lazy evaluation in Haskell.
-In case of eager evealuation the execution would still halt on producing all the subgoals so interliving would have now effect.
+In case of eager evaluation the execution would still halt on producing all the subgoals, so interlining would have now effect.
 
 
 === Term search in Idris2
@@ -344,7 +343,7 @@ Internally the compiler makes use of a small language they call TT.
 In @idris2-design-and-implementation they say that TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
 The language is kept as small as reasonably possible to make working with it easier.
 
-As the the term search algorithm also works on TT we'll take a closer look at it.
+As the term search algorithm also works on TT we'll take a closer look at it.
 More precise we'll look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
 The guess binding is similar to a let binding, but without any reduction rules for guess bindings.
 In @idris2-design-and-implementation they note that using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
@@ -385,7 +384,7 @@ All tactics run relative to context which contains all the bindings in scope.
 They take term (that is hole or guess binding) and produce new term that is of suitable type.
 Tactics are also allowed to have side effects that modify proof state.
 
-Next lets take a look at the primitive building blocks that are used by tactics to create and fill holes.
+Next let's take a look at the primitive building blocks that are used by tactics to create and fill holes.
 
 Operation `claim` is used to create new holes in the context of current hole.
 The operation creates new hole binding to the head of the holes queue.
@@ -397,14 +396,14 @@ It also tries to fill other goals by attempting to unifying `v` with the types o
 Note that the `fill` operation does not destroy the hole yet as the guess binding it created is allowed to have more holes in it.
 
 To destroy holes, operation `solve` is used.
-It operates on guesss bindings and checks if if they contain any more holes.
+It operates on guess bindings and checks if they contain any more holes.
 If they don't, then the hole is destroyed and substituted with the value from guess binder.
 
 The two step process, with `fill` followed by `solve`, allows the elaborator to work safely with incomplete terms.
 This way incomplete terms do not affect other holes (by adding extra constraints) until we know we can solve them.
 Once a term is complete in a guess binding, it may be substituted into the scope of the binding safely.
 In each of these tactics, if any step fails, or the term in focus does not solve the entire tactic fails.
-This means that is roughly follows the DFS aproach described in @standardml.
+This means that it roughly follows the DFS approach described in @standardml.
 
 #todo("p22 & p18, what is difference between converts and unifies? why not converts => unifies?")
 #todo("p22 I think I'm missing something of how binders work or why are they needed")
@@ -412,22 +411,22 @@ This means that is roughly follows the DFS aproach described in @standardml.
 
 
 === Term search in Elm with Smyth
-Smyth#footnote(link("https://uchicago-pl.github.io/smyth/")) is a systen for program sketching in a typed functional language, approximately Elm.
-In @smyth they describe that it uses evaluation of ordinary assertions that give rise to input-output examples, which are then used to guide the search to complete the holes.
+Smyth#footnote(link("https://uchicago-pl.github.io/smyth/")) is a system for program sketching in a typed functional language, approximately Elm.
+In @smyth, they describe that it uses evaluation of ordinary assertions that give rise to input-output examples, which are then used to guide the search to complete the holes.
 Symth uses type and example directed synthesis as opposed to other tools in Agda only using type guided search for terms.
 The general idea is to search for terms that satisfy the goal type as well as example outputs for the term given in assertions.
 It is also based on a DFS, but is optimized for maximal use memoization.
 The idea is to maximize the amount of terms that have same typing environment and can therefore be reused.
 This is done by factorizing the terms into smaller terms that carry less context with them.
-Smyth has many other opimizations but they focus on using the information from examples and are therefore not interesting for us as they focus on optimizing the handling of data provided by examples.
+Smyth has many other optimizations, but they focus on using the information from examples and are therefore not interesting for us as they focus on optimizing the handling of data provided by examples.
 
 == Program synthesis in Rust
-Russol is a proof of concept tool to syntesize Rust programs from both functiond declarations as well as pre- and postconditions.
-It is based on separation logic as described in @rust-program-synthesis and it is the first synthesizer for Rust code from functional correctness specifications.
+RusSol is a proof of concept tool to synthesize Rust programs from both functiond declarations and pre- and postconditions.
+It is based on separation logic as described in @rust-program-synthesis, and it is the first synthesizer for Rust code from functional correctness specifications.
 Internally it uses SuSLik’s general-purpose proof search framework. #footnote(link("https://github.com/JonasAlaif/suslik")).
-Russol itself is implemented as a extension to rustc, the official rust compiler.
-It has sepparate command line tool, but internally it reuses many parts of the compiler.
-Although the main use case for Russol is quite different from our use case it shared a lot of common gound.
+RusSol itself is implemented as a extension to rustc, the official rust compiler.
+It has separate command line tool, but internally it reuses many parts of the compiler.
+Although the main use case for RusSol is quite different from our use case it shared a lot of common ground.
 
 The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the `todo!()`.
 ```rs
@@ -438,7 +437,7 @@ fn foo(x: &i32, y: bool) -> Option<i32> {
   todo!()
 }
 ```
-From the preconditions (`requires` macro) and postconditions (`ensures` macro) it is able to synthesize  the body of the function.
+From the preconditions (`requires` macro) and postconditions (`ensures` macro) it is able to synthesize the body of the function.
 In the example above it would be
 ```rs
 match y {
@@ -446,11 +445,11 @@ match y {
   false => None
 }
 ```
-It can also insert `unreachable!()` macros to places that are never reaced during the program execution.
+It can also insert `unreachable!()` macros to places that are never reached during the program execution.
 
 RusSol works on the HIR level of abstraction.
 It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
-After getting back successful response it turns the respose back into Rust code as shown in @russol-workflow.
+After getting back successful response it turns the response back into Rust code as shown in @russol-workflow.
 
 #figure(
   image("fig/russol-suslik.png", width: 100%),
@@ -461,16 +460,16 @@ After getting back successful response it turns the respose back into Rust code 
 
 All the programs synthesized by RusSol are guaranteed to be correct by construction.
 This is achieved by extracting the programs from separation logic derivations.
-However in @rust-program-synthesis they noted that they cannot prove the correctness of separation logic rules for Rust as at this point rust lacks formal specification.
-Nevertheless the tool was tested on 100 different crates and managed to always produce valid code.
+However, in @rust-program-synthesis they noted that they cannot prove the correctness of separation logic rules for Rust as at this point rust lacks formal specification.
+Nevertheless, the tool was tested on 100 different crates and managed to always produce valid code.
 
 As the tool uses external engine to synthesize the programs we will not dive into its inner workings.
-However we will take a look at the notes by the authors of @rust-program-synthesis as they are very relavant also for us.
+However, we will take a look at the notes by the authors of @rust-program-synthesis as they are very relevant also for us.
 
 The authors found that quite often the types are descriptive enough to produce useful programs and the pre- and postconditions are not required.
 This aligns with our intuition of synthesizing terms from types can be useful in practice.
 
-The authors of RusSol pointed out the the main limitations of the tool are:
+The authors of RusSol pointed out the main limitations of the tool are:
 1. It does not support traits
 2. It does not support conditionals as it lacks branch abduction
 3. It does not synthesize arithmetic expressions
@@ -478,8 +477,8 @@ The authors of RusSol pointed out the the main limitations of the tool are:
 
 They also noted that first three of them can be solved with some extra engineering effort, but the last one requires more fundamental changes to the tool.
 
-From the benchmarks on top 100 crates on crates.io it was measured that it takes about 0.5s on average to synthesize non primitive expressions.
-Quite often the synthesis time vas 2-3s and sometimes reached as high as 18.3s.
+From the benchmarks on top 100 crates on crates.io it was measured that it takes about 0.5s on average to synthesize non-primitive expressions.
+Quite often the synthesis time was 2-3s and sometimes reached as high as 18.3s.
 This is fast enough to use for filling holes, but too slow to use for autocompletion.
 
 == Autocomplete (week 1)
@@ -526,7 +525,7 @@ We will first take a look at using it for filling "holes" in the program and lat
 
 == Filling holes
 One of the most known examples of holes in Rust programs is the `todo!()` macro.
-It is a "hole" as it denotes that there should be a program in the future but there isn't now.
+It is a "hole" as it denotes that there should be a program in the future, but there isn't now.
 These holes can be filled using term search to search for programs that fit in the hole.
 All the programs generated by term search are valid programs meaning that they compile.
 
@@ -562,13 +561,13 @@ The general idea is the same as in filling holes.
 We attempt to infer the expected type at the cursor.
 If we manage to infer the type then we run the term search in order to get the suggestions.
 
-The main difference between using term search for autocomplete and using it to fill holes is that we've decided to disable borrowchecking when generating suggestions for autocompletion.
+The main difference between using term search for autocomplete and using it to fill holes is that we've decided to disable borrow checking when generating suggestions for autocompletion.
 This means that not all the suggestions are valid programs and may need some modifications by user.
 
-The rationale for it comes from both technical limitations of the tool as well as different expectations from the user.
+The rationale for it comes from both technical limitations of the tool and different expectations from the user.
 The main techincal limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering partial (user is still typing) programs to MIR.
 
-However there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
+However, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
 We found that it is quite often that when writing the code the user jumps back and forward to fix borrow checking issues.
 #todo("would be good to have reference to something here")
 For example consider the snippet below:
@@ -586,9 +585,9 @@ fn main() {
 }
 ```
 #todo("Indicate cursor position somehow")
-#todo("Explain the error, sepparate section")
-The most logical fix for it is to go back to where the function `foo` is called and change the call to `foo(my_string.clone())` so that the variable of `my_string` doesnt get moved.
-However if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
+#todo("Explain the error, separate section")
+The most logical fix for it is to go back to where the function `foo` is called and change the call to `foo(my_string.clone())` so that the variable of `my_string` doesn't get moved.
+However, if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
 == Implementation (week 6)
@@ -619,10 +618,10 @@ Before entering the main loop we populate the lookup table by running a tactic c
 Essentially it attempts to fulfill the goal by trying variables we have in scope.
 More information about the `trivial` tactic can be found in @tactic-trivial.
 All the types get added to lookup table and can be later used in other tactics.
-After we iteratively expand the search space by attempting different tactics untill we've exceeded the preconfigured search depth.
+After we iteratively expand the search space by attempting different tactics until we've exceeded the preconfigured search depth.
 We keep iterating after finding the first match as there may be many possible options.
-For example otherwise ve would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has less arguments.
-During every iteration we sequentally attempt different tactics.
+For example otherwise we would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has fewer arguments.
+During every iteration we sequentially attempt different tactics.
 More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different type transformations (type constructors, functions, methods).
 The search space is expanded by adding new types to lookup table.
 Example for it can be seen in @term-search-state-expansion.
@@ -651,7 +650,7 @@ Terms reached serves the most obvious purpose of them.
 It keeps track of the search space we have already covered (visited types) and allows quering terms for time in `O(1)` complexity.
 Important thing to note here that it also performs transformation of taking a reference if we query for reference type.
 This is only to keep the implementation simple and memory footprint low.
-Otherwise having separate tactic for taking a reference of the type would be preferred.
+Otherwise, having separate tactic for taking a reference of the type would be preferred.
 
 New types reached keeps track of new types added to terms reached so that we can iterate only over them in some tactics to speed up the execution.
 
@@ -663,11 +662,11 @@ They are used in static method tactic (see @tactic-static-method) to only search
 This is another optimization for speed described in @tactic-static-method.
 
 === Tactics (week 6) <tactics>
-Tactics are used to expand the search space for the term serch algorithm.
+Tactics are used to expand the search space for the term search algorithm.
 All the tactics are applied sequentially which causes a phase ordering problem.
 Some tactics may depend on results of others.
-However for the order of tactics it can be fixed by running the algorithm for more iterations.
-Note that some tactics also use heuristics for performace optimization and these optimizations also suffer from the phase ordering problem but they can not be fixed by running the algorithm for more iterations.
+However, for the order of tactics it can be fixed by running the algorithm for more iterations.
+Note that some tactics also use heuristics for performance optimization and these optimizations also suffer from the phase ordering problem, but they can not be fixed by running the algorithm for more iterations.
 
 All the tactic function signatures follow the simplified function signature shown in the snippet below
 ```rs
@@ -678,11 +677,11 @@ fn tactic_name(
 ) -> impl Iterator<Item = Expr>
 ```
 All the tactics take in the context of term search, definitions in scope and a lookup table and the tactics produce an iterator that yields expressions that unify with the goal type (provided by the context).
-The context encampsulates semantics of the program, configuration for the term search and the goal type.
+The context encapsulates semantics of the program, configuration for the term search and the goal type.
 Definitions are all the definitions in scope that can be used by tactics.
 Some of the examples of definitions are local variables, functions, constants and macros.
-The definitions in scope can also be derived from the context, but they are kept track of sepparately to speed up the execution by filtering out definitions that have already been used.
-Keeping track of them separately also allows quering them only once as the do not change throughout the execution of the algorithm.
+The definitions in scope can also be derived from the context, but they are kept track of separately to speed up the execution by filtering out definitions that have already been used.
+Keeping track of them separately also allows querying them only once as they do not change throughout the execution of the algorithm.
 Lookup table is used to keep track of the state of the term search as described in @lookup-table.
 The iterator produced by tactics is allowed to have duplicates as filtering of them is done at the end of the algorithm.
 We decided to filter at the end because it is hard to guarantee that different tactics do not produce same elements, but without the guarantee of uniqueness there would have to be another round of deduplication nevertheless.
@@ -702,7 +701,7 @@ The items in scope contains:
 4. Local items
 
 As this tactic only depends on the values in scope we don't have to call it every iteration.
-In fact we only call it once before any of the other tactics to populate the lookup table with the values in scope.
+In fact, we only call it once before any of the other tactics to populate the lookup table with the values in scope.
 
 ==== Tactic "famous types"
 "Famous types" is another rather trivial tactic.
@@ -713,11 +712,11 @@ Types and values are:
 Whilst we usually try to avoid creating values out of the blue we make an exception here.
 The rationale of making types we generate depend on types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
 Suggesting something else can be considered distracting.
-However we find these values to be common enough to also suggest them.
-Another reson is that we experienced our algorithm "cheating" around depending on values anyway.
+However, we find these values to be common enough to also suggest them.
+Another reason is that we experienced our algorithm "cheating" around depending on values anyway.
 It constructed expressions like `None.is_none()`, `None.is_some()` for `true`/`false` which are valid but all most never what the user wants.
 For unit types it uses any function that has "no return type" meaning it returns unit type.
-There is all most always at least one that cind of function in scope but suggesting it is wrong more often than suggesting `()`.
+There is all most always at least one that find of function in scope but suggesting it is wrong more often than suggesting `()`.
 
 
 ==== Tactic "type constructor"
@@ -742,27 +741,27 @@ This means that for the `Vec` type above the algorithm only tries different type
 ==== Tactic "free function"
 "Free function" is a tactic that tries different functions in scope.
 It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
-To speed up the tactic we've decided to filter out all of the functions that have non-default generic parameters.
+To speed up the tactic we've decided to filter out all the functions that have non-default generic parameters.
 By trial and error we've found that functions that have generic parameters seem to be not that common.
 #todo("Get some numbers here")
 
-However attempting the function with every type we've reached slows the algorithm down quite a bit.
+However, attempting the function with every type we've reached slows the algorithm down quite a bit.
 At the worst case the slowdown is exponential again.
 As described in @tactics the tactic avoids functions that return types that contain references.
-However we do allow function arguments to take items by shared references.
+However, we do allow function arguments to take items by shared references.
 
 ==== Tactic "impl method"
 "Impl method" is a tactic that attempts functions that have `self` parameter.
-This includes both trait methods as well as methods implemented directly on type.
+This includes both trait methods and methods implemented directly on type.
 Similarly to "free function" tactic it also ignores functions that have non-default generic parameters for the same reasons.
 Only difference is that now both the function and the `impl` block may contain generics.
 We treat them the same, meaning we ignore the function if there are any generic parameters present.
 
 Another performace tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not
 present in the last iteration.
-This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costy operation.
-However this optimization does suffer from the phase ordering problem.
-For example it may happen that we can use some method from the `impl` block later when we have reached more types and covered a type that we need for an argument of the function.
+This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costly operation.
+However, this optimization does suffer from the phase ordering problem.
+For example, it may happen that we can use some method from the `impl` block later when we have reached more types and covered a type that we need for an argument of the function.
 
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
 This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
@@ -774,10 +773,10 @@ impl<T> Option<T> {
 }
 ```
 As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
-However the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
+However, the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
 
-We've also decided to ignore all the methods that return the same type as the type of `self` paremeter.
-This is because they do not take us any closer to goal type and we've considered it unhelpful to show user all the possible options.
+We've also decided to ignore all the methods that return the same type as the type of `self` parameter.
+This is because they do not take us any closer to goal type, and we've considered it unhelpful to show user all the possible options.
 I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for. #todo("builder won't work, but here re good arguments for not to work anyway, order, lack of info")
 
 ==== Tactic "struct projection"
@@ -788,7 +787,7 @@ This tactic highly benefitted from the use of BFS over DFS as the implementation
 With DFS the implementation was much more cumbersome as simple recurring on all the fields leaves out the the fields themselves.
 As a result the implementation for DFS was about 2 times longer than the implementation for BFS.
 
-As a performace optimization we only run this tactic on every type once.
+As a performance optimization we only run this tactic on every type once.
 For this tactic this optimization does not reduce the total search space covered as accessing the fields doesn't depend on rest of the search space covered.
 
 ==== Tactic "static method" <tactic-static-method>
@@ -796,9 +795,9 @@ For this tactic this optimization does not reduce the total search space covered
 One of the most common examples of static methods are `Vec::new()` and `Default::default()`.
 
 As a performance optimization we qurey the `impl` block for types that we have previously queried from the lookup table but not found.
-This is because we figured that the most common usecase for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
+This is because we figured that the most common use case for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
 Similarly to "Impl method" tactic we ignore all the methods that have more than 1 generic parameter either at the `impl` or the method level.
-The motivation is the same as for the "Impl method" tactic but as the static methods are more rare and we wanthed the tactic to also work on container types such as `Vec<T>` we decided to raise the thresold to 1.
+The motivation is the same as for the "Impl method" tactic but as the static methods are rarer and we wanted the tactic to also work on container types such as `Vec<T>` we decided to raise the threshold to 1.
 
 = Results (week 7-8)
 
