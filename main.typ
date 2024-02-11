@@ -421,7 +421,66 @@ The idea is to maximize the amount of terms that have same typing environment an
 This is done by factorizing the terms into smaller terms that carry less context with them.
 Smyth has many other opimizations but they focus on using the information from examples and are therefore not interesting for us as they focus on optimizing the handling of data provided by examples.
 
-#todo("Rust synthesis")
+== Program synthesis in Rust
+Russol is a proof of concept tool to syntesize Rust programs from both functiond declarations as well as pre- and postconditions.
+It is based on separation logic as described in @rust-program-synthesis and it is the first synthesizer for Rust code from functional correctness specifications.
+Internally it uses SuSLik’s general-purpose proof search framework. #footnote(link("https://github.com/JonasAlaif/suslik")).
+Russol itself is implemented as a extension to rustc, the official rust compiler.
+It has sepparate command line tool, but internally it reuses many parts of the compiler.
+Although the main use case for Russol is quite different from our use case it shared a lot of common gound.
+
+The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the `todo!()`.
+```rs
+#[requires(x < 100)]
+#[ensures(y && result == Option::Some(x))]
+#[ensures(y && result == Option::None)]
+fn foo(x: &i32, y: bool) -> Option<i32> {
+  todo!()
+}
+```
+From the preconditions (`requires` macro) and postconditions (`ensures` macro) it is able to synthesize  the body of the function.
+In the example above it would be
+```rs
+match y {
+  true => Some(x),
+  false => None
+}
+```
+It can also insert `unreachable!()` macros to places that are never reaced during the program execution.
+
+RusSol works on the HIR level of abstraction.
+It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
+After getting back successful response it turns the respose back into Rust code as shown in @russol-workflow.
+
+#figure(
+  image("fig/russol-suslik.png", width: 100%),
+  caption: [
+    RusSol workflow by @rust-program-synthesis
+  ],
+) <russol-workflow>
+
+All the programs synthesized by RusSol are guaranteed to be correct by construction.
+This is achieved by extracting the programs from separation logic derivations.
+However in @rust-program-synthesis they noted that they cannot prove the correctness of separation logic rules for Rust as at this point rust lacks formal specification.
+Nevertheless the tool was tested on 100 different crates and managed to always produce valid code.
+
+As the tool uses external engine to synthesize the programs we will not dive into its inner workings.
+However we will take a look at the notes by the authors of @rust-program-synthesis as they are very relavant also for us.
+
+The authors found that quite often the types are descriptive enough to produce useful programs and the pre- and postconditions are not required.
+This aligns with our intuition of synthesizing terms from types can be useful in practice.
+
+The authors of RusSol pointed out the the main limitations of the tool are:
+1. It does not support traits
+2. It does not support conditionals as it lacks branch abduction
+3. It does not synthesize arithmetic expressions
+4. It does not support `unsafe` code
+
+They also noted that first three of them can be solved with some extra engineering effort, but the last one requires more fundamental changes to the tool.
+
+From the benchmarks on top 100 crates on crates.io it was measured that it takes about 0.5s on average to synthesize non primitive expressions.
+Quite often the synthesis time vas 2-3s and sometimes reached as high as 18.3s.
+This is fast enough to use for filling holes, but too slow to use for autocompletion.
 
 == Autocomplete (week 1)
 No deep dive, but some brief overview.
