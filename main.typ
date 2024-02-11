@@ -231,9 +231,6 @@ The rationale for that is that it is more likely that user wishes to use variabl
 However they noted in @mimer that the costs for the tactics need to be tweaked in future work as this was not their focus.
 #todo("Read about paper")
 
-=== Term search in Idris2 (week 3)
-I think there is one and the only term serach implementation in Idris2.
-
 === Term search in Standard ML <standardml>
 In @algebraic-foundations-of-proof-refinement they implemented term search for Standard ML as a part of RedPRL#footnote(link("https://redprl.org/")) project.
 
@@ -340,6 +337,78 @@ However in Refinery they have decided to go with interleaving as it works well w
 Note that this works especially well because of the lazy evaluation in Haskell.
 In case of eager evealuation the execution would still halt on producing all the subgoals so interliving would have now effect.
 
+
+=== Term search in Idris2
+Idris2 is a dependently typed programming language that has term search built into it's compiler.
+Internally the compiler makes use of a small language they call TT.
+In @idris2-design-and-implementation they say that TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
+The language is kept as small as reasonably possible to make working with it easier.
+
+As the the term search algorithm also works on TT we'll take a closer look at it.
+More precise we'll look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
+The guess binding is similar to a let binding, but without any reduction rules for guess bindings.
+In @idris2-design-and-implementation they note that using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
+Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
+
+$"TT"_"dev"$ consists of terms, bindings and constants as shown in the snippet below.
+
+```
+Terms, t ::= c (constant)
+    | x (variable)
+    | b. t (binding)
+    | t t (application)
+    | T (type constructor)
+    | D (data constructor)
+
+Binders, b ::= λ x : t (abstraction)
+    | let x -> t : t (let binding)
+    | ∀x : t (function space)
+    | ?x : t (hole binding)
+    | ?x ≈ t : t (guess)
+
+Constants, c ::= Type (type universes)
+    | i (integer literal)
+    | str (string literal)
+```
+
+Idris2 makes use of priority queue of hole and guess binders to keep track of subgoals to fill.
+The goal is considered filled once the queue becomes empty.
+
+In the implementation, the proof state is captured in an elaboration monad, which is a state monad with exceptions.
+The general flow of the algorithm is following:
+1. Create a new proof state
+2. Run series of tactics to build up the term
+3. Recheck the generated term
+
+Tactics in Idris2 operate on the sub-term given by the hole at the head of the hole queue in the proof state.
+All tactics run relative to context which contains all the bindings in scope.
+They take term (that is hole or guess binding) and produce new term that is of suitable type.
+Tactics are also allowed to have side effects that modify proof state.
+
+Next lets take a look at the primitive building blocks that are used by tactics to create and fill holes.
+
+Operation `claim` is used to create new holes in the context of current hole.
+The operation creates new hole binding to the head of the holes queue.
+Note that the binding is what associates the generated hole with the current hole.
+
+Operation `fill` is used to fill a goal with value. 
+Given value `v` the operation attempts to solve the hole by creating a guess binder with `v`.
+It also tries to fill other goals by attempting to unifying `v` with the types of holes.
+Note that the `fill` operation does not destroy the hole yet as the guess binding it created is allowed to have more holes in it.
+
+To destroy holes, operation `solve` is used.
+It operates on guesss bindings and checks if if they contain any more holes.
+If they don't, then the hole is destroyed and substituted with the value from guess binder.
+
+The two step process, with `fill` followed by `solve`, allows the elaborator to work safely with incomplete terms.
+This way incomplete terms do not affect other holes (by adding extra constraints) until we know we can solve them.
+Once a term is complete in a guess binding, it may be substituted into the scope of the binding safely.
+In each of these tactics, if any step fails, or the term in focus does not solve the entire tactic fails.
+This means that is roughly follows the DFS aproach described in @standardml.
+
+#todo("p22 & p18, what is difference between converts and unifies? why not converts => unifies?")
+#todo("p22 I think I'm missing something of how binders work or why are they needed")
+#todo("Also attack seems kinda confusing, is it just to create new scope by introducing new guess binding?")
 
 
 === Term search in Elm with Smyth
