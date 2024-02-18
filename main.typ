@@ -796,14 +796,44 @@ For Java it is quite useful nontheless as there are a lot of getter functions.
 In some sense the depth limit to two (or three together with the receiver type) is mainly a technical limitation but it is also caused by Java not having very expressive type system.
 As classes and interfaces hide away some types there is not enough information to suggest longer chains as there are likely too many irrelavant suggestions.
 
+==== Rust-analyzer
+Rust-analyzer#footnote(link("https://rust-analyzer.github.io/")) s an implementation of Language Server Protocol for the Rust programming language. It provides features like completion and goto definition for many code editors, including VS Code, Emacs and Vim.
+This is also the tool we are extending with term search functionality.
 
-=== Language Server Protocol (week 1) <lsp-protocol>
-Again some high level overview to show some technological limitations / standard solutions.
+Rust-analyzer provides all the "basic completions" that IntelliJ provides and also supports ordering suggestions by type.
+However it does not support method chains so in that regard it is less powerful that IntelliJ for Java.
+Filtering by type is also not part of it but as it gathers all the information and also provides it to the client it can be easily done client side.
 
-=== TODO
-#todo("Anything else? Everything else feels like legacy now as we have  LSP.
-Perhaps Jetbrains built in stuff is relavant, but why that and not anything else.
-Also very language dependent so hard to say anything meaningful about that.")
+Other than autocomplete it does have interesting concept of typed holes.
+They are `_` (underscore) characters at illegal positions that are trated as holes in the program that are supposed to become terms of correct type to make the program valid.
+Rust-analyzer suggest filling them with variables in scope which is very similar to what term search does.
+However, it only suggest trivial ways of filling holes so we are looking to improve on it a lot.
+
+=== Language Server Protocol <lsp-protocol>
+The Language Server Protocol#footnote(link("https://microsoft.github.io/language-server-protocol/")) (LSP) is an open, JSON-RPC-based#footnote(link("https://www.jsonrpc.org/specification")) protocol for use between editors and servers that provide "intelligence tools" for a programming language.
+LSP was initially developed by Microsoft for VS Code and first introduced to public in 2016.
+
+Some of the functionalities LSP servers provide icludes:
+- Autocompletion
+- Go to definition / references
+- Semantic syntax highlighting
+- Code analyzis for wrnings / errors
+- Refactoring routines (extract function, etc.)
+
+The the high level idea is show in @lsp-data-flow.
+The idea is that when the programmer works in the IDE the LSP client sends all text edits to LSP server.
+The server can then process the updates and send new autocomplete suggestion / syntax highlighting / diagnostics back to client so that it can update the  information in IDE.
+#figure(
+  image("fig/lsp_data_flow.svg", width: 100%),
+  caption: [
+    LSP data flow
+  ],
+) <lsp-data-flow>
+Important thing to note here is that the LSP client starts the LSP server the first time it requires data from it.
+After that the server runs as daemon process usually untill the editor is closed or until the LSP client commands it to shut down.
+As it doesn't get restarted very often it can keep the state in memory which allows responding to client events faster.
+It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed.
+Cacheing the state and only partially invalidating the state is quite important as the full analysis can take up to tens of seconds which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
 
 == LLM based autocompletions? (week 4)
 #todo("Should I talk about them?

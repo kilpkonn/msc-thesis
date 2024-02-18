@@ -19,16 +19,7 @@
   set document(author: doc_authors, title: title)
   set text(font: "New Computer Modern", lang: "en")
   show math.equation: set text(weight: 400)
-
-  // Heading numbering
-  set heading(numbering: "1.1")
-  show heading: it => {
-    if (it.level > 3){
-        block(it.body)
-    } else {
-        block(counter(heading).display() + " " + it.body)
-    }
-  }
+  show par: set block(spacing: 1.5em)
 
   // Title page.
   // The page can contain a logo if you pass one with `logo: "logo.png"`.
@@ -107,14 +98,25 @@ align(center)[
   outline(depth: 3, indent: true)
   pagebreak()
 
-  // Abbreviations
-  include("abbreviations.typ")
-
-
   // Main body.
   set par(justify: true)
-  set page(numbering: "1", number-align: center)
+  set page(numbering: "1", number-align: center, header: counter(footnote).update(0))
   counter(page).update(1)
+
+  // Abbreviations
+  include("abbreviations.typ")
+  pagebreak()
+
+  // Heading numbering
+  set heading(numbering: "1.1")
+  show heading: it => {
+    if (it.level > 3){
+        block(it.body)
+    } else {
+        block(counter(heading).display() + " " + it.body)
+    }
+  }
+
 
   body
 
