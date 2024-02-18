@@ -300,6 +300,8 @@ The high level algorithm for DFS is to first generate possible ways of how to re
 In the snippet below tactics create refinments that are options we can take to refine the problem into new subproblems.
 After that we attempt to solve each set of subproblems to find the first refinement where we manage to solve all the subproblems.
 That refinment effectively becomes our solution.
+In the pseudocode snippet below we can see that the DFS fits functional style very well as for all the subgoals we can just recursively call the same `solveDFS` function again.
+Note that in the snipped the constraints are propagated to remaining goals only after goal is fully solved.
 ```hs
 solveDFS :: Problem -> Maybe Solution
 solveDFS problem = 
@@ -308,13 +310,38 @@ solveDFS problem =
   in
     head [x | Just x <- map solveHelper refs] -- Find first solution
   where
-    solveHelper = sequence $ fmap solveDFS    -- Attempt to solve subproblems
+    solveHelper [] = Just []                  -- No subproblems => we are done
+    solveHelper (g:gs) = do
+      sol <- solveDFS g                       -- Return `Nothing` for no solution
+      gs' <- propagateConstraints sol gs      -- Propagate constraints
+      rest <- solveHelper gs'                 -- Attempt to solve other subproblems
+      return sol : rest
 ```
 
 The high level algorithm for BFS is to generate possible ways of refining the problem into new subproblems and then solving all the subproblems in parallel.
-If there are multiple options to solve the goal the algoritm still uses DFS as it attempts options one by one.
-However if there are multiple subproblems they are solved at the same time.
+If there are multiple options to solve the goal the algoritm still uses DFS as it attempts options one by one so only thing that has changed in our example is how the `solveHelper` function works.
+Now the `solveHelper` function uses BFS to solve all the goals at the same time.
 This means that constraints get propagated between problems faster and in some cases we can discard the branch before fully solving it.
+In the snippet below a lot of functionality is done in the `stepAndPropagateConstraints` which inner workings we have not described as the implementation details are irrelavant for this example.
+However we must emphasise that this function attempts to solve all the goals by performing atomic operations on each of the goals meaning that it returns a list of problems that are only one step closer to being solved.
+The function also propagates the constraints among subproblems.
+```hs
+solveBFS :: Problem -> Maybe Solution
+solveBFS problem = 
+  let 
+    refs = tactics problem                    -- Generate possible refinements
+  in
+    head [x | Just x <- map solveHelper refs] -- Find first solution
+  where
+    solveHelper gs = 
+      let
+        gs' = stepAndPropagateConstraints gs  -- Propagate constraints
+      in
+        case status gs' of
+          AllSolved      -> Just gs'          -- All subproblems solved
+          NoSolution     -> Nothing           -- Unable to solve all goals
+          RemainingGaols -> solveHelper gs    -- Keep iteratively solving
+```
 
 
 First we can split the goal of finding a pair to two subgoals `[?subgoal1 : [a], ?subgoal2 : a -> Integer]`.
@@ -480,10 +507,17 @@ The general flow of the algorithm is following:
 2. Run series of tactics to build up the term
 3. Recheck the generated term
 
+Proof state contains the context of the problem (local and global bindings), the proof term, unsolved unification problems and the holes queue.
+The main parts of the state that change during the proof search are the holes queue and sometimes the unsolved unification problems.
+Holes queue changes as we try empty it by filling all the holes.
+Unsolved unification problems only changes if new information about unification comes available when instanciating terms in the proof search.
+For example we may have unification problem `Unify(f x, Int)` that cannot be solved without further without new information.
+Only when we provide some concrete `f` or `x` the problem can be solved further.
+
 Tactics in Idris2 operate on the sub-goal given by the hole at the head of the hole queue in the proof state.
 All tactics run relative to context which contains all the bindings in scope.
 They take a term (that is hole or guess binding) and produce new term that is of suitable type.
-Tactics are also allowed to have side effects that modify proof state (#todo("What is proof state")).
+Tactics are also allowed to have side effects that modify proof state.
 
 Next let's take a look at the primitive building blocks that are used by tactics to create and fill holes.
 
