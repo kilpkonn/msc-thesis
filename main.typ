@@ -127,7 +127,7 @@ We will be looking at the high level implementation of the algorithm used by Ags
 In @tool-for-automated-theorem-proving-in-agda they say that in Agsy search space is explored using iterated deepening.
 This is necessary since a problem may in general be refined to infinite depth.
 The proof search can have multiple branches with subproblems.
-In some cases we need to solve one subproblem to solve the "top-level" problem.
+In some cases we need to solve one of the subproblems to solve the "top-level" problem.
 This is the case when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
@@ -138,8 +138,7 @@ For example, we can either use some local variable, function or type constructor
   ],
 ) <agsy_transformation_branches>
 
-#todo("Try deepl")
-In other cases we need to solve all the subproblems of the "top-level" problem.
+In other cases it is necessary to solve all the subproblems to solve the "top-level" problem.
 This is the case when we use type constructors that take multiple members or functions with multiple arguments.
 In case of case splitting we also have to solve all the subproblems produced.
 For example shown in @agsy_all_branches we see that function `foo(a: A, b: B, c: C)` can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
@@ -208,6 +207,7 @@ In the end we return the set of all possible solutions.
   return solcolls #comment[Return all solution collections]
 ]
 
+#todo("Is this down below better? searchColl is oneliner but search is kind of same length")
 ```hs
 newtype ProbColl = [Problem]
 newtype SolColl = [Solution]
@@ -272,7 +272,7 @@ The rationale for that is that it is more likely that user wishes to use variabl
 However, they noted in @mimer that the costs for the tactics need to be tweaked in future work as this was not their focus.
 
 === Term search in Standard ML <standardml>
-In @algebraic-foundations-of-proof-refinement they implemented term search for Standard ML as a part of RedPRL#footnote(link("https://redprl.org/")) project. #todo("reference paper")
+In @algebraic-foundations-of-proof-refinement they implemented term search for Standard ML as a part of RedPRL#footnote(link("https://redprl.org/")) @redprl project.
 
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subgoals in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
@@ -752,10 +752,52 @@ There is also an option to escape the restrictions of borrow checker by using `u
 In an `unsafe` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow cheker.
 
 
-== Autocomplete (week 1)
-No deep dive, but some brief overview.
+== Autocomplete
+Autocomplete is nowadys cosidered one of the basic features that any integrated development environment (IDE) has built in.
+As implementing autocomplete for every language in every IDE is rather time consuming a Language server protocol (LSP) has been invented to allow many IDEs to share the same tool for autocomplete together with other common functionality.
+We will explore the LSP protocol in @lsp-protocol to have the basic understanding of the framework we are in.
 
-=== Language Server Protocol (week 1)
+Lets take a look at some of the poplular autocomplete tools and their autocomplete related features to give some ituition of what is the common approach for implementing them.
+
+==== Clangd
+Clangd#footnote(link("https://clangd.llvm.org/")) is one of the most used autocomplete tools for C/C++.
+It is a LSP server extension to clang compiler and therefore can be used in many editors.
+It suggests functions, methods, variables, etc are available in the context and it can handle some mistypings and abbreviations of some words.
+For example using snake case instead of camel case still yields suggestions.
+
+For method calls it does understand the receiver type and only suggests methods/fields that exist on the type.
+However it does not try to infer the expected type of the expression that is being completed and therefore is unable to prioritize methods based on that.
+All in all it serves as a great example of autocomplete tool that has semantic understanding of the program, but does not provide any functionality beyond basics.
+
+==== Pyright
+Pyright#footnote(link("https://github.com/microsoft/pyright")) is one of the most used autocomplete tools for Python.
+It is another LSP server to provide the functionality for muliple IDEs.
+It suggests all the item that are available in scope for autocompletion and it also suggests the methods/fields that are on the receiver type.
+
+Whilst it tries to provide more advanced features than clangd it does not get much further due to python being dynamically typed language.
+There simply isn't that much information available before running the program.
+This seems to be a general limitation to all python autocomplete tools.
+
+==== Intellij
+Intellij#footnote(link("https://www.jetbrains.com/idea/")) is a IDE by JetBrains for Java.
+Similarly to all other JetBrains products it does not use LSP but rather has all the tooling built into the product.
+It provides the completion of all the items in scope as well the methods/fields of receiver type.
+They call it the "basic completion﻿".
+The tool has also understanding of expected type so it attempts to order the suggestions based on their types.
+This means that suggests with expected type appear first in the list.
+
+In addition to "basic completion" they provide "type-matching completion﻿" that is very similar to basic completion but filter out all the results that do not have matching type.
+There is also what they call "chain completion" that expands the list to also suggest chained method calls.
+Together with filtering out only matching types it gives similar results to what term search gives.
+However as this is implemented in a different way it's depth is limited to two which makes it less useful.
+It also doesnt' attempt to automatically fill all the arguments so it works the best with functions that take no arguments.
+For Java it is quite useful nontheless as there are a lot of getter functions.
+
+In some sense the depth limit to two (or three together with the receiver type) is mainly a technical limitation but it is also caused by Java not having very expressive type system.
+As classes and interfaces hide away some types there is not enough information to suggest longer chains as there are likely too many irrelavant suggestions.
+
+
+=== Language Server Protocol (week 1) <lsp-protocol>
 Again some high level overview to show some technological limitations / standard solutions.
 
 === TODO
