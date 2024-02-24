@@ -893,11 +893,43 @@ As it doesn't get restarted very often it can keep the state in memory which all
 It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed. #todo("incremental updating")
 Cacheing the state and only partially invalidating the state is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
 
-== LLM based autocompletions? (week 4)
-#todo("Should I talk about them?
-They are legit alternative.
-On the other hand I do not really want to go into neural nets and LLMs and not sure if talking about them only on the high level is a good idea.
-Feels like if I point out shortcomings etc someone is like but there is another model that fixes it...")
+== Machine learning based autocompletions? (week 4)
+In this chapther we will take a look at machine learning based autocompletion tools.
+As this is a very active field of development we are not competing against we will not dive into how good this or other models perform but rather look at what the models generally do.
+The main focus is to see how do they differ from the analytical approach we are taking with term search.
+
+In @code-prediction-trees-transformers they state that one of the most obvious usecases for machine learning is to order the suggestions.
+They state that the using a model for ordering the suggestions is escpecially useful in dynamically typed languages as it is otherwise rather hard to order suggestions.
+Although the Rust language has strong type system we still suffer from prioritizing differenent terms that have the same type.
+
+In addition to ordering the analytically created suggestions macine learning models can be used to generate code itself.
+For example in @pre-trained-llm-code-gen they introduce a model that can generate code for up to 23 different programming languages.
+The general flow is that when the user has written the function signature and maybe some human readable documentation for the function they can prompt the model to generate the body for the function.
+This is very different from ordering suggestions as the suggested code usually has many tokens in in whilst the classical approach is usually limited to on or sometimes very few tokens.
+This is also different from what we are doing with the term search.
+In the case of term search we only try to produce code that some contributes towards the parent term of correct type.
+However language models can also generate code that do not contribute towards finding the goal type.
+Lets look at the example for the `ripgrep`#footnote(link("https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584")) crate:
+```rs
+// Inside `printer_json` at `/crates/core/flags/hiargs.rs`
+
+fn printer_json<W: std::io::Write>(&self, wtr: W) -> JSON<W> {
+    JSONBuilder::new()                // () -> JSONBuilder
+        .pretty(false)                // JSONBuilder -> JSONBuilder
+        .max_matches(self.max_count)  // JSONBuilder -> JSONBuilder
+        .always_begin_end(false)      // JSONBuilder -> JSONBuilder
+        .build(wtr)                   // JSONBuilder -> JSON
+}
+```
+As we can see from the type transitions added in comments the type of the term only changes on the first and last line of the function body.
+As the lines in the middle do not affect the type of the builder in any way there is also no way for the term search to generate them.
+Machine learning models however are not affected by this as it may be possible to derive those lines from the function docstring, name or rest of the context.
+
+Although the machine learning models are able to generate more complex code they have also downside of having lots of uncertanity in them.
+It is vary hard to impossible for any human to understand what are the outputs for any given input.
+In the context of code generation for autocompletion this results in unexpected suggestions that may even not compile.
+These issues are usually adressed by filtering out syntactically invalid responses or working at the level of abstract syntax tree as they did it in @code-prediction-trees-transformers.
+However neither of those accounts for type nor borrow checking which means that invalid programs can still be occasionally suggested.
 
 = Methods (week 5)
 #todo("Should this be somewhere before?")
