@@ -805,14 +805,12 @@ In an `unsafe` code block, the programmer has the sole responsibility to guarant
 Autocompletion is predicting of what the user is typing and then suggesting the predictions to user.
 In case of programming the suggestions are usually derived form context and may be just a words from current buffer or maybe functions reachabele in the current context.
 It is nowadys cosidered one of the basic features that any integrated development environment (IDE) has built in.
-As implementing autocompletion for every language in every IDE is rather time consuming a Language server protocol (LSP) has been invented to allow many IDEs to share the same tool for autocompletion together with other common functionality.
-We will explore the LSP protocol in @lsp-protocol to have the basic understanding of the framework we are in.
-#todo("NxM problem, reference GCC paper etc.")
-#todo(" and constraints and features of the framework we are working in")
-#todo("maybe say something about implementation")
+
+We will explore the LSP protocol in @lsp-protocol to have the basic understanding of the constraints and features of the framework we are working in.
+This is essensial to later undersand some of our design choises for implementation later described in @design.
 
 Lets take a look at some of the poplular autocompletion tools and their autocompletion related features to give some ituition of what is the common approach for implementing them.
-#todo("todo what are we comparing: Evaluate the tools of what kind of semantic information they use to provide suggestions.")
+We'll be mostly looking at what kind of sematic information the tools use to provide suggestions.
 
 ==== Clangd
 Clangd#footnote(link("https://clangd.llvm.org/")) is one of the most used autocompletion tools for C/C++.
@@ -848,9 +846,11 @@ However as this is implemented in a different way it's depth is limited to two w
 It also doesnt' attempt to automatically fill all the arguments so it works the best with functions that take no arguments.
 For Java it is quite useful nontheless as there are a lot of getter functions.
 
-In some sense the depth limit to two (or three together with the receiver type) is mainly a technical limitation but it is also caused by Java not having very expressive type system.
-As classes and interfaces hide away some types there is not enough information to suggest longer chains as there are likely too many irrelavant suggestions.
-#todo("Static dispatch rather than expressive type system maybe")
+In some sense the depth limit to two (or three together with the receiver type) is mainly a technical limitation but it is also caused by Java using interfaces a in different way that what Rust does with traits.
+Interfaces in Java are meant to hide internal representation of classes which in some cases limits what we can provide just based on types.
+For example if we are expected to give something theat implements `List` we cannot really prefer `ArrayList` to `LinkedList` just based on types.
+More common usage of satic dispatch in Rust means that we more often know the concrete type and therefore can also provide more accurate suggestions based on it.
+In Java there is often not enough information to suggest longer chains as there are likely too many irrelavant suggestions.
 
 ==== Rust-analyzer
 Rust-analyzer#footnote(link("https://rust-analyzer.github.io/")) s an implementation of Language Server Protocol for the Rust programming language. 
@@ -868,17 +868,30 @@ Based on that concept it suggest filling them with variables in scope which is v
 However, it only suggest trivial ways of filling holes so we are looking to improve on it a lot.
 
 === Language Server Protocol <lsp-protocol>
-The Language Server Protocol#footnote(link("https://microsoft.github.io/language-server-protocol/")) (LSP) is an open, JSON-RPC-based#footnote(link("https://www.jsonrpc.org/specification")) protocol for use between editors and servers that provide "intelligence tools" for a programming language. #todo("intelligent tools is bad, maybe paper")
-LSP was initially developed by Microsoft for VS Code and first introduced to public in 2016.
+Implementing autocompletion for every language and for every IDE results in a $O(N * M)$ complexity where N is the amount of languages supported and M is the amount of IDEs supported.
+In other words one would have to write a tool for every language-IDE pair.
+This problem is very similar to problem in compilers design where N is the amount of languages and M is the amount of target archidectures.
+As they describe in @compiler-design the $O(N*M)$ can be reduced to $O(N+M)$ by sepparating the compiler to front and back end.
+The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
+To get machine code out of the intermediate representation there is also a unique back end for every target archidecture.
 
-Some of the functionalities LSP servers provide icompletioncludes:
-- Autocompletion
+Similar ideas can be also used in building language tooling.
+Language server protocol (LSP) has been invented to do exactly that.
+The Language Server Protocol#footnote(link("https://microsoft.github.io/language-server-protocol/")) (LSP) is an open, JSON-RPC-based#footnote(link("https://www.jsonrpc.org/specification")) protocol for use between editors and servers that provide language specific tools for a programming language.
+There is a LSP Client implementation for every IDE and a LSP server implementation for every langauge.
+Although the idea is not new LSP was first introduced to public only in 2016 by Microsoft.
+The most popular IDEs supporting LSP is VS Code, but now most modern IDEs support it.
+
+Some of the most common functionalities LSP servers provide according to @editing-support-for-languages-lsp:
 - Go to definition / references
-- Semantic syntax highlighting
-- Code analyzis for wrnings / errors
+- Hover
+- Diagnostics (warnings / errors)
+- Autocompletion
+- Formatting
 - Refactoring routines (extract function, etc.)
+- Semantic syntax highlighting
 
-The the high level idea is show in @lsp-data-flow.
+The the high level communication of LSP client and server is show in @lsp-data-flow.
 The idea is that when the programmer works in the IDE the LSP client sends all text edits to LSP server.
 The server can then process the updates and send new autocompletion suggestion / syntax highlighting / diagnostics back to client so that it can update the  information in IDE.
 #figure(
@@ -890,8 +903,9 @@ The server can then process the updates and send new autocompletion suggestion /
 Important thing to note here is that the LSP client starts the LSP server the first time it requires data from it.
 After that the server runs as daemon process usually until the editor is closed or until the LSP client commands it to shut down.
 As it doesn't get restarted very often it can keep the state in memory which allows responding to client events faster.
-It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed. #todo("incremental updating")
-Cacheing the state and only partially invalidating the state is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
+It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed.
+Cacheing the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
+In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is the most common performance optimization strategy for LSP servers.
 
 == Machine learning based autocompletions? (week 4)
 In this chapther we will take a look at machine learning based autocompletion tools.
@@ -951,7 +965,7 @@ I guess other option would be to list them in the validation paragraph")
 == Limitations of the methods (week 5)
 #todo("Or should it be under either of them")
 
-= Term search design (week 6)
+= Term search design <design>
 Before diving into the technical aspects of term search implementation, we will first explore it by giving
 examples of its usages in `rust-analyzer`. 
 We will first take a look at using it for filling "holes" in the program and later dive into using it for autocompletion.
