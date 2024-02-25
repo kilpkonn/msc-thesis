@@ -90,7 +90,7 @@ In this chapter we are taking a look at what the term search is, how is it used 
 We will also take a look at the type system of the Rust programming language to see how it relates to type systems of other languages that have tools for term search.
 In the end we'll briefly cover how autocomplete is implemented in modern tools. #todo("..to give some context of what we are improving on?")
 
-== Term search
+== Term search <term-search>
 The Curry-Howard correspondence is a direct correspondence between computer programs and mathematical proofs.
 It is the basic idea in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
@@ -852,7 +852,7 @@ For example if we are expected to give something theat implements `List` we cann
 More common usage of satic dispatch in Rust means that we more often know the concrete type and therefore can also provide more accurate suggestions based on it.
 In Java there is often not enough information to suggest longer chains as there are likely too many irrelavant suggestions.
 
-==== Rust-analyzer
+==== Rust-analyzer <rust-analyzer>
 Rust-analyzer#footnote(link("https://rust-analyzer.github.io/")) s an implementation of Language Server Protocol for the Rust programming language. 
 It provides features like completion and goto definition/references, smart refactorings etc.
 This is also the tool we are extending with term search functionality.
@@ -907,7 +907,7 @@ It is quite common that the server does semantic analysis fully only once and la
 Cacheing the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
 In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is the most common performance optimization strategy for LSP servers.
 
-== Machine learning based autocompletions? (week 4)
+== Machine learning based autocompletions
 In this chapther we will take a look at machine learning based autocompletion tools.
 As this is a very active field of development we are not competing against we will not dive into how good this or other models perform but rather look at what the models generally do.
 The main focus is to see how do they differ from the analytical approach we are taking with term search.
@@ -945,9 +945,10 @@ In the context of code generation for autocompletion this results in unexpected 
 These issues are usually adressed by filtering out syntactically invalid responses or working at the level of abstract syntax tree as they did it in @code-prediction-trees-transformers.
 However neither of those accounts for type nor borrow checking which means that invalid programs can still be occasionally suggested.
 
-= Methods (week 5)
+= Methodology (week 5)
 #todo("Should this be somewhere before?")
 
+#todo("Actually what goes here?, oddly enough noone seems to have this section, at least with given name")
 #todo("Should I list the implemention here as well? or is this kind of obvious?")
 
 == Usability (week 5)
@@ -971,6 +972,9 @@ examples of its usages in `rust-analyzer`.
 We will first take a look at using it for filling "holes" in the program and later dive into using it for autocompletion.
 
 == Filling holes
+Filling holes is a common use case for term search as we've found in @term-search.
+Timing constrains for it are not as strict as for autocompletion, yet the user certainly doesn't want to wait for a considerable amount of time.
+
 One of the most known examples of holes in Rust programs is the `todo!()` macro.
 It is a "hole" as it denotes that there should be a program in the future, but there isn't now.
 These holes can be filled using term search to search for programs that fit in the hole.
@@ -986,11 +990,8 @@ fn main() {
 }
 ```
 
-In addition to `todo!()` holes `rust-analyzer` has concept of typed holes.
-They are underscore characters at illegal positions, for example in rvalues.
-From term search perspective they work similarly to `todo!()` macros - term search needs to come up with a term of some type to fill them.
-#todo("what ra has before")
-
+In addition to `todo!()` macro holes `rust-analyzer` has a concept of typed holes as we described in @rust-analyzer.
+From term search perspective they work in the same way as `todo!()` macros - term search needs to come up with a term of some type to fill them.
 The same example with typed holed instead of `todo!()` macros can be found in the snippet below:
 ```rs
 
@@ -1001,23 +1002,25 @@ fn main() {
 }
 ```
 
+
 == Autocompletion
-Term search can also be used to give user "smarter" autocompletion suggestions as they are typing.
-#todo("he -> they")
-The general idea is the same as in filling holes.
-We attempt to infer the expected type at the cursor.
-If we manage to infer the type then we run the term search in order to get the suggestions.
+In addition to filling holes, term search can be used to give user "smarter" autocompletion suggestions as they are typing.
+The general idea is the same as for filling holes.
+We start by attempting to infer the expected type at the cursor.
+If we manage to infer the type then we run the term search in order to get the suggestions which we can then show to the user.
 
 The main difference between using term search for autocompletion and using it to fill holes is that we've decided to disable borrow checking when generating suggestions for autocompletion.
 This means that not all the suggestions are valid programs and may need some modifications by user.
 
-The rationale for it comes from both technical limitations of the tool and different expectations from the user.
+The rationale for it comes from both technical limitations of the tool as well as different expectations from the user.
 The main techincal limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering partial (user is still typing) programs to MIR.
+This means that borrow checking is not really possible without big modifications to the algorithm.
+That however is out of scope of this thesis.
 
-However, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
-We found that it is quite often that when writing the code the user jumps back and forward to fix borrow checking issues.
-#todo("would be good to have reference to something here")
-For example consider the snippet below:
+In addition to technical limitations, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
+In @usability-of-ownership they found that it is very common that the programmer has to restructure the program to satisfy the borrow checker.
+The simplest case for it is to either move some lines around in function or to add `.clone()` to avoind moving the value.
+For example consider the snippet below with the cursor at `|`:
 ```rs
 /// A function that takes an argument by value
 fn foo(x: String) { todo!() }
@@ -1028,26 +1031,51 @@ fn main() {
   let my_string = String::new();
 
   foo(my_string);
-  bar(my_string); // error[E0382]: use of moved value: `my_string`
+  bar(my_s|); // cursor here at `|`
 }
 ```
-#todo("Indicate cursor position somehow")
-#todo("Explain the error, separate section")
-The most logical fix for it is to go back to where the function `foo` is called and change the call to `foo(my_string.clone())` so that the variable of `my_string` doesn't get moved.
-However, if we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
+The user want's to also pass `my_string` to `bar(...)` but this does not satisfy the borrow checking rules as the value was moved to `foo(...)` on the previous line.
+The simplest fix for it is to change the previous line to `foo(my_string.clone())` so that the value is not moved.
+This however can only be done by the programmer as there are also other ways to solve it, for example making the functions take the reference istead of value.
+As also described in @usability-of-ownership the most common way to handle borrow checker errors is to write the code first and then fix the errors as they come up.
+Inspired by this we believe that is better to suggest items that make the program do not borrowcheck than not suggest them at all.
+If we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
 == Implementation (week 6)
-#todo("What happens in ra outside term search, what are hir, mir etc. how the term search is triggered")
 We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
-The main implementation is done in the High-Level Intermediate Representation (HIR) level of abstraction and borrow checking queries are made in MIR level of abstraction.
+To have better understanding of the context we are working in we will first diescribe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
+When the LSP server is started, `rust-analyzer` first indexes whole project, including it's dependencies as well as standard library.
+This is rather time consuming operation taht takes a considerable amount of time.
+During indexing `rust-analyzer` lexes and parses all input files and lowers most of it to High-Level Intermediate Representation (HIR).
+Lowering to HIR is done to build up symbol table, that is a table that has knowledge of all symbols in the project.
+This includes but is not limited to functions, traits, modules, ADTs, etc.
+Note that although the symbols are lowered to HIR, `rust-analyzer` avoids looking into contaner item bodies whenever possible.
+For example function bodies are usually ignored at this stage.
+One limitation of the `rust-analyzer` as of now is that it doesn't properly handle lifetimes.
+Explicit lifetimes are all mapped to `'static` lifetimes and implicit lifetime bounds are ignored.
+This also limits our possibilities to do borrow checking as there simply isn't enough data available in the `rust-analyzer` yet.
+With the symbols table built up, `rust-analyzer` is ready to accept LSP client requests.
+
+Now autocompletion request can be sent.
+Upon receiving the request that contains the cursor location in file `rust-analyzer` finds the corresponding syntax node.
+In case it is in function body that has not yet been lowered the lowering is done now.
+Note that the lowering is always cached so that subsequent calls can be looked up from the table.
+With all the lowering done, `rust-analyzer` builds up context of the autocompletion.
+The context contains location in abstract syntax tree, all the items in scope, package configuration (is nightly enabled) etc.
+If expected type of the item under completion can be inferred it is also available in the context.
+From the context different completion providers (functions) suggest possible completions that are all accumulated to a list.
+To add the term search based autocompletion we introduct a new provider that takes in a context and produces a list of completion suggestions.
+Once the list is complete it is mapped to LSP protocol and sent back to client.
+
+==== Term search
+The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
 Term search entry point can be found in `crates/hir/src/term_search/mod.rs` and is named as `term_search`.
-The most important inputs to term search are scope of the program we are performing the search at and target type.
+The most important inputs to term search are scope of the program we are performing the search at and the target type.
 
-#todo("Do not confuse with other BFS")
-The main algorithm for the term search is based on Breadth-first search (BFS).
-We consider types of all values in scope as starting nodes of the BFS graph.
+The main algorithm for the term search is based on BFS approach described in @standardml differes from it a lot.
+We consider types of all values in scope as starting nodes of the BFS graph and target type as the goal.
 Then we use transitions such as type constructors and functions to get from one node of the graph to others.
 The transitions are grouped into tactics to have more clear overview of the algorithm.
 
