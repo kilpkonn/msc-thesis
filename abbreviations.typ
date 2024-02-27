@@ -8,5 +8,5 @@
   [HIR], [High-Level Intermediate Representation],
   [MIR], [Mid-level Intermediate Representation],
   [IDE], [Integrated Development Environment],
-  [LSP], [Language Server Protocol],
+  [AST], [Abstract Syntax Tree],
 )

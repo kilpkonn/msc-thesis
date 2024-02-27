@@ -92,14 +92,14 @@ Other objectives include:
 - Evaluating the fitness of tactics on existing large codebases
 - Investigating term search usability for autocompletion
 
-== Research Questions
-The research questions for this thesis are:
-- How to implement tactic based term search for programming language Rust?
-- How to evaluate the fitness of the term search?
-- How can term search be used for autocompletion?
-#todo("This and previous subsection seeb kind of same. Should I delete one or...? On the other hand people keep telling we should have both but I've yet to see an example where both exist without duplication.")
+== Contributions of the thesis
+In this thesis we make following contributions:
+1. In @background we give overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of Rust programming language that are relavant for the term search.
+2. In @design we introduce term search to Rust by implementing it to the official language server of the Rust programming language. We discuss different usecases for it as well as the implementation details. In @tactics we describe the capabilities of our tool.
+3. In @evaluation we evaluate the performance of the tool. We compare it to mainstream tools, some machine learning based methods and term search tools in other programming languages.
+4. In @future-work we describe future work that would improve our implementation. This includes technical challenges, but also describes possible extensions to the algorithm.
 
-= Background
+= Background <background>
 In this chapter we are taking a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we've chosen.
 We will also take a look at the type system of the Rust programming language to see how it relates to type systems of other languages that have tools for term search.
 In the end we'll briefly cover how autocomplete is implemented in modern tools. #todo("..to give some context of what we are improving on?")
@@ -402,43 +402,44 @@ mk_list_bar : Bar -> [Bar]
 bar_to_int  : Bar -> Integer
 ```
 
-#todo("Maybe say that we number the holes as do the following ?1 ?2")
-First we can split the goal of finding a pair to two subgoals `[?subgoal1 : [a], ?subgoal2 : a -> Integer]`.
+To simplify the notation we will name the goals as `?<number>`, for example `?1` for goal 1.
+
+First we can split the goal of finding a pair to two subgoals `[?1 : [a], ?2 : a -> Integer]`.
 This is the same step for BFS and DFS as there is not much else to do with `?goal` as there are now functions
 that take us to pair of any types exept using pair constructor.
 At this point we have two subgoals to solve
 ```hs
-(?subgoal1 : [a], ?subgoal2 : a -> Integer)
+(?1 : [a], ?2 : a -> Integer)
 ```
 
 Now we are at where the differences between DFS and BFS start playing out.
 First let's look at how the DFS would handle the goals.
-First we focus on the `?subgoal1`.
+First we focus on `?1`.
 We can use `mk_list_foo` to transform the goal to finding of something of type `Foo`.
 Now we have the following solution and goals.
 
 ```hs
-(mk_list_foo(?subgoal3 : Foo), ?subgoal2 : a -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : a -> Integer)
 ```
 
-Note that although the `a` in the `?subgoal2` has to be of type `Foo` we do not propagate this knowledge there yet as we are focusing on `?subgoal3`.
+Note that although the `a` in `?s2` has to be of type `Foo` we do not propagate this knowledge there yet as we are focusing on `?3`.
 We only propagate the constrains when we discard the hole as filled.
-We use `mk_foo` to create new goal `?subgoal4 : Bar` which we solve by providing `bar`.
-Now we propagate the constraints to the remaining subgoals, `?subgoal2` in this example.
-This means that the second subgoal becomes `?subgoal2 : Foo -> Integer` as shown below.
+We use `mk_foo` to create new goal `?4 : Bar` which we solve by providing `bar`.
+Now we propagate the constraints to the remaining subgoals, `?2` in this example.
+This means that the second subgoal becomes `?2 : Foo -> Integer` as shown below.
 
 ```hs
-(mk_list_foo(mk_foo(?subgoal4 : Bar), ?subgoal2 : a -> Integer)
-(mk_list_foo(mk_foo(bar)), ?subgoal2 : Foo -> Integer)
+(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> Integer)
+(mk_list_foo(mk_foo(bar)), ?2 : Foo -> Integer)
 ```
-However, we cannot find anything of type `Foo -> Integer` so we have to revert all the way to `?subgoal1`.
-This time we use `mk_list_bar` to fill `?subgoal1` meaning that the remaining subgoal becomes `?subgoal2 : Bar -> Integer`.
+However, we cannot find anything of type `Foo -> Integer` so we have to revert all the way to `?1`.
+This time we use `mk_list_bar` to fill `?1` meaning that the remaining subgoal becomes `?2 : Bar -> Integer`.
 We can fill it by providing `bar_to_int`.
 As there are no more subgoals remaining the problem is solved with the steps shown below.
 
 ```hs
-(mk_list_bar(?subgoal3 : Bar), ?subgoal2 : a -> Integer)
-(mk_list_bar(bar), ?subgoal2 : Bar -> Integer)
+(mk_list_bar(?3 : Bar), ?2 : a -> Integer)
+(mk_list_bar(bar), ?2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
 ```
 
@@ -446,12 +447,12 @@ An overview of all the steps we took can be seen in the @standardml-dfs-steps.
 #figure(
 sourcecode()[```hs
 ?goal : ([a], a -> Integer)
-(?subgoal1 : [a], ?subgoal2 : a -> Integer)
-(mk_list_foo(?subgoal3 : Foo), ?subgoal2 : a -> Integer)
-(mk_list_foo(mk_foo(?subgoal4 : Bar), ?subgoal2 : a -> Integer)
-(mk_list_foo(mk_foo(bar)), ?subgoal2 : Foo -> Integer) -- Revert to ?subgoal1
-(mk_list_bar(?subgoal3 : Bar), ?subgoal2 : a -> Integer)
-(mk_list_bar(bar), ?subgoal2 : Bar -> Integer)
+(?1 : [a], ?2 : a -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : a -> Integer)
+(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> Integer)
+(mk_list_foo(mk_foo(bar)), ?2 : Foo -> Integer) -- Revert to ?1
+(mk_list_bar(?3 : Bar), ?2 : a -> Integer)
+(mk_list_bar(bar), ?2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
 ```],
 caption: [
@@ -462,37 +463,37 @@ caption: [
 Now let's take a look at the algorithm that uses BFS for to handle the goals.
 The first iteration is the same as described above after which we have two subgoals to fill.
 ```hs
-(?subgoal1 : [a], ?subgoal2 : a -> Integer)
-queue = [[?subgoal1, ?subgoal2]]
+(?1 : [a], ?2 : a -> Integer)
+queue = [[?1, ?2]]
 ```
 
-As we are always working on the head element of the queue we are still working on `?subgoal1`.
-Once again we use `mk_list_foo` to transform the first subgoal to `?subgoal3 : Foo` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
-We also propagate the information to other subgoals so that we constrain the `?subgoal2` to either `Foo -> Integer` or `Bar -> Integer`.
+As we are always working on the head element of the queue we are still working on `?1`.
+Once again we use `mk_list_foo` to transform the first subgoal to `?3 : Foo` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
+We also propagate the information to other subgoals so that we constrain `?2` to either `Foo -> Integer` or `Bar -> Integer`.
 ```hs
-(mk_list_foo(?subgoal3 : Foo), ?subgoal2 : Foo -> Integer)
-(mk_list_bar(?subgoal4 : Bar), ?subgoal2 : Bar -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : Foo -> Integer)
+(mk_list_bar(?4 : Bar), ?2 : Bar -> Integer)
 
-queue = [[?subgoal3, ?subgoal2], [?subgoal4, ?subgoal2]]
+queue = [[?3, ?2], [?4, ?2]]
 ```
 
-In the next step we search for something of type `Foo` for the `?subgoal3` and a function of type `Foo -> Integer` in the `?subgoal2`.
+In the next step we search for something of type `Foo` for `?3` and a function of type `Foo -> Integer` in `?2`.
 We find `bar` for the first goal, but not anything for the second goal.
 This means we discard the branch as we are not able to solve the problem collection.
-Note that at this point we still have `?subgoal4` pending, meaning we have not yet exhausted the search in current "branch".
+Note that at this point we still have `?4` pending, meaning we have not yet exhausted the search in current "branch".
 Reverting now means that we save some work that was guaranteed to have no effect on the overall outcome.
 The search space becomes
 ```hs
-(mk_list_foo(mk_foo(?subgoal4 : Bar)), ?subgoal2 : <impossible>) -- discarded
-(mk_list_bar(?subgoal4 : Bar), ?subgoal2 : Bar -> Integer)
+(mk_list_foo(mk_foo(?4 : Bar)), ?2 : <impossible>) -- discarded
+(mk_list_bar(?4 : Bar), ?2 : Bar -> Integer)
 
-queue = [[?subgoal4, ?subgoal2]]
+queue = [[?4, ?2]]
 ```
 Now we focus on the other problem collection.
 In this iteration we find solutions for both of the goals as following.
 As all the problems in the problem collection get get solved we can turn it into solution and return it.
 ```hs
-(mk_list_bar(?subgoal5 : Bar), ?subgoal2 : Bar -> Integer)
+(mk_list_bar(?5 : Bar), ?2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
 ```
 
@@ -500,10 +501,10 @@ An overview of all the steps we took can be seen in @standardml-bfs-steps. #todo
 #figure(
 sourcecode()[```hs
 ?goal : ([a], a -> Integer)
-(?subgoal1 : [a], ?subgoal2 : a -> Integer)
-(mk_list_foo(?subgoal3 : Foo), ?subgoal2 : Foo -> Integer)
-(mk_list_foo(mk_foo(?subgoal4 : Bar)), ?subgoal2 : <impossible>) -- Discard branch
-(mk_list_bar(?subgoal5 : Bar), ?subgoal2 : Bar -> Integer)
+(?1 : [a], ?2 : a -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : Foo -> Integer)
+(mk_list_foo(mk_foo(?4 : Bar)), ?2 : <impossible>) -- Discard branch
+(mk_list_bar(?5 : Bar), ?2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
 ```],
 caption: [
@@ -676,13 +677,13 @@ It can also insert `unreachable!()` macros to places that are never reached duri
 RusSol works on the HIR level of abstraction.
 It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
 After getting back successful response it turns the response back into Rust code as shown in @russol-workflow.
-#todo("Cite + license?")
 #figure(
   image("fig/russol-suslik.png", width: 100%),
   caption: [
-    RusSol workflow by @rust-program-synthesis
+    "RusSol workflow" by @rust-program-synthesis / #link("https://creativecommons.org/licenses/by/4.0/ ")[CC BY 4.0]
   ],
 ) <russol-workflow>
+#todo("Is this correctly cited?")
 
 All the programs synthesized by RusSol are guaranteed to be correct by construction.
 This is achieved by extracting the programs from separation logic derivations.
@@ -942,13 +943,13 @@ As they describe in @compiler-design the $O(N*M)$ can be reduced to $O(N+M)$ by 
 The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
 To get machine code out of the intermediate representation there is also a unique back end for every target archidecture.
 
-#todo("The protocola roughly takes the position of IR, front end is similar to...")
 Similar ideas can be also used in building language tooling.
 Language server protocol (LSP) has been invented to do exactly that.
 The Language Server Protocol#footnote(link("https://microsoft.github.io/language-server-protocol/")) (LSP) is an open, JSON-RPC-based#footnote(link("https://www.jsonrpc.org/specification")) protocol for use between editors and servers that provide language specific tools for a programming language.
-#todo("since standardised client know what to do no mather what the server is")
-There is a LSP Client implementation for every IDE and a LSP server implementation for every langauge.
-LSP was first introduced to public in 2016 and now now most modern IDEs support it. #todo("link to list if possible")
+The protocol takes the position of intermediate representation, front ends are the LSP clients in IDEs and backends are LSP servers.
+We will refer to LSP client as just client and LSP server as just server.
+As the protocol is standardised every client knows how to work with any server.
+LSP was first introduced to public in 2016 and now now most#footnote(link("https://microsoft.github.io/language-server-protocol/implementors/tools/")) modern IDEs support it.
 
 Some of the most common functionalities LSP servers provide according to @editing-support-for-languages-lsp:
 - Go to definition / references
@@ -959,21 +960,21 @@ Some of the most common functionalities LSP servers provide according to @editin
 - Refactoring routines (extract function, etc.)
 - Semantic syntax highlighting
 
-The the high level communication of LSP client and server is show in @lsp-data-flow.
-The idea is that when the programmer works in the IDE the LSP client sends all text edits to LSP server.
+The the high level communication of client and server is show in @lsp-data-flow.
+The idea is that when the programmer works in the IDE the client sends all text edits to server.
 The server can then process the updates and send new autocompletion suggestion / syntax highlighting / diagnostics back to client so that it can update the  information in IDE.
 #figure(
   image("fig/lsp_data_flow.svg", width: 100%),
   caption: [
-    LSP data flow
+    LSP communication
   ],
 ) <lsp-data-flow>
-Important thing to note here is that the LSP client starts the LSP server the first time it requires data from it.
-After that the server runs as daemon process usually until the editor is closed or until the LSP client commands it to shut down.
+Important thing to note here is that the  client starts the server the first time it requires data from it.
+After that the server runs as daemon process usually until the editor is closed or until the client commands it to shut down.
 As it doesn't get restarted very often it can keep the state in memory which allows responding to client events faster.
 It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed.
-Cacheing the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations LSP servers provide.
-In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is the most common performance optimization strategy for LSP servers.
+Cacheing the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations servers provide.
+In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is the most common performance optimization strategy for servers.
 
 == Machine learning based autocompletions
 In this chapther we will take a look at machine learning based autocompletion tools.
@@ -1018,28 +1019,6 @@ In the context of code generation for autocompletion this results in unexpected 
 These issues are usually adressed by filtering out syntactically invalid responses or working at the level of abstract syntax tree as they did it in @code-prediction-trees-transformers.
 However neither of those accounts for type nor borrow checking which means that invalid programs can still be occasionally suggested.
 
-= Methodology (week 5)
-#todo("Should this be somewhere before?")
-Leave out? List of contributions (instead of research questions as well). Contributions of the paper.
-What and why. why relevant.
-
-#todo("Actually what goes here?, oddly enough noone seems to have this section, at least with given name")
-#todo("Should I list the implemention here as well? or is this kind of obvious?")
-
-== Usability (week 5)
-I guess this is explanation and justification what it does not do and why?
-Latency, incorrect stuff, etc
-
-== Resynthesis (week 5)
-
-=== Chosen metrics (week 5)
-
-=== Chosen crates (week 5)
-#todo("Should I just say top5 or also list them out here?
-I guess other option would be to list them in the validation paragraph")
-
-== Limitations of the methods (week 5)
-#todo("Or should it be under either of them")
 
 = Term search design <design>
 Before diving into the technical aspects of term search implementation, we will first explore it by giving
@@ -1130,27 +1109,24 @@ Inspired by this we believe that is better to suggest items that make the progra
 If we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
-== Implementation (week 6)
+== Implementation
 We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
 To have better understanding of the context we are working in we will first diescribe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
 When the LSP server is started, `rust-analyzer` first indexes whole project, including it's dependencies as well as standard library.
 This is rather time consuming operation.
-During indexing `rust-analyzer` lexes and parses all input files and lowers most of it to High-Level Intermediate Representation (HIR).
-#todo("what is symbol table? where all the identifiers live")
-Lowering to HIR is done to build up symbol table, that is a table that has knowledge of all symbols in the project.
+During indexing `rust-analyzer` lexes and parses all source files and lowers most of it to High-Level Intermediate Representation (HIR).
+Lowering to HIR is done to build up symbol table, that is a table that has knowledge of all symbols (idendtifiers) in the project.
 This includes but is not limited to functions, traits, modules, ADTs, etc.
-#todo("what is container item, or ignore the word. Function bodies are lowered lazily / on demand")
-Note that although the symbols are lowered to HIR, `rust-analyzer` avoids looking into contaner item bodies whenever possible.
-For example function bodies are usually ignored at this stage.
+Lowering to HIR is done lazily.
+For example most function bodies are usually not lowered at this stage.
 One limitation of the `rust-analyzer` as of now is that it doesn't properly handle lifetimes.
 Explicit lifetimes are all mapped to `'static` lifetimes and implicit lifetime bounds are ignored.
 This also limits our possibilities to do borrow checking as there simply isn't enough data available in the `rust-analyzer` yet.
-With the symbols table built up, `rust-analyzer` is ready to accept LSP client requests.
+With the symbols table built up, `rust-analyzer` is ready to accept client requests.
 
-#todo("We refer to lsp client as client ...")
 Now autocompletion request can be sent.
-Upon receiving a request that contains the cursor location in file `rust-analyzer` finds the corresponding syntax node.
+Upon receiving a request that contains the cursor location in source code `rust-analyzer` finds the corresponding syntax node.
 In case it is in function body that has not yet been lowered the lowering is done now.
 Note that the lowering is always cached so that subsequent calls can be looked up from the table.
 With all the lowering done, `rust-analyzer` builds up context of the autocompletion.
@@ -1160,14 +1136,90 @@ From the context different completion providers (functions) suggest possible com
 To add the term search based autocompletion we introduct a new provider that takes in a context and produces a list of completion suggestions.
 Once the list is complete it is mapped to LSP protocol and sent back to client.
 
-==== Term search
+=== Term search
 #todo("versions, goal drive, dfs, etc")
 The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
 Term search entry point can be found in `crates/hir/src/term_search.rs` and is named as `term_search`.
 The most important inputs to term search are scope of the program we are performing the search at and the target type.
 
-#todo("files -> source")
+To better understand why the main algorithm is based around bidirectional BFS we will discuss three iterations of the algorithm.
+First we start with algorithm that quite closely follows the algorithm we described in @agsy.
+Then we will see how we managed to achieve better results with using BFS instead of DFS as suggested in @standardml.
+At last we will see how the algorithm can benefit from bidirectional search.
+
+=== First iteration: DFS
+The first iteration of the algorithm follows the algorithm described in @agsy.
+The implementation for it is quite short as the DFS method seems to naturally follow the DFS as pointed out in @standardml.
+However since our implementation does not use any cacheing it is very slow.
+Bacause of the poor performance we had to limit the search depth to 2 as bigger depth caused the algorithm to run for a considerable amount of time.
+The performace can be improved by cacheing some of the found terms but doing it efficiently is rather hard.
+
+Cacheing the result means that once we have managed to produce a term of type `T` we want to store it in a lookup tabel so that we wouldn't have to search for it again.
+Storing the type first time we find it is rather trivial, but it's not very efficient.
+The issue arises from that there are no guarantees that the first term we come up with is the simplest.
+Consider the example of prducing something of type `Option<i32>`.
+We as humen know that easiest way to produce a term of that type is to use the `None` constructor that takes no arguments.
+The algorithm however might first take the branch of using `Some(...)` constructor.
+Now we have to also recurse to find something of type `i32`, and potentially iterate again and again if we do not have anything suitable in scope.
+Even worse, we might end up not finding anything suitable after fully traversing the tree we got from using the `Some(...)` constructor.
+Now we have to also check the `None` subtree which means that we only benefit from the cache if we want to search for `Option<i32>` again.
+
+This is not a problem if we want to retreive all possible term for the target type, however that is not always what we want to do.
+We found that for bigger terms it is better to produce a term with new holes in it, even when we have solutions for them, just to keep amount of suggestions low.
+Consider the following example.
+
+#sourcecode(numbering: none)[```rs
+let var: (bool, bool) = todo!();
+```]
+
+If we give user back all possible terms then the user has to choose between following options:
+#sourcecode(numbering: none)[```rs
+(false, false)
+(false, true)
+(true, false)
+(true, true)
+```]
+However, we can simplify it to only suggesting the use of tuple constructor with two new holes in it.
+#sourcecode(numbering: none)[```rs
+(todo!(), todo!())
+```]
+If there are only few possiblilities to come up with a solution then showing them all isn't really a problem.
+However it is quite common for the type constructors or functions to take multiple arguments.
+This as the amount of terms is exponential relative to amount of arguments to function/type constructor takes the amount of suggestions grows very fast.
+As result quite often all the results don't even fit onto screen.
+In @second-iter-bfs we will introduce a algorithm to handle this case.
+For now it is sufficient to aknowledge that fully traversing the search space to produce all possible terms is not the desired approach and there is some motivativation to cache the easy work to avoid the hard work, not vice versa.
+Branch costs suggested in @mimer can potentially improve this but the issue still remains as this is simply a heuristic.
+
+Another observation from implementing the DFS algorithm is that whilst most of the algorithm looked very elegant the "struct projection" tactic described in @tactic-struct-projection was rather awkward to implement.
+The issue arose the projections having to include all the fields from the parent struct as well as from the child struct.
+Including only the child "leaf" fields is very elegant with DFS but also including the intermediate fields caused some extra boilerplate.
+
+Similar issues arose when we wanted to speed up the algorithm by running some tactics, for example "impl method" only on types that we have not yet ran it on.
+Doing it with DFS is definitely possible but it doesn't fit the algorithm conveniently.
+As there were were many issues with optimizing the DFS approach we decided to not improve it further and turn to BFS based algorithm instead.
+
+
+=== Second iteration: BFS <second-iter-bfs>
+To avoid producing too many terms we cache terms using enum shown in @rust-alternative-exprs.
+#figure(
+sourcecode()[```rs
+type Cache = Map<Type, AlternativeExprs>;
+
+enum AlternativeExprs {
+    /// There are few exprs, so we keep track of them all
+    Few(Set<Expr>),
+    /// There are too many exprs to keep track of
+    Many,
+}
+```],
+caption: [
+    Cache data structure for term search
+  ],
+) <rust-alternative-exprs>
+
 The main algorithm for the term search is based on BFS approach described in @standardml differes from it a lot.
+Namely when the @standardml algorithm works backwards from the goal type our algorithm works forwards from the items in scope.
 #todo("bottom up not top down, or actually bidirectional, meet in the middle")
 We consider types of all values in scope as starting nodes of the BFS graph and target type as the goal.
 Then we use transitions such as type constructors and functions to get from one node of the graph to others.
@@ -1231,7 +1283,7 @@ Types queried keeps track of all the types we have tried to look up from terms r
 They are used in static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
 This is another optimization for speed described in @tactic-static-method.
 
-=== Tactics (week 6) <tactics>
+== Tactics (week 6) <tactics>
 Tactics are used to expand the search space for the term search algorithm.
 All the tactics are applied sequentially which causes a phase ordering problem.
 Some tactics may depend on results of others.
@@ -1361,7 +1413,7 @@ We've also decided to ignore all the methods that return the same type as the ty
 This is because they do not take us any closer to goal type, and we've considered it unhelpful to show user all the possible options.
 I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for. #todo("builder won't work, but here re good arguments for not to work anyway, order, lack of info")
 
-==== Tactic "struct projection"
+==== Tactic "struct projection" <tactic-struct-projection>
 "Struct projection" is a simple tactic that attempts all field accesses of struct.
 In a single iteration it only goes one level deep, but with multiple iterations we cover also all the fields of substructs.
 
@@ -1381,13 +1433,26 @@ This is because we figured that the most common use case for static methods is t
 Similarly to "Impl method" tactic we ignore all the methods that have more than 1 generic parameter either at the `impl` or the method level.
 The motivation is the same as for the "Impl method" tactic but as the static methods are rarer and we wanted the tactic to also work on container types such as `Vec<T>` we decided to raise the threshold to 1.
 
-= Results (week 7-8)
+= Evaluation (week 7-8) <evaluation>
+
+== Usability (week 5)
+I guess this is explanation and justification what it does not do and why?
+Latency, incorrect stuff, etc
 #todo("depth hyper param graph")
-== Usability (week 8)
 
-== Resynthesis (week 8)
+== Resynthesis (week 5)
 
-= Future work (week 9)
+=== Chosen metrics (week 5)
+
+=== Chosen crates (week 5)
+#todo("Should I just say top5 or also list them out here?
+I guess other option would be to list them in the validation paragraph")
+
+== Limitations of the methods (week 5)
+#todo("Or should it be under either of them")
+
+
+= Future work (week 9) <future-work>
 #todo("Or after related work?")
 
 
