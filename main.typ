@@ -34,20 +34,29 @@ This is done by rejecting all programs that may contain undefined behavior durin
 We will call the set of programs that can be compiled valid, as they are guaranteed to not cause undefined behavior.
 Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (also called expressions in Rust) that satisfy the type system.
 Rust, however, does not have tools for term search, although the type system makes it a perfect candidate for one.
-Consider the following Rust program:
+Consider the following Rust program in @into-example-1:
+#figure(
+sourcecode()[
 ```rs
 enum Option<T> { None, Some(T) }
 
 fn wrap(arg: i32) -> Option<i32> {
     todo!();
 }
-```
+```],
+caption: [
+    Rust function to wrap `i32` in `Option`
+  ],
+) <into-example-1>
+
 
 From the types of values in scope and constructors of `Option`, we can produce the expected result of wrapping the argument in `Option` and returning it.
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
 
 == Motivation
-Due to Rust having an expressive type system, the programmer might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#footnote(link("https://actix.rs/")), a typical JSON endpoint function might look something like this:
+Due to Rust having an expressive type system, the programmer might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#footnote(link("https://actix.rs/")), a typical JSON endpoint function might look something like shown in @motivation-example-1.
+#figure(
+sourcecode()[
 ```rs
 struct FooResponse { /* Struct fields */ }
 
@@ -58,7 +67,12 @@ async fn foo() -> Option<Json<FooResponse>> {
         /* Fill struct fields from `service_res` */
     }))
 }
-```
+```],
+caption: [
+    Example endpoint in `actix-web` framework
+  ],
+) <motivation-example-1>
+
 We can see that converting the result from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
 This means that term search can be used to reduce the amount of code the programmer has to write.
 In @how-programmers-interact-with-code-generation-models[p. 19] they suggest that Large Language Model (LLM) based code generation tools are used to reduce the amount of code the programmer has to write therefore making them faster (_acceleration mode_).
@@ -95,18 +109,30 @@ The Curry-Howard correspondence is a direct correspondence between computer prog
 It is the basic idea in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
 
-For example, if we have addition on natural numbers defined as following Idris code:
+For example, if we have addition on natural numbers defined in Idris as shown in @idirs-add-nat.
+#figure(
+sourcecode()[
 ```hs
 add : Nat -> Nat -> Nat
 add Z     m = m
 add (S k) m = S (add k m)
-```
+```],
+caption: [
+    Addition of natural numbers in Idris
+  ],
+) <idirs-add-nat>
 We can prove that adding any natural number `m` to 0 is equal to the natural number `m`.
 For that, we create a declaration `plus_reduces_Z` with the type of the proposition and prove it by defining a program that satisfies the type.
+#figure(
+sourcecode()[
 ```hs
 plus_reduces_Z : (m : Nat) -> plus Z m = m  -- Proposition
 plus_reduces_Z m = Refl                     -- Proof
-```
+```],
+caption: [
+    Prove $0 + n = n$ in Idris
+  ],
+) <idirs-plus-reduces-z>
 The example above is quite trivial, as the compiler can figure out from the definition of `plus` that `plus Z m` is defined to be `m` according to first definition of `add`
 Based on that we can prove `plus_reduces_Z` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type ie proposition.
@@ -162,72 +188,45 @@ The intuition for the tool is following:
 The algorithm itself is based around DFS and consists of two subfunctions.
 Function $"search": "problem" -> ["solution"]$ is the main entry point that attempts to find a set of solutuions for a problem.
 The function internally makes use of another function $"searchColl": "PrbColl" -> ["SolColl"]$ that attempts to find set of solution collections for a problem collection.
-The pseudocode for the `search` and `searchColl` functions can be seen in the snippets below.
+The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-snippet.
 
-#algo(
-  title: [search],
-  parameters: ("problem",),
-  row-gutter: 5pt,
-)[
-  refs, sol := createRefs(problem) #comment[Create refinements, extract solution]\
-  sols := []\
-  for each ref in refs #i\
-    prbcoll := apply(ref, problem) #comment[Apply refinement to problem]\
-    solcolls := searchColl(prbcoll) #comment[Search for solutions for problems]\
-    for each solcol in solcolls #i \
-      newsol := substitute(solcol, sol) #comment[Substitute holes] \
-      addSolution(newsol, sols) #d #comment[Add solution to set of solutions]\
-    end for #d \
-  end for \
-  return sols #comment[Return all solutions]
-]
+We model Problem collection as a list of subproblems together with a _refinment_ that produces those problems.
+Refinment is a recipe to transform the problem so that we get zero or more subproblems out for the input problem.
+For example problem of finding a pair `(Bool, Int)` can be refined to two subproblems of finding `Bool` and finding `Int`.
+In case we refine the problem without creating any new subproblems then we can call the problem solved.
+Otherwise all the subproblems need to be solved for the solution to hold.
+Refinment is stored so that on a successful solution we would know how to construct the solution term from the solution collection.
 
-The `search` algorithm starts by creating all possible _refinements_ for the problem and extracting the solution so far.
-Refinements are generated by tactics and consist of atomic steps of refining a problem to construct the corresponding proof term.
-Note that some refinments create new subproblems but others don't.
-The example in the @agsy_transformation_branches contains three possible kinds if refinements for the problem: 1) Replace it with local (no new subproblems), 2) Replace it with function and create new subproblems for every argument, 3) Replace problem with a type constructor and create subproblem for all fields required by constructor.
-Then we attempt to apply each refinement to the problem to transform the problem to a problem collection.
-After that we attempt to solve the problem collection via the `searchColl` function.
-We substitute all holes in the current solution with the solutions in solution collection to get a new solution and add it to the set of possible solutions.
-In the end we return the set of all possible solutions.
+The `search` algorithm starts by refining the problem into new problem collections.
+Refining is done by tactics that are essentially just a way of organising possible refinements.
+An example tactic that attempts to solve the problem by filling it with locals in scope can be seen in @agsy-example-tactic.
+// The example in the @agsy_transformation_branches contains three possible kinds if refinements for the problem: 1) Replace it with local (no new subproblems), 2) Replace it with function and create new subproblems for every argument, 3) Replace problem with a type constructor and create subproblem for all fields required by constructor.
+Once we have the solution collections we attempt to solve them via the `searchColl` function.
+Problem collections where we can't solve all the problems cannot be turned into solution collections as there is way to build well formed term with problems remaining in it.
+As we only care about cases where we can fully solve the problem we discard them.
+For the successful solution collections we substitute the refinments we took into the problem to get back solution.
+As the solution is a well formed term with no remaining subproblems we return it.
+In case there are no problem collections to solve we can call the problem to be trivially solved.
+This acts as a "base case" for the algorithm.
+In case there are problem collections but we cannot solve any of them then we cannot solve the problem so we return nothing instead of solution.
 
-#algo(
-  title: [searchColl],
-  parameters: ("prbcoll",),
-  row-gutter: 5pt,
-)[
-  solcolls := []\
-  for each prb in prbcoll #i #comment[Iterate over all problems in collection]\
-    sols := search(prb) #comment[Search solution for the problem]\
-    if empty(sols) #i #comment[Check if there is a solution]\
-      return [] #d #comment[Return empty for no solution]\
-    end if\
-    addSolutions(sols, solcolls) #d #comment[Add solutions to collection]\
-  end for \
-  return solcolls #comment[Return all solution collections]
-]
-
-#todo("Is this down below better? searchColl is oneliner but search is kind of same length")
-```hs
-newtype ProbColl = [Problem]
-newtype SolColl = [Solution]
+#figure(
+sourcecode()[```hs
+newtype ProbColl = (Refinment, [Problem])
+newtype SolColl  = (Refinment, [Solution])
 
 -- Find solutions to problem
 search :: Problem -> Maybe [Solution]
-search TrivialProblem p = 
-  if isWellFormed p
-  then Just (extractSol p) 
-  else Nothing
 search p = 
   let
-    refs = createRefs p
-    probColls = [applyRef ref p | ref <- refs] 
-    solColls = flatten [sc | Just sc <- map searchColl probColls]
-    sols = [substitute sc p | sc <- solColls] 
+    probColls: [ProbColl] = createRefs p
+    solColls: [SolColl] = flatten [sc | Just sc <- map searchColl probColls]
+    sols: [Solution] = map (\sc -> substitute sc p) solColls 
   in 
-    case sols of
-      []   -> Nothing
-      sols -> Just sols
+    case (probColls, sols) of
+      ([],    _) -> Just TrivialSolution  -- No holes, trivially solved
+      ( _,   []) -> Nothing
+      ( _, sols) -> Just sols
 
 -- Find solution to every problem in problem collection
 searchColl :: ProbColl -> Maybe [SolColl]
@@ -236,20 +235,28 @@ searchColl = sequence $ fmap search
 -- Create refinements for problem
 createRefs :: Problem -> [ProbColl]
 createRefs p = flatten [tactic1 p, tactic2 p, tacticN p]
+```],
+caption: [
+    Agsy high level algorithm
+  ],
+) <agsy-snippet>
 
+An example of tactic can be seen in @agsy-example-tactic.
+#figure(
+sourcecode()[```hs
 -- Suggest locals for solving any problem
 tacticLocal :: Problem -> [ProbColl]
 tacticLocal p = 
   let locals = localsInScope p
-  in [SubstituteLocal p l | l <- locals]
+  in
+    map (\l -> (Refinment::SubstituteLocal p l, [])) $
+    filter (\l -> couldUnify p l) locals
 ```
-
-With `searchColl` we attempt to solve problem collection by finding a solution to each of its subproblems.
-To do that we iterate over all the problems and attempt to solve them by calling `search` function.
-If we cannot find solution for a problem in problem collection we discard the whole problem collection by returning empty solution immediately.
-This is because problems in the problem collection need to be solved for the solution to hold.
-In case we find solutions to the problem we add them to solutions collection.
-In the end we return solutions collection.
+],
+caption: [
+    Agsy example tactic
+  ],
+) <agsy-example-tactic>
 
 As described above the algorithm is built around DFS.
 However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful it performs poorly on larger problems.
@@ -290,9 +297,10 @@ The high level algorithm for DFS is to first generate possible ways of how to re
 In the snippet below tactics create problem collections that are options we can take to refine the problem into new subproblems.
 After that we attempt to solve each set of subproblems to find the first problem collection where we manage to solve all the subproblems.
 That problem collection effectively becomes our solution.
-In the pseudocode snippet below we can see that the DFS fits functional style very well as for all the subproblems we can just recursively call the same `solve` function again.
-Note that in the snipped the constraints are propagated to remaining problemss only after problem is fully solved.
-```hs
+In @standardml-dfs-code we can see that the DFS fits functional style very well as for all the subproblems we can just recursively call the same `solve` function again.
+Note that in the listing the constraints are propagated to remaining problemss only after problem is fully solved.
+#figure(
+sourcecode()[```hs
 solve :: Problem -> Maybe Solution
 solve problem = 
   let 
@@ -301,16 +309,21 @@ solve problem =
     head [combineToSolution x | Just x <- map solveDFS pcs] -- Find first solution
 
 solveDFS :: ProblemCollection -> Maybe SolutionCollection
-solveDFS [] = Just []                 -- No subproblems => Empty solution collection
+solveDFS [] = Just [] -- No subproblems => Empty solution collection
 solveDFS (p:ps) = do
   sol <- solve p                      -- Return `Nothing` for no solution
   ps' <- propagateConstraints sol ps  -- Propagate constraints
   rest <- solvesolveDFS ps'           -- Attempt to solve other subproblems
   return sol : rest
-```
+```],
+caption: [
+    Pseudocode for DFS search
+  ],
+) <standardml-dfs-code>
 
 Now lets look at how the BFS algorithm suggested in @algebraic-foundations-of-proof-refinement works.
 The high level algorithm for BFS is to generate possible ways to refine the problem into new subproblems and then incrementally solve all the subproblems in parallel.
+The pseudocode for it can be seen in @standardml-bfs-code.
 
 The algorithm starts by converting the given problem to singelton problem collection.
 Now the produced collection is fed into `solveBFS` function that starts incrementally solving the problem collections.
@@ -331,7 +344,8 @@ The status is either
  Propagating the constrains is done in `propagateConstraints` function.
  The function adds new constraints arising form the head element refinements to all subproblems in the problem collection.
 
-```hs
+#figure(
+sourcecode()[```hs
 solve :: Problem -> Maybe Solution
 solve problem = 
   let 
@@ -367,10 +381,16 @@ step (p:ps) =
 
 propagateConstraints :: ProblemCollection -> Constraints -> ProblemCollection
 propagateConstraints ps constraints = fmap (addConstraints constraints) ps
-    
-```
+```],
+caption: [
+    Pseudocode for BFS search
+  ],
+) <standardml-bfs-code>
 
 Consider the example where we are searching for a goal `?goal :: ([a], a -> Integer)` that is a pair of a list of some type and a function of that type to `Integer`.
+Similar goals in real word could arrise from finding a list together with a function that can map the elements to integer to sum them.
+Another example where dependent goals arise would be a list together with a finction to print all the elements.
+
 Note that in this example we want the first member of pair to be list but we do not care of the types inside the list.
 The only requirement is that the second member of pair can map the same type to integer.
 We have following items in scope:
@@ -382,7 +402,7 @@ mk_list_bar : Bar -> [Bar]
 bar_to_int  : Bar -> Integer
 ```
 
-
+#todo("Maybe say that we number the holes as do the following ?1 ?2")
 First we can split the goal of finding a pair to two subgoals `[?subgoal1 : [a], ?subgoal2 : a -> Integer]`.
 This is the same step for BFS and DFS as there is not much else to do with `?goal` as there are now functions
 that take us to pair of any types exept using pair constructor.
@@ -422,8 +442,9 @@ As there are no more subgoals remaining the problem is solved with the steps sho
 (mk_list_bar(bar), bar_to_int)
 ```
 
-An overview of all the steps we took can be seen in the snippet below.
-```hs
+An overview of all the steps we took can be seen in the @standardml-dfs-steps.
+#figure(
+sourcecode()[```hs
 ?goal : ([a], a -> Integer)
 (?subgoal1 : [a], ?subgoal2 : a -> Integer)
 (mk_list_foo(?subgoal3 : Foo), ?subgoal2 : a -> Integer)
@@ -432,7 +453,11 @@ An overview of all the steps we took can be seen in the snippet below.
 (mk_list_bar(?subgoal3 : Bar), ?subgoal2 : a -> Integer)
 (mk_list_bar(bar), ?subgoal2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
-```
+```],
+caption: [
+    DFS algorithm steps
+  ],
+) <standardml-dfs-steps>
 
 Now let's take a look at the algorithm that uses BFS for to handle the goals.
 The first iteration is the same as described above after which we have two subgoals to fill.
@@ -471,15 +496,20 @@ As all the problems in the problem collection get get solved we can turn it into
 (mk_list_bar(bar), bar_to_int)
 ```
 
-An overview of all the steps we took can be seen in the snippet below. #todo("this is confusing for parallel stuff tho")
-```hs
+An overview of all the steps we took can be seen in @standardml-bfs-steps. #todo("this is confusing for parallel stuff tho")
+#figure(
+sourcecode()[```hs
 ?goal : ([a], a -> Integer)
 (?subgoal1 : [a], ?subgoal2 : a -> Integer)
 (mk_list_foo(?subgoal3 : Foo), ?subgoal2 : Foo -> Integer)
 (mk_list_foo(mk_foo(?subgoal4 : Bar)), ?subgoal2 : <impossible>) -- Discard branch
 (mk_list_bar(?subgoal5 : Bar), ?subgoal2 : Bar -> Integer)
 (mk_list_bar(bar), bar_to_int)
-```
+```],
+caption: [
+    DFS algorithm steps
+  ],
+) <standardml-bfs-steps>
 
 In the example above we see that BFS and propagating constraints to other subgoals can help us cut some search branches to speed up the search.
 However, this is not always the case.
@@ -496,19 +526,19 @@ However, we will take a look at some implementation details.
 The most interesting implementation detail for us is how BFS is achieved.
 Refinery uses interleaving of subgoal generated by each tactic to get the desired effect.
 Let's look at the example to get a better idea what is going on.
-Suppose that at some point of the term search we have three pending subgoals: `[?sg1, ?sg2, ?sg3]` and we have some thactic that prduces two new subgoals when refining `?sg1`.
+Suppose that at some point of the term search we have three pending subgoals: `[`#text(red)[`?1`]`, ?2, ?3]` and we have some thactic that prduces two new subgoals `[`#text(blue)[`?4`]`, `#text(blue)[`?5`]`]` when refining #text(red)[`?1`].
 The DFS way of handling it would be
-```
-[?sg1, ?sg2, ?sg3] -> tactic -> [?sg4, ?sg5, ?sg2, ?sg3]
-```
+#block()[
+`[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [`#text(blue)[`?4`]`, `#text(blue)[`?5`]`, ?2, ?3]`
+]
 However with interleaving the goals are ordered in the following way
-```
-[?sg1, ?sg2, ?sg3] -> tactic -> [?sg2, ?sg4, ?sg3, ?sg5]
-```
+#block()[
+`[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [?2, `#text(blue)[`?4`]`, ?3, `#text(blue)[`?5`]`]`
+]
 Note that there is also a way to insert the new goals to back of the goals list which is the BFS way.
-```
-[?sg1, ?sg2, ?sg3] -> tactic -> [?sg2, ?sg3, ?sg4, ?sg5]
-```
+#block()[
+`[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [?2, ?3, `#text(blue)[`?4`]`, `#text(blue)[`?5`]`]`
+]
 However in Refinery they have decided to go with interleaving as it works well with tactics that produce infinite amounts of new holes due to not making any new process.
 Note that this works especially well because of the lazy evaluation in Haskell.
 In case of eager evaluation the execution would still halt on producing all the subgoals, so interlining would have now effect.
@@ -526,9 +556,10 @@ The guess binding is similar to a let binding, but without any reduction rules f
 In @idris2-design-and-implementation they note that using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
 Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
 
-$"TT"_"dev"$ consists of terms, bindings and constants as shown in the snippet below.
+$"TT"_"dev"$ consists of terms, bindings and constants as shown in @idris-tt-syntax.
 
-```
+#figure(
+sourcecode(numbering: none)[```
 Terms, t ::= c (constant)
     | x (variable)
     | b. t (binding)
@@ -545,7 +576,11 @@ Binders, b ::= λ x : t (abstraction)
 Constants, c ::= Type (type universes)
     | i (integer literal)
     | str (string literal)
-```
+```],
+caption: [
+    $"TT"_"dev"$ syntax
+  ],
+) <idris-tt-syntax>
 
 Idris2 makes use of priority queue of hole and guess binders to keep track of subgoals to fill.
 The goal is considered filled once the queue becomes empty.
@@ -608,29 +643,40 @@ RusSol itself is implemented as a extension to rustc, the official rust compiler
 It has separate command line tool, but internally it reuses many parts of the compiler.
 Although the main use case for RusSol is quite different from our use case it shared a lot of common ground.
 
-The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the `todo!()`.
-```rs
+The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the `todo!()` macro on line 5 in @russol-input.
+
+#figure(
+sourcecode(highlighted: (5,))[```rs
 #[requires(x < 100)]
 #[ensures(y && result == Option::Some(x))]
-#[ensures(y && result == Option::None)]
+#[ensures(!y && result == Option::None)]
 fn foo(x: &i32, y: bool) -> Option<i32> {
   todo!()
 }
-```
+```],
+caption: [
+    RusSol input program
+  ],
+) <russol-input>
 From the preconditions (`requires` macro) and postconditions (`ensures` macro) it is able to synthesize the body of the function.
-In the example above it would be
-```rs
+For the example in @russol-input the output is shown in @russol-output.
+#figure(
+sourcecode(numbering: none)[```rs
 match y {
   true => Some(x),
   false => None
 }
-```
+```],
+caption: [
+    RusSol output for `todo!()` macro
+  ],
+) <russol-output>
 It can also insert `unreachable!()` macros to places that are never reached during the program execution.
 
 RusSol works on the HIR level of abstraction.
 It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
 After getting back successful response it turns the response back into Rust code as shown in @russol-workflow.
-
+#todo("Cite + license?")
 #figure(
   image("fig/russol-suslik.png", width: 100%),
   caption: [
@@ -680,7 +726,9 @@ In rust traint solver is responisble for checking unification of types#footnote(
 The trit solver works at the HIR level of abstraction and it is heavily inspired by Prolog engines.
 The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
 To check for unification of types, we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
-In the example below, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
+In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
+#figure(
+sourcecode()[
 ```rs
 type Foo = u8; // Type alias
 
@@ -688,15 +736,24 @@ impl SomeTrait for u8 {
   type Bar = u8;   // Associated type
   type Baz = Self; // Associated type with extra level of indirection
 }
-```
+```],
+caption: [
+    Type projections in Rust
+  ],
+) <rust-type-projections>
 Normalization is done in the context of typing environment.
 First we register clasuses provided by the typing environment to the trait solver.
 After that we register a new inference variable in and then we solve for it.
-A small example of normalizing the `Foo` type alias from the program above can be seen below.
-```txt
+A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
+#figure(
+sourcecode(numbering: none)[```txt
 AliasEq(Foo = u8)
 Projection(Foo, ?normalized_var)  <- normalized_var is constrained to u8 after solving
-```
+```],
+caption: [
+    Normalizing types in Rust
+  ],
+) <rust-normalizing>
 Not all types can be fully normalized.
 For example, consider the function below.
 ```rs
@@ -723,19 +780,29 @@ This means that if we have subtyping relationship `A <: B` (`A` is a subtype of 
 Rust supports subtyping only for reference types as for other types the sizes of the types may vary.
 The subtyping relation is related to two cases:
 1. Variance with respect to lifetimes. If we have `'a: 'b` (read as `a` outlives `b`) then `'a` is a subtype of `'b`.
-   For example following program is valid.
-   ```rs
+   For example the program in @rust-lifetimes-simple is valid.
+   #figure(
+sourcecode(numbering: none)[```rs
 fn bar<'a, 'b>() where 'a: 'b {
     let subtype: &'a str = "hi";
     let supertype: &'b str = subtype;
 }
-```
+```],
+caption: [
+    Subtyping with lifetimes
+  ],
+) <rust-lifetimes-simple>
 2. Between types with higher ranked lifetimes. Higher ranked lifetime `for<'a>` specifies that the type is valid for any lifetime `'a`.
-   In the example below we can see that as as `'a` can be any lifetime it can also be `'static` making the higher ranked lifetime a subtype of concrete lifetime.
-   ```rs
+   In the @rust-higher-ranked-lifetimes we can see that as as `'a` can be any lifetime it can also be `'static` making the higher ranked lifetime a subtype of concrete lifetime.
+   #figure(
+sourcecode(numbering: none)[```rs
 let subtype: &(dyn for<'a> Fn(&'a i32) -> &'a i32) = &|x| x;
 let supertype: &(dyn Fn(&'static i32) -> &'static i32) = subtype;
-```
+```],
+caption: [
+    Higher ranked lifetimes
+  ],
+) <rust-higher-ranked-lifetimes>
 
 Variance is a property that generic types have with respect to their arguments.
 A generic type's variance in a parameter is how the subtyping of the parameter affects the subtyping of the generic type.
@@ -868,19 +935,20 @@ Based on that concept it suggest filling them with variables in scope which is v
 However, it only suggest trivial ways of filling holes so we are looking to improve on it a lot.
 
 === Language Server Protocol <lsp-protocol>
-Implementing autocompletion for every language and for every IDE results in a $O(N * M)$ complexity where N is the amount of languages supported and M is the amount of IDEs supported.
+Implementing autocompletion for every language and for every IDE results in a $O(N * M)$ complexity where N is the number of languages supported and M is the number of IDEs supported.
 In other words one would have to write a tool for every language-IDE pair.
-This problem is very similar to problem in compilers design where N is the amount of languages and M is the amount of target archidectures.
+This problem is very similar to problem in compilers design with N languages and M target archidectures.
 As they describe in @compiler-design the $O(N*M)$ can be reduced to $O(N+M)$ by sepparating the compiler to front and back end.
 The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
 To get machine code out of the intermediate representation there is also a unique back end for every target archidecture.
 
+#todo("The protocola roughly takes the position of IR, front end is similar to...")
 Similar ideas can be also used in building language tooling.
 Language server protocol (LSP) has been invented to do exactly that.
 The Language Server Protocol#footnote(link("https://microsoft.github.io/language-server-protocol/")) (LSP) is an open, JSON-RPC-based#footnote(link("https://www.jsonrpc.org/specification")) protocol for use between editors and servers that provide language specific tools for a programming language.
+#todo("since standardised client know what to do no mather what the server is")
 There is a LSP Client implementation for every IDE and a LSP server implementation for every langauge.
-Although the idea is not new LSP was first introduced to public only in 2016 by Microsoft.
-The most popular IDEs supporting LSP is VS Code, but now most modern IDEs support it.
+LSP was first introduced to public in 2016 and now now most modern IDEs support it. #todo("link to list if possible")
 
 Some of the most common functionalities LSP servers provide according to @editing-support-for-languages-lsp:
 - Go to definition / references
@@ -923,8 +991,9 @@ This is very different from ordering suggestions as the suggested code usually h
 This is also different from what we are doing with the term search.
 In the case of term search we only try to produce code that some contributes towards the parent term of correct type.
 However language models can also generate code that do not contribute towards finding the goal type.
-Lets look at the example for the `ripgrep`#footnote(link("https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584")) crate:
-```rs
+Lets look at the example for the `ripgrep`#footnote(link("https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584")) crate shown in @rust-builder.
+#figure(
+sourcecode()[```rs
 // Inside `printer_json` at `/crates/core/flags/hiargs.rs`
 
 fn printer_json<W: std::io::Write>(&self, wtr: W) -> JSON<W> {
@@ -934,7 +1003,11 @@ fn printer_json<W: std::io::Write>(&self, wtr: W) -> JSON<W> {
         .always_begin_end(false)      // JSONBuilder -> JSONBuilder
         .build(wtr)                   // JSONBuilder -> JSON
 }
-```
+```],
+caption: [
+    Builder pattern in Rust
+  ],
+) <rust-builder>
 As we can see from the type transitions added in comments the type of the term only changes on the first and last line of the function body.
 As the lines in the middle do not affect the type of the builder in any way there is also no way for the term search to generate them.
 Machine learning models however are not affected by this as it may be possible to derive those lines from the function docstring, name or rest of the context.
@@ -947,6 +1020,8 @@ However neither of those accounts for type nor borrow checking which means that 
 
 = Methodology (week 5)
 #todo("Should this be somewhere before?")
+Leave out? List of contributions (instead of research questions as well). Contributions of the paper.
+What and why. why relevant.
 
 #todo("Actually what goes here?, oddly enough noone seems to have this section, at least with given name")
 #todo("Should I list the implemention here as well? or is this kind of obvious?")
@@ -980,27 +1055,35 @@ It is a "hole" as it denotes that there should be a program in the future, but t
 These holes can be filled using term search to search for programs that fit in the hole.
 All the programs generated by term search are valid programs meaning that they compile.
 
-Example usages can be found in the snippet below:
-```rs
-
+Example usages can be found in @rust-filling-todo:
+#figure(
+sourcecode()[```rs
 fn main() {
     let a: i32 = 0;  // Suppose we have a variable a in scope
     let b: i32 = todo!();  // Term search finds `a`
     let c: Option<i32> = todo!();  // Finds `Some(a)`, `Some(b)` and `None`
 }
-```
+```],
+caption: [
+    Filling `todo!()` holes
+  ],
+) <rust-filling-todo>
 
 In addition to `todo!()` macro holes `rust-analyzer` has a concept of typed holes as we described in @rust-analyzer.
 From term search perspective they work in the same way as `todo!()` macros - term search needs to come up with a term of some type to fill them.
-The same example with typed holed instead of `todo!()` macros can be found in the snippet below:
-```rs
-
+The same example with typed holed instead of `todo!()` macros can be found in @rust-filling-typed-hole.
+#figure(
+sourcecode()[```rs
 fn main() {
     let a: i32 = 0;  // Suppose we have a variable a in scope
     let b: i32 = _;  // Term search finds `a`
     let c: Option<i32> = _;  // Finds `Some(a)`, `Some(b)` and `None`
 }
-```
+```],
+caption: [
+    Filling typed holes (`_`)
+  ],
+) <rust-filling-typed-hole>
 
 
 == Autocompletion
@@ -1020,8 +1103,9 @@ That however is out of scope of this thesis.
 In addition to technical limitations, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
 In @usability-of-ownership they found that it is very common that the programmer has to restructure the program to satisfy the borrow checker.
 The simplest case for it is to either move some lines around in function or to add `.clone()` to avoind moving the value.
-For example consider the snippet below with the cursor at `|`:
-```rs
+For example consider @rust-autocompletion with the cursor at `|`:
+#figure(
+sourcecode(highlighted: (10,))[```rs
 /// A function that takes an argument by value
 fn foo(x: String) { todo!() }
 /// Another function that takes an argument by value
@@ -1033,7 +1117,11 @@ fn main() {
   foo(my_string);
   bar(my_s|); // cursor here at `|`
 }
-```
+```],
+caption: [
+    Autocompletion of moved values
+  ],
+) <rust-autocompletion>
 The user want's to also pass `my_string` to `bar(...)` but this does not satisfy the borrow checking rules as the value was moved to `foo(...)` on the previous line.
 The simplest fix for it is to change the previous line to `foo(my_string.clone())` so that the value is not moved.
 This however can only be done by the programmer as there are also other ways to solve it, for example making the functions take the reference istead of value.
@@ -1047,10 +1135,12 @@ We've implemented term search as an addition to `rust-analyzer`, the official LS
 To have better understanding of the context we are working in we will first diescribe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
 When the LSP server is started, `rust-analyzer` first indexes whole project, including it's dependencies as well as standard library.
-This is rather time consuming operation taht takes a considerable amount of time.
+This is rather time consuming operation.
 During indexing `rust-analyzer` lexes and parses all input files and lowers most of it to High-Level Intermediate Representation (HIR).
+#todo("what is symbol table? where all the identifiers live")
 Lowering to HIR is done to build up symbol table, that is a table that has knowledge of all symbols in the project.
 This includes but is not limited to functions, traits, modules, ADTs, etc.
+#todo("what is container item, or ignore the word. Function bodies are lowered lazily / on demand")
 Note that although the symbols are lowered to HIR, `rust-analyzer` avoids looking into contaner item bodies whenever possible.
 For example function bodies are usually ignored at this stage.
 One limitation of the `rust-analyzer` as of now is that it doesn't properly handle lifetimes.
@@ -1058,8 +1148,9 @@ Explicit lifetimes are all mapped to `'static` lifetimes and implicit lifetime b
 This also limits our possibilities to do borrow checking as there simply isn't enough data available in the `rust-analyzer` yet.
 With the symbols table built up, `rust-analyzer` is ready to accept LSP client requests.
 
+#todo("We refer to lsp client as client ...")
 Now autocompletion request can be sent.
-Upon receiving the request that contains the cursor location in file `rust-analyzer` finds the corresponding syntax node.
+Upon receiving a request that contains the cursor location in file `rust-analyzer` finds the corresponding syntax node.
 In case it is in function body that has not yet been lowered the lowering is done now.
 Note that the lowering is always cached so that subsequent calls can be looked up from the table.
 With all the lowering done, `rust-analyzer` builds up context of the autocompletion.
@@ -1070,11 +1161,14 @@ To add the term search based autocompletion we introduct a new provider that tak
 Once the list is complete it is mapped to LSP protocol and sent back to client.
 
 ==== Term search
+#todo("versions, goal drive, dfs, etc")
 The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
-Term search entry point can be found in `crates/hir/src/term_search/mod.rs` and is named as `term_search`.
+Term search entry point can be found in `crates/hir/src/term_search.rs` and is named as `term_search`.
 The most important inputs to term search are scope of the program we are performing the search at and the target type.
 
+#todo("files -> source")
 The main algorithm for the term search is based on BFS approach described in @standardml differes from it a lot.
+#todo("bottom up not top down, or actually bidirectional, meet in the middle")
 We consider types of all values in scope as starting nodes of the BFS graph and target type as the goal.
 Then we use transitions such as type constructors and functions to get from one node of the graph to others.
 The transitions are grouped into tactics to have more clear overview of the algorithm.
@@ -1144,14 +1238,20 @@ Some tactics may depend on results of others.
 However, for the order of tactics it can be fixed by running the algorithm for more iterations.
 Note that some tactics also use heuristics for performance optimization and these optimizations also suffer from the phase ordering problem, but they can not be fixed by running the algorithm for more iterations.
 
-All the tactic function signatures follow the simplified function signature shown in the snippet below
+All the tactic function signatures follow the simplified function signature shown in @rust-tactic-signature.
+#figure(
+sourcecode(numbering: none)[
 ```rs
 fn tactic_name(
     ctx: &TermSearchCtx,
     defs: &HashSet<ScopeDef>,
     lookup: &mut LookupTable,
 ) -> impl Iterator<Item = Expr>
-```
+```],
+caption: [
+    Term search tactic signature
+  ],
+) <rust-tactic-signature>
 All the tactics take in the context of term search, definitions in scope and a lookup table and the tactics produce an iterator that yields expressions that unify with the goal type (provided by the context).
 The context encapsulates semantics of the program, configuration for the term search and the goal type.
 Definitions are all the definitions in scope that can be used by tactics.
@@ -1242,12 +1342,18 @@ For example, it may happen that we can use some method from the `impl` block lat
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
 This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
 These types include but are not limited to `Box<S>`, `Rc<S>`, `Arc<S>`, `Pin<S>`.
-For example there is a following method signatures for `Option<T>` type in standard library#footnote(link("https://doc.rust-lang.org/src/core/option.rs.html#715")).
-```rs
+For example there is a method signatures for `Option<T>` type in standard library#footnote(link("https://doc.rust-lang.org/src/core/option.rs.html#715")) shown in @rust-receiver-type.
+
+#figure(
+sourcecode(numbering: none)[```rs
 impl<T> Option<T> {
     pub fn as_pin_ref(self: Pin<&Self>) -> Option<Pin<&T>> { /* ... */ }
 }
-```
+```],
+caption: [
+    Receiver argument example in Rust
+  ],
+) <rust-receiver-type>
 As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
 However, the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
 
@@ -1276,7 +1382,7 @@ Similarly to "Impl method" tactic we ignore all the methods that have more than 
 The motivation is the same as for the "Impl method" tactic but as the static methods are rarer and we wanted the tactic to also work on container types such as `Vec<T>` we decided to raise the threshold to 1.
 
 = Results (week 7-8)
-
+#todo("depth hyper param graph")
 == Usability (week 8)
 
 == Resynthesis (week 8)
