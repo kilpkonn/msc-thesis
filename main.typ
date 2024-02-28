@@ -1147,7 +1147,7 @@ First we start with algorithm that quite closely follows the algorithm we descri
 Then we will see how we managed to achieve better results with using BFS instead of DFS as suggested in @standardml.
 At last we will see how the algorithm can benefit from bidirectional search.
 
-=== First iteration: DFS
+=== First iteration: DFS <first-iter-dfs>
 The first iteration of the algorithm follows the algorithm described in @agsy.
 The implementation for it is quite short as the DFS method seems to naturally follow the DFS as pointed out in @standardml.
 However since our implementation does not use any cacheing it is very slow.
@@ -1201,6 +1201,39 @@ As there were were many issues with optimizing the DFS approach we decided to no
 
 
 === Second iteration: BFS <second-iter-bfs>
+The second iteration of our algorithm was based on BFS as suggested in @algebraic-foundations-of-proof-refinement.
+However it differs from it by doing the search in the opposite direction.
+The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backwards from it towards what we already have.
+For example if we have function in scope that takes us to the goal we create new goals for all the arguments of the function, therefore move backwards from the return type towards the arguments.
+Our algorithm however works in the forward direction, meaning that we start from what we have in scope.
+We try to apply all the functions etc. to then build new types from what we have and hopefully at some point arrive at the target type.
+
+In @graph-searching they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
+We believe that this might be the case for term search as there are many type transitions available.
+Going in the forward direction all the terms we create are well formed and do not have holes in them.
+This means that we do not need problem collections as there are never multiple subproblems pending that have to all be solved for some term to be well formed.
+As there is a potential speedup as well as the implementation seems to be easier we decided to experiment with using the forward approach.
+
+Going in the "forward" direction also makes writing some of the tactics easier.
+Consider the example of struct projections.
+In the backwards direction we would start with the struct field and then later search if we have the struct available.
+This works, but it is rather hard to understand as we usually write code for projections in the forward direction.
+With BFS going in the forward direction we can just visit all the fields of struct types in every iteration which roughly follows how we usually write code.
+The issue of awkward handling of fields together with their fields also goes away as we can consider only one level of fields in every iteration.
+With multiple iterations we manage to cover fields of nested structs without needing any boilerplate.
+
+In this iteration we also introduce the cache to the algorithm.
+The idea of the cache is to keep track of types we have reached so that we could query for terms of that type in $O(1)$ time complexity.
+Since in practice we also care about terms that unify with the type we get the complexity of $O(n)$ where the $n$ is number of types in cache.
+This is still a lot faster than taversing the tree as iterating the entries in the map is quite cheap opertion.
+With this kind of graph we managed to increase the search depth to 3-4 depending on the size of the project.
+
+In the DFS approach without chache the main limitation was time complexity, but now the limitation is the memory complexity.
+The issue is producing too many terms for a type.
+In @first-iter-dfs we dicussed that there are often too many terms to present for the user.
+However now we find that there are also too many terms to keep in memory due to exponential growth of them as the depth increases.
+Luckily the idea of suggesting users the terms that have new holes in them also reduces the memory complexity a lot.
+
 To avoid producing too many terms we cache terms using enum shown in @rust-alternative-exprs.
 #figure(
 sourcecode()[```rs
@@ -1217,36 +1250,69 @@ caption: [
     Cache data structure for term search
   ],
 ) <rust-alternative-exprs>
+The idea is that if there a only a few terms of given type we keep them all so that we can provide the full term to the user.
+However if there are too many of them to keep track of we just remember that we can come up with a term for given type, but we won't strore the terms themselves.
+The cases of `Many` later become the holes in the generated term.
 
-The main algorithm for the term search is based on BFS approach described in @standardml differes from it a lot.
-Namely when the @standardml algorithm works backwards from the goal type our algorithm works forwards from the items in scope.
-#todo("bottom up not top down, or actually bidirectional, meet in the middle")
-We consider types of all values in scope as starting nodes of the BFS graph and target type as the goal.
-Then we use transitions such as type constructors and functions to get from one node of the graph to others.
-The transitions are grouped into tactics to have more clear overview of the algorithm.
+In addition to decreasing memory complexity this reduces also time complexity a lot.
+Now we do not have to construct the terms if we know that there are already many of the type.
+This can be acieved quite elegantly by using iterators in Rust.
+Iterators in Rust are lazy meaning that they only do work if we consume them.
+In our case consumin the iterator is extending the `AlternativeExprs` in the Cache.
+However if we are already in the many case we can throw away the iterator without performing any computation.
+This speeds up the algorithm a lot so now we can rise the depth of search to 10+ with it still outperforming the previous algorithms on time scale.
 
-The high level overview of the main loop can be seen in the @term-search-main-loop.
-#figure(
-  image("fig/term_search_loop.svg", width: 60%),
-  caption: [
-    Term search main loop
-  ],
-) <term-search-main-loop>
+The algoritm itself is quite simple, the pseudocode for it can be seen in @rust-bfs-pseudocode.
+We start by gathering all the items in scope to `defs`.
+These items include local values, constants as well as all visible functions/type constructors etc.
+Next we initialize the lookup table with desired many threshold for the alternative expressions shown in @rust-alternative-exprs.
+The lookup table owns the cache, the state of the algorithm and some other values for optimizations.
+We will discuss the exact functionalities of the lookup table in @lookup-table.
 
-#todo("DFS stuff")
-We start by initializing the lookup table which keeps track of the state.
-It has information of types we have reached, transitions we've taken and types we've searched for but didn't find and transitions we've used.
 Before entering the main loop we populate the lookup table by running a tactic called `trivial`.
 Essentially it attempts to fulfill the goal by trying variables we have in scope.
 More information about the `trivial` tactic can be found in @tactic-trivial.
-All the types get added to lookup table and can be later used in other tactics.
-After we iteratively expand the search space by attempting different tactics until we've exceeded the preconfigured search depth.
+All the terms it produces get added to lookup table and can be later used in other tactics.
+After that we iteratively expand the search space by attempting different tactics until we've exceeded the preconfigured search depth.
 We keep iterating after finding the first match as there may be many possible options.
 For example otherwise we would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has fewer arguments.
 During every iteration we sequentially attempt different tactics.
 More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different type transformations (type constructors, functions, methods).
 The search space is expanded by adding new types to lookup table.
 Example for it can be seen in @term-search-state-expansion.
+In the end we filter out duplicates and solutions that do not take us closer to the goal.
+
+#figure(
+sourcecode()[```rs
+pub fn term_search(ctx: &TermSearchCtx) -> Vec<Expr> {
+    let mut defs = ctx.scope.process_all_names(...);
+    let mut lookup = LookupTable::new(ctx.many_threshold);
+
+    // Try trivial tactic first, also populates lookup table
+    let mut solutions: Vec<Expr> = 
+        tactics::trivial(ctx, &defs, &mut lookup).collect();
+
+    for _ in 0..ctx.config.depth {
+        lookup.new_round();
+
+        solutions.extend(tactics::type_constructor(ctx, &defs, &mut lookup));
+        solutions.extend(tactics::free_function(ctx, &defs, &mut lookup));
+        solutions.extend(tactics::impl_method(ctx, &defs, &mut lookup));
+        solutions.extend(tactics::struct_projection(ctx, &defs, &mut lookup));
+        solutions.extend(tactics::impl_static_method(ctx, &defs, &mut lookup));
+    }
+
+    solutions.into_iter().filter(|it| !it.is_many()).unique().collect()
+}
+```],
+caption: [
+    Bottom up term search pseudocode
+  ],
+) <rust-bfs-pseudocode>
+
+As we can see from the @rust-bfs-pseudocode we start from what we have (locals, constants, statics) and work towards the target type.
+This is opposite direction comparaed to what is used in all the other tools we have looked at.
+To better understand how the search space is expanded let's look at @term-search-state-expansion.
 
 #figure(
   image("fig/state_expansion.svg", width: 60%),
@@ -1266,10 +1332,10 @@ The state consists of following components:
 1. Terms reached (grouped by types)
 2. New types reached (since last iteration)
 3. Definitions used / exhausted (for example functions applied)
-4. Types queried, but not reached
+4. Types wishlist (Types that have been queried, but not reached)
 
 Terms reached serves the most obvious purpose of them.
-It keeps track of the search space we have already covered (visited types) and allows quering terms for time in `O(1)` complexity.
+It keeps track of the search space we have already covered (visited types) and allows quering terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
 Important thing to note here that it also performs transformation of taking a reference if we query for reference type.
 This is only to keep the implementation simple and memory footprint low.
 Otherwise, having separate tactic for taking a reference of the type would be preferred.
@@ -1277,11 +1343,58 @@ Otherwise, having separate tactic for taking a reference of the type would be pr
 New types reached keeps track of new types added to terms reached so that we can iterate only over them in some tactics to speed up the execution.
 
 Definitions used serves also only purpose for speeding up the algorithm by avoiding definitions that have already been used.
-#todo("What to do with type transformations that take generics. I guess ignore now, but throwing them away decreases available search place")
 
-Types queried keeps track of all the types we have tried to look up from terms reached but not found.
+Types wishlist keeps track of all the types we have tried to look up from terms reached but not found.
 They are used in static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
 This is another optimization for speed described in @tactic-static-method.
+
+The main downside of the lookup table implementation we have is that it poorly handles types that take generics.
+We only store types that are normalize meaning that we have substitued the generic parameter with some concrete type.
+In case of generics, if often means that the lookup table starts growing exponentially.
+Consider the example of using `Option` type.
+#sourcecode()[```rs
+Some(T) | None
+Some(Some(T)) | Some(None) | Some(T) | None
+Some(Some(Some(T))) | Some(Some(None)) | Some(Some(T)) | Some(None) | Some(T) | None
+```]
+With every iteration two new terms of new type come available, even though it is unlikely one would ever use them.
+However since `Option` takes only one generic argument the grown is linear as many of the term cancel out due to already being in the cache.
+If we have something with multiple generic parameters becomes exponential.
+Consider the example of wrapping the types we have to pair (tuple with two elements).
+At first we have $n$ types. After first iteration we have $n^2$ new types as we are taking the Cartesian product.
+In the second iteration ve can crate a pair by taking one of the elements from the original set of types and the second element from the set of pairs we have.
+As for every pair there are $n$ original types to choose from we get $n^3$ pairs and also all the pairs of pairs.
+Even without considering the pairs of pairs we see that tho growth is exponential.
+
+To keep the search space to a reasonable size we ignore all types with generics unless if they take as directly to the goal.
+This means that we limit the depth for the generics to 1 which is a very severe however necessary limitation.
+In @third-iter-bidirectional-bfs we will discuss how to get around this limitation.
+
+=== Third iteration: Bidirectional BFS <third-iter-bidirectional-bfs>
+The third iteration of our algorithm is a small yet powerful improvement on the second iteration described in @second-iter-bfs.
+This iteration differs from the second iteration by improving the handling of generics.
+We note that the handling of generics is a lot smaller problem if going in the backwards direction as other term search tools do.
+This is because we can only construct the types that actually contribute towards reaching the goal.
+However if we only go in the backwards direction we can still end up with terms such as `Some(Some(...)).is_some()` that do contribute towards the goal but not in a very meaningful way.
+BFS copes with these kind of terms quite well as the easiest paths are taken first.
+However with multiple iteration many not so useful types get added to the lookup table nontheless.
+Note that the trick with lazy evaluation of iterators does not work here as the terms have types not yet in the lookup meaning we cannot discard them.
+Filtering them out in backwards direction is possible but not trivial.
+
+To benefit from better handling of generics going in the backwards direction and otherwise more intuitive approach of going forwards we decided to make the search bidirectional.
+The forward direction starts from the locals we have and starts expanding the search space from there.
+Tactics that work in the forward direction ignore all types where we need to provide generic paramiters.
+Other tactics start working backwards from the goal.
+All the tactics that work backwards do so to better handle generics.
+
+Going backwards is achieved by using the types wishlist component of the lookup table.
+We first seed the wishlist with the target type.
+During every iteration the tactics working backwards from the target type only work with concrete types we have in wishlist.
+For example if there is `Option<Foo>` in the wishlist and we work with the `Option<T>` type we know to substitute the generic type parameter `T` with `Foo`.
+This way we avoid polluting the lookup tabel with a large number of types that mostlikely do not contribute towards the goal.
+All the tactics add types to the wishlist so forward tactics can benefit from the backwards tactics (and vice versa) before meeting in the middle.
+With some tactics such as using methods on type only working in the forward direction we can conveniently avoid adding complex types to wishlist if we only need them to get something simple such as `bool` in the `Some(Some(...)).is_some()` example.
+
 
 == Tactics (week 6) <tactics>
 Tactics are used to expand the search space for the term search algorithm.
