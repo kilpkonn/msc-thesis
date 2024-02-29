@@ -1137,7 +1137,6 @@ To add the term search based autocompletion we introduct a new provider that tak
 Once the list is complete it is mapped to LSP protocol and sent back to client.
 
 === Term search
-#todo("versions, goal drive, dfs, etc")
 The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
 Term search entry point can be found in `crates/hir/src/term_search.rs` and is named as `term_search`.
 The most important inputs to term search are scope of the program we are performing the search at and the target type.
@@ -1209,7 +1208,7 @@ Our algorithm however works in the forward direction, meaning that we start from
 We try to apply all the functions etc. to then build new types from what we have and hopefully at some point arrive at the target type.
 
 In @graph-searching they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
-We believe that this might be the case for term search as there are many type transitions available.
+We believe that this might be the case for term search as there are many type transitions (functions/type constructors/methods) available.
 Going in the forward direction all the terms we create are well formed and do not have holes in them.
 This means that we do not need problem collections as there are never multiple subproblems pending that have to all be solved for some term to be well formed.
 As there is a potential speedup as well as the implementation seems to be easier we decided to experiment with using the forward approach.
@@ -1396,12 +1395,11 @@ All the tactics add types to the wishlist so forward tactics can benefit from th
 With some tactics such as using methods on type only working in the forward direction we can conveniently avoid adding complex types to wishlist if we only need them to get something simple such as `bool` in the `Some(Some(...)).is_some()` example.
 
 
-== Tactics (week 6) <tactics>
-Tactics are used to expand the search space for the term search algorithm.
-All the tactics are applied sequentially which causes a phase ordering problem.
-Some tactics may depend on results of others.
-However, for the order of tactics it can be fixed by running the algorithm for more iterations.
-Note that some tactics also use heuristics for performance optimization and these optimizations also suffer from the phase ordering problem, but they can not be fixed by running the algorithm for more iterations.
+== Tactics <tactics>
+We use tactics to expand the search space for the term search algorithm.
+All the tactics are applied sequentially which causes a phase ordering problem as tactics genrally depend on results of others.
+However, the ordering of tactics problem can be fixed by running the algorithm for more iterations.
+Note that some tactics also use heuristics for performance optimization that also suffer from the phase ordering problem, but they can not be fixed by running the algorithm for more iterations.
 
 All the tactic function signatures follow the simplified function signature shown in @rust-tactic-signature.
 #figure(
@@ -1417,7 +1415,7 @@ caption: [
     Term search tactic signature
   ],
 ) <rust-tactic-signature>
-All the tactics take in the context of term search, definitions in scope and a lookup table and the tactics produce an iterator that yields expressions that unify with the goal type (provided by the context).
+All the tactics take in the context of term search, definitions in scope and a lookup table and produce an iterator that yields expressions that unify with the goal type (provided by the context).
 The context encapsulates semantics of the program, configuration for the term search and the goal type.
 Definitions are all the definitions in scope that can be used by tactics.
 Some of the examples of definitions are local variables, functions, constants and macros.
@@ -1427,14 +1425,9 @@ Lookup table is used to keep track of the state of the term search as described 
 The iterator produced by tactics is allowed to have duplicates as filtering of them is done at the end of the algorithm.
 We decided to filter at the end because it is hard to guarantee that different tactics do not produce same elements, but without the guarantee of uniqueness there would have to be another round of deduplication nevertheless.
 
-
-
-#todo("Should I measure something per tactic?
-Like how much does it help? There are many combinations so maybe not so good idea.")
-
 ==== Tactic "trivial" <tactic-trivial>
 Tactic called "trivial" is one of the most trivial tactics we have.
-It only attempts items we have in scope and does not perform any type transitions. #todo("what are type transitions")
+It only attempts items we have in scope and does not perform any type transitions
 The items in scope contains:
 1. Constants
 2. Static items
@@ -1442,35 +1435,51 @@ The items in scope contains:
 4. Local items
 
 As this tactic only depends on the values in scope we don't have to call it every iteration.
-In fact, we only call it once before any of the other tactics to populate the lookup table with the values in scope.
+In fact, we only call it once before any of the other tactics to populate the lookup table for forward direction tactics with the values in scope.
+
+$
+(x_"constant": A in Gamma #h(0.5cm) ?: A) / (? := x_"constant") 
+#h(1cm)
+(x_"static": A in Gamma #h(0.5cm) ?: A) / (? := x_"static") \
+\
+(x_"generic": A in Gamma #h(0.5cm) ?: A) / (? := x_"generic") 
+#h(1cm)
+(x_"local": A in Gamma #h(0.5cm) ?: A) / (? := x_"local") 
+$
 
 ==== Tactic "famous types"
 "Famous types" is another rather trivial tactic.
 The idea of the tactic is to attempt values of well known types.
-Types and values are:
-1. `true` and `false` of type bool
-2. `()` of type unit
+Those types and values are:
+1. `true` and `false` of type `bool`
+2. `()` of unit type `()`
 Whilst we usually try to avoid creating values out of the blue we make an exception here.
 The rationale of making types we generate depend on types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
 Suggesting something else can be considered distracting.
-However, we find these values to be common enough to also suggest them.
+However, we find these values to be common enough to be usually a good suggestions.
 Another reason is that we experienced our algorithm "cheating" around depending on values anyway.
 It constructed expressions like `None.is_none()`, `None.is_some()` for `true`/`false` which are valid but all most never what the user wants.
-For unit types it uses any function that has "no return type" meaning it returns unit type.
-There is all most always at least one that find of function in scope but suggesting it is wrong more often than suggesting `()`.
+For unit types it can use any function that has "no return type" meaning it returns unit type.
+There is all most always at least one that kind of function in scope but suggesting it is wrong more often than suggesting `()`.
+Similarly to tactic "trivial" this tactic helps populating the lookup table for the forward pass tactics.
 
+$
+(?: "bool") / (? := "true" #h(0.5cm) ? := "false")
+#h(1cm)
+(?: "()") / (? := "()")
+$
 
 ==== Tactic "type constructor"
 "Type constructor" is first of our tactics that takes us from some types to another types.
 The idea is to try type constructors for types we have in scope.
 This includes both sum and product types (`enum` and `struct` for rust).
-The tactic ignores all types that contain constant generics as we couldn't find a way to efficiently come up with constant values to try.
-Trying anything doesn't work as the search space grows so big that it doesn't fit into memory.
-Another performance optimization for this tactic is that it only attempts types with generics if they directly unify with goal type.
-This mean that `Some(inner)` is possible but `Some(Some(inner))` is not possible outcome of our algorithm.
-This decision was made to disallow exponential growth of search space.
 
-The tactic also avoids types that have unstable generic parameters that do not have default values.
+As the ADT types may or may not contain generic arguments the tactic work in both forward and backward direction.
+Forward direction is used if the ADT does not have any generic parameters.
+Backward direction is used for types that have generic parameters.
+In the backward direction all the generic type arguments are taken from the types in wishlist so we know that we only produce types that somehow contribute towards our search.
+
+The tactic avoids types that have unstable generic parameters that do not have default values.
 Unstable generics with default values are allowed as many of the well known types have unstable generic parameters that have default values.
 For example the definition for `Vec` type in Rust is following:
 ```rs 
@@ -1479,30 +1488,55 @@ struct Vec<T, #[unstable] A: Allocator = Global>
 As the users normally avoid providing generics arguments that have default values we also decided to avoid filling them.
 This means that for the `Vec` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
 
+#todo("How to indicate arbitary number of fields / variants?")
+#todo("Should we indicate that we actually need type constructor, arguments and type is not enough or is it implementation detail?")
+$
+T_"struct" = A times B times A times C #h(1cm) T_"enum" = A + B + C\
+\
+(a: A, b: B, c: C in Gamma #h(0.5cm) ?: T_"struct") /
+(? := T_"struct" (a,b,a,c)) \
+\
+(a: A in Gamma #h(0.5cm) ?: T_"enum") /
+(? := T_"enum" (a))
+#h(1cm)
+(b: B in Gamma #h(0.5cm) ?: T_"enum") /
+(? := T_"enum" (b))
+#h(1cm)
+(c: C in Gamma #h(0.5cm) ?: T_"enum") /
+(? := T_"enum" (c))
+$
+
 ==== Tactic "free function"
 "Free function" is a tactic that tries different functions in scope.
 It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
-To speed up the tactic we've decided to filter out all the functions that have non-default generic parameters.
-By trial and error we've found that functions that have generic parameters seem to be not that common.
-#todo("Get some numbers here")
+We've decided to filter out all the functions that have non-default generic parameters.
+This is because `rust-analyzer` does not have proper checking for the function to be well formed with a set of generic parameters.
+This is an issue if the generic parameters that the function takes are not present in the return type.
 
-However, attempting the function with every type we've reached slows the algorithm down quite a bit.
-At the worst case the slowdown is exponential again.
+As we ignore all the functions that have non-default generic parametrs we can run this tactic in only forward direction.
 As described in @tactics the tactic avoids functions that return types that contain references.
-However, we do allow function arguments to take items by shared references.
+However, we do allow function arguments to take items by shared references as this is a common practice to pass by reference rather than value.
+
+$
+(a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
+(? := f(a, b)) \
+$
+
 
 ==== Tactic "impl method"
 "Impl method" is a tactic that attempts functions that have `self` parameter.
 This includes both trait methods and methods implemented directly on type.
-Similarly to "free function" tactic it also ignores functions that have non-default generic parameters for the same reasons.
-Only difference is that now both the function and the `impl` block may contain generics.
-We treat them the same, meaning we ignore the function if there are any generic parameters present.
+Similarly to "free function" tactic it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
+However generics defined on the impl block possess no issues as they are associated with the target type and we can provide concrete values for them.
 
-Another performace tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not
-present in the last iteration.
+A performace tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not present in the last iteration.
+This implies we run this tactic only in the forward direction ie we need to have term for the receiver type before using this tactic.
 This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costly operation.
 However, this optimization does suffer from the phase ordering problem.
 For example, it may happen that we can use some method from the `impl` block later when we have reached more types and covered a type that we need for an argument of the function.
+
+We considered also running this tactic in the reverse direction but it turned out to be very hard to do efficiently.
+The main issue is that there are many `impl` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
 
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
 This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
@@ -1524,10 +1558,18 @@ However, the type of `self` parameter in the method is `Pin<&Self>` which means 
 
 We've also decided to ignore all the methods that return the same type as the type of `self` parameter.
 This is because they do not take us any closer to goal type, and we've considered it unhelpful to show user all the possible options.
-I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for. #todo("builder won't work, but here re good arguments for not to work anyway, order, lack of info")
+I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
+Similar issues arise often when using the builder pattern as shown in @rust-builder
+
+#todo("same as free function as the self is not really that special")
+$
+(a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
+(? := f(a, b)) \
+$
 
 ==== Tactic "struct projection" <tactic-struct-projection>
 "Struct projection" is a simple tactic that attempts all field accesses of struct.
+The tactic runs only in the forward direction meaning we only try to access fields of target type rather than search for structs that have field with target type.
 In a single iteration it only goes one level deep, but with multiple iterations we cover also all the fields of substructs.
 
 This tactic highly benefitted from the use of BFS over DFS as the implementation for accessing all the fields of parent struct is rather trivial and with multiple iterations we get the full coverage including substruct fields.
@@ -1537,14 +1579,42 @@ As a result the implementation for DFS was about 2 times longer than the impleme
 As a performance optimization we only run this tactic on every type once.
 For this tactic this optimization does not reduce the total search space covered as accessing the fields doesn't depend on rest of the search space covered.
 
+#todo("Should we show all fields and how to name them?")
+$
+T_"struct" = A times B times A times C\
+\
+(s: T_"struct" in Gamma #h(0.5cm) ?: A) /
+(? := s.a) \
+$
+
 ==== Tactic "static method" <tactic-static-method>
 "Static method" tactic attempts static methods of `impl` blocks, that is methods that are associated with either type or trait, but do not take `self` parameter.
 One of the most common examples of static methods are `Vec::new()` and `Default::default()`.
 
-As a performance optimization we qurey the `impl` block for types that we have previously queried from the lookup table but not found.
+As a performance optimization we qurey the `impl` block for types that we have i wishlist meaning we only go in the backwards direction.
 This is because we figured that the most common use case for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
-Similarly to "Impl method" tactic we ignore all the methods that have more than 1 generic parameter either at the `impl` or the method level.
-The motivation is the same as for the "Impl method" tactic but as the static methods are rarer and we wanted the tactic to also work on container types such as `Vec<T>` we decided to raise the threshold to 1.
+Quering `impl` blocks is a costy operation so we only do it for types that are contributiong towards the goal meaing they are in wishlist.
+
+Similarly to "Impl method" tactic we ignore all the methods that have generic parameters defined on the method level for the same reasoning.
+
+#todo("This is same as free function again...")
+$
+(a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
+(? := f(a, b)) \
+$
+
+==== Tactic "make tuple"
+"Make tuple" tactic attempts to build types by constructing a tuple of other types.
+This is another tactic that runs only in the backwards direction as otherwise the search space would grow exponentially.
+In Rust the issue is even workse as there is no limit for how many items can be in a tuple meaning that even with only one term in scope we can create infinitely many tuples by repeating the term infinite amount of times.
+
+Going in the backwards direction we can only construct tuples that are useful and therefore keep the search space in reasonably small.
+
+$
+(a: A, b: B in Gamma #h(0.5cm) ?: (A, B)) /
+(? := (a, b)) \
+$
+
 
 = Evaluation (week 7-8) <evaluation>
 
