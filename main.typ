@@ -265,6 +265,7 @@ It is also noted that there seems to be many false subproblems that can never be
 
 ==== Mimer
 Mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
+As of February 2024, Mimer has been merged#footnote(link("https://github.com/agda/agda/pull/6410")) to Agda and will be released as a replacement for Agsy.
 In @mimer they say that Mimer is designed to handle many small synthesis problems rather than complex ones as compared to Agsy.
 Mimer also doesn't perform case splits to reduce the search space.
 Otherwise the main algorithm closely follows the one used in Agsy and described in @agsy.
@@ -683,7 +684,6 @@ After getting back successful response it turns the response back into Rust code
     "RusSol workflow" by @rust-program-synthesis / #link("https://creativecommons.org/licenses/by/4.0/ ")[CC BY 4.0]
   ],
 ) <russol-workflow>
-#todo("Is this correctly cited?")
 
 All the programs synthesized by RusSol are guaranteed to be correct by construction.
 This is achieved by extracting the programs from separation logic derivations.
@@ -1009,7 +1009,7 @@ caption: [
     Builder pattern in Rust
   ],
 ) <rust-builder>
-As we can see from the type transitions added in comments the type of the term only changes on the first and last line of the function body.
+As we can see from the changes of type added in comments the type of the term only changes on the first and last line of the function body.
 As the lines in the middle do not affect the type of the builder in any way there is also no way for the term search to generate them.
 Machine learning models however are not affected by this as it may be possible to derive those lines from the function docstring, name or rest of the context.
 
@@ -1136,7 +1136,7 @@ From the context different completion providers (functions) suggest possible com
 To add the term search based autocompletion we introduct a new provider that takes in a context and produces a list of completion suggestions.
 Once the list is complete it is mapped to LSP protocol and sent back to client.
 
-=== Term search
+=== Term search <term-search-iters>
 The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
 Term search entry point can be found in `crates/hir/src/term_search.rs` and is named as `term_search`.
 The most important inputs to term search are scope of the program we are performing the search at and the target type.
@@ -1208,7 +1208,7 @@ Our algorithm however works in the forward direction, meaning that we start from
 We try to apply all the functions etc. to then build new types from what we have and hopefully at some point arrive at the target type.
 
 In @graph-searching they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
-We believe that this might be the case for term search as there are many type transitions (functions/type constructors/methods) available.
+We believe that this might be the case for term search as there are many ways to build new types available (functions/type constructors/methods).
 Going in the forward direction all the terms we create are well formed and do not have holes in them.
 This means that we do not need problem collections as there are never multiple subproblems pending that have to all be solved for some term to be well formed.
 As there is a potential speedup as well as the implementation seems to be easier we decided to experiment with using the forward approach.
@@ -1276,7 +1276,7 @@ After that we iteratively expand the search space by attempting different tactic
 We keep iterating after finding the first match as there may be many possible options.
 For example otherwise we would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has fewer arguments.
 During every iteration we sequentially attempt different tactics.
-More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different type transformations (type constructors, functions, methods).
+More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different ways to build new types from existing types (type constructors, functions, methods, etc.).
 The search space is expanded by adding new types to lookup table.
 Example for it can be seen in @term-search-state-expansion.
 In the end we filter out duplicates and solutions that do not take us closer to the goal.
@@ -1427,7 +1427,7 @@ We decided to filter at the end because it is hard to guarantee that different t
 
 ==== Tactic "trivial" <tactic-trivial>
 Tactic called "trivial" is one of the most trivial tactics we have.
-It only attempts items we have in scope and does not perform any type transitions
+It only attempts items we have in scope and does not consider any functions / type constructors.
 The items in scope contains:
 1. Constants
 2. Static items
@@ -1460,7 +1460,8 @@ However, we find these values to be common enough to be usually a good suggestio
 Another reason is that we experienced our algorithm "cheating" around depending on values anyway.
 It constructed expressions like `None.is_none()`, `None.is_some()` for `true`/`false` which are valid but all most never what the user wants.
 For unit types it can use any function that has "no return type" meaning it returns unit type.
-There is all most always at least one that kind of function in scope but suggesting it is wrong more often than suggesting `()`.
+There is all most always at least one that kind of function in scope but suggesting it is unexpected more often than suggesting `()`.
+Moreover suggesting a random function with `()` return type can often be wrong as the functions can have side effects.
 Similarly to tactic "trivial" this tactic helps populating the lookup table for the forward pass tactics.
 
 $
@@ -1617,19 +1618,71 @@ $
 
 
 = Evaluation (week 7-8) <evaluation>
+In this chapter we evaluate the performace of the three iterations of algorithms we implemented in @term-search-iters.
+The main focus is on the third and final iteration but we compare it to previous iterations to highlight the differences.
+
+First we are perform empirical evaluation of the tree algorithms by performing a resynthesis on existing Rust programs.
+Later we focus on some hand picked examples to show the strengts and weaknesses of the tool.
+
+== Resynthesis
+To empirically evaluate the performace of the three iterations of the algorithm we implemented we use it to resynthesise human written programs.
+
+The idea is to modify the program by removing some expression from it (therefore creating a hole in the program) and then use term search to search for expressions that fit the hole.
+Then we can compare the results of the term search to original program.
+
+==== Chosen expressions
+We chose to perform the the resynthesis only on the tail expressions of every block.
+Other options that we considered are let assignments and function calls.
+We chose tail expressions as we consider this the most common usecase for our tool.
+The most well known place for them is the tail expression in the function body.
+However since we consider all the block expressions the tail expressions in each of the branches of `if { ... } else { ... }` expression are also considered as well as the expressions in `match` arms or the plain block expressions used for scoping.
+To better understand what is considered the tail expression we have constructed hypothetical example of code in @rust-tail-expr and highlighted all the lines that have tail expressions on them.
+
+#figure(
+sourcecode(highlighted: (4, 9, 11, 15, 19))[
+```rs
+fn foo(x: Option<i32>) -> Option<bool> {
+  let y = {
+    /* Compute something */
+    true
+  }
+  let res = match x {
+    Some(it) => {
+      if x < 0 {
+        true
+      } else {
+        false
+      }
+    }
+    None => {
+      true
+    }
+  }
+
+  Some(res)
+}
+```],
+caption: [
+    Tail expression examples
+  ],
+) <rust-tail-expr>
+Intuitively we can thing of them as the all the expressions that are on the last line of the block expression (`{ .. }`) and that do not end with a semicolon.
+
+==== Chosen metrics
+Here is a list of metrics we are interested in for resynthesis
+1. Tail expressions found - This represents the precentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
+2. Syntactic hits - This represents the precentage of tail expressions that are syntactically exactly what was there before therefore exactly what the programmer inteded to write. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same code. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average usecase as `rust-analyzer` as it only wipes the cache on restart.
+4. Average options per type - This shows the average amount of options provided to the user.
+
+=== Chosen crates (week 5)
+#todo("Is handpicking crates fine? There are many crates in top10 that don't rly make sense to run it on as proc macros work in a different way and libc is just bindings...")
+
 
 == Usability (week 5)
 I guess this is explanation and justification what it does not do and why?
 Latency, incorrect stuff, etc
 #todo("depth hyper param graph")
-
-== Resynthesis (week 5)
-
-=== Chosen metrics (week 5)
-
-=== Chosen crates (week 5)
-#todo("Should I just say top5 or also list them out here?
-I guess other option would be to list them in the validation paragraph")
 
 == Limitations of the methods (week 5)
 #todo("Or should it be under either of them")
