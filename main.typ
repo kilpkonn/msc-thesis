@@ -976,7 +976,7 @@ It is quite common that the server does semantic analysis fully only once and la
 Cacheing the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompltion nor for other operations servers provide.
 In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is the most common performance optimization strategy for servers.
 
-== Machine learning based autocompletions
+== Machine learning based autocompletions <machine-learning>
 In this chapther we will take a look at machine learning based autocompletion tools.
 As this is a very active field of development we are not competing against we will not dive into how good this or other models perform but rather look at what the models generally do.
 The main focus is to see how do they differ from the analytical approach we are taking with term search.
@@ -1673,19 +1673,142 @@ Here is a list of metrics we are interested in for resynthesis
 1. Tail expressions found - This represents the precentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
 2. Syntactic hits - This represents the precentage of tail expressions that are syntactically exactly what was there before therefore exactly what the programmer inteded to write. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same code. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
 3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average usecase as `rust-analyzer` as it only wipes the cache on restart.
-4. Average options per type - This shows the average amount of options provided to the user.
+4. Average options per hole - This shows the average amount of options provided to the user.
 
-=== Chosen crates (week 5)
-#todo("Is handpicking crates fine? There are many crates in top10 that don't rly make sense to run it on as proc macros work in a different way and libc is just bindings...")
+==== Chosen crates
+To choose crates that are representative also to what average rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io#footnote(link("https://crates.io/")).
+To filter reduce the sample size we decided to filter out categories that have fewer than 1000 crates in them.
+That left us with 31 categories with 155 crates in them.
+Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "Appendix").
+
+==== Results
+First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
+The relation between depth and all the metrics is shown in @term-search-depth.
+We can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
+The amount of suggestions also follows similar pattern but the curve is flatter.
+The search time of the algortihm seems to be in linear realtion with the search depth.
+
+#figure(
+  grid(
+    image("fig/accuracy.png", width: 90%),
+    image("fig/time.png", width: 90%),
+  ),
+  caption: [
+    Term search depth effect on metrics
+  ],
+) <term-search-depth>
+
+From the mesurments shown in @term-search-depth we see that increasing the search depth over two can actually have somewhat negative effects.
+The search will take longer and there will be more suggestions which can often mean more irrelavant suggestions as the syntactic hits is growing really slowly.
+
+There was also an issue of the search space growing too large to fit into memory on projects that use generics a lot.
+For example the crate `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")) has most of the functions defined for generic types.
+This results causes an explosion of search space in some cases causing the computer to run out of memory.
+For that reason we filtered out all the crates that caused `rust-analyzer` to run out of memory.
+For depth 10 there were 5 crates out of 155 that coused the out of memory error on at least one of the searches.
+
+With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
+Average number of suggestions per hole is 18.6 and they are found in 35ms.
+However the numbers vary alot depending on the style of the program.
+In @usability we will highlight some examples where the algorithm performs very well or very poorly.
 
 
-== Usability (week 5)
-I guess this is explanation and justification what it does not do and why?
-Latency, incorrect stuff, etc
-#todo("depth hyper param graph")
+#todo("Some numbers for algorithm with upper bound for time")
+#todo("First two iterations of the algorithm")
+
+== Usability (week 5) <usability>
+In this section we study cases where our algorithm works either very well or very poorly.
+
+==== Generics
+Although we managed to make the algorithm work decently with low amount of generics some libraries make extensive use of generics which is problematic for our algorithm.
+One example of such library is `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")).
+It uses generic parameters in all most all of it's functions so a typical function from `nalgebra` looks something like whats shown in @eval-nalgebra.
+
+#figure(
+sourcecode()[
+```rs
+impl<T, R: Dim, C: Dim, S> AbsDiffEq for Unit<Matrix<T, R, C, S>>
+where
+    T: Scalar + AbsDiffEq,
+    S: RawStorage<T, R, C>,
+    T::Epsilon: Clone,
+{
+    type Epsilon = T::Epsilon;
+
+    #[inline]
+    fn default_epsilon() -> Self::Epsilon {
+        T::default_epsilon()
+    }
+
+    #[inline]
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.as_ref().abs_diff_eq(other.as_ref(), epsilon)
+    }
+}
+```],
+caption: [
+    `nalgebra` code example
+  ],
+) <eval-nalgebra>
+As we can see from the listing it makes use of many generic parameters which result in a slower performance of our tool.
+This is because the amount of types in wishlist can grow very large as there will be many generic types with different trait bounds.
+
+==== Tail expressions
+One of the most useful places where to run the term search is tail expressions as shown in @rust-tail-expr.
+This is for the following reasons:
+1. Tail expressions usually have the expected type known.
+  The type is either explicitly written (for example function return type) or can be inferred from the context (for example all the match arms need to have the same return type).
+2. Once the user starts writing the tail expression they usually have enough terms available in the context to fill the hole.
+  For example it is common to store struct fields in local variable and then combine them into struct only in the tail expression.
+The effect is the bigger in the case of using term search for autocompletion than in case of using it to fill the holes.
+This is because in case of filling holes the user has often already done some extra effort such as specifing the type of the hole.
+Ihe accurate type information is essential for the term search to provide good suggestions and non-tail expressions do not often have it availabel when typing.
+
+==== Function arguments
+We found that another very useful place for the term search alogrithm is to find parameters for the function call.
+This is especially true when the user is working in the "exploration mode" and is looking to find different options how to call the function.
+Similarly to tail expressions function calls usually have accurate type information available for the arguments with some expetions for generic types that are too general to provide accurate suggestions.
+Often there are also arguments available in the context so the term search can easily fill them in.
+
+==== Local variables
+We found that in practice the terms search is not very useful for genereating the terms for local variables.
+The main reason for that is that it is common to not write the type of the variable explicitly and let the compiler infer the type.
+This however means that there is not type information available for the term search.
+Adding the type explicitly fixes the issue but this is extra work for the user.
+
+==== Builder pattern
+As we previously discussed in @machine-learning the term search is not very effective in case the functions do not have the actions they do into types.
+One of the most common examples for it is the builder pattern in Rust.
+There are usually only two methods on builder that change the return type which means the algorithm can only suggest them.
+This results in suggestions like `Foo::builder().build()` which is a valid code but often not what the user wants.
+However from personal experience with using the tool we found that in some cases also such suggestions provide value when the user is writing code in "exploration mode".
+Such suggestions indicate an option of getting something of desired type and now the user has to evaluate if they want to manually call relavant methods on the builder or they do not wish to use the builder at all.
+Without the term search suggestions the user may even not know that there exists a builder for the type.
+
+==== Procedural Macros
+An interesting observation was that filling holes in procedural macros is less useful than usually and can even cause compile errors.
+The decrease in usability is caused by procedural macros working on `TokenStream` and having type `proc_macro: TokenStream -> TokenStream`.
+This is very similar to builder pattern so the decrease in usefulness originates from the same reasons.
+However procedural macros are somewhat special in Rust and they can also rise compile time errors.
+For example one can assert that the input `TokenStream` contains a non-empty `struct` definition.
+As the term search has no way of knowing that the `TokenStream` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
+
+==== Formatting
+We found that formatting of the expressions can cause significat impact on the usability of the term search in case of autocompletion.
+This is because is is common for the LSP Clients to filter out suggestions that do not look similar to what the user is typing.
+Similarity is measured at the level of text with no semantinc information available.
+This means that even though `x.foo()` (method syntax) and `Foo::foo(x)` (universal function call syntax) are the same the second option is filtered out if the user has typed `x.f` as text wise they do not look similar.
+This causes some problems for our algorithm as we decided to use universal function call syntax whenever possible as this avoids ambuigity.
+However users usually prefer method syntax as it is less verbose and easier to understand for humans.
+
+One option to solve this would be to produce suggestions with using both of the options.
+That however has it's own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
+There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we'd suggest both options.
+
 
 == Limitations of the methods (week 5)
 #todo("Or should it be under either of them")
+#todo("Not sure what to write here now :P")
 
 
 = Future work (week 9) <future-work>

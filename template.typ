@@ -122,6 +122,11 @@ align(center)[
 
   pagebreak()
   bibliography("references.bib")
+  pagebreak()
+
+  set heading(numbering: "1.1", outlined: false)
+  counter(heading).update(0)
+  include("appendixes.typ")
 }
 
 #let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
