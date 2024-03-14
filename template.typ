@@ -96,7 +96,6 @@ align(center)[
 
   // Table of contents.
   outline(depth: 3, indent: true)
-  pagebreak()
 
   // Main body.
   set par(justify: true)
@@ -104,28 +103,35 @@ align(center)[
   counter(page).update(1)
 
   // Abbreviations
-  include("abbreviations.typ")
-  pagebreak()
+  // include("abbreviations.typ")
 
   // Heading numbering
   set heading(numbering: "1.1")
   show heading: it => {
-    if (it.level > 3){
+    if (it.level == 1) {
+      pagebreak()
+    }
+    
+    if (it.level > 3) {
         block(it.body)
     } else {
         block(counter(heading).display() + " " + it.body)
     }
   }
-
-
+  
   body
 
-  pagebreak()
   bibliography("references.bib")
-  pagebreak()
 
   set heading(numbering: "1.1", outlined: false)
   counter(heading).update(0)
+  show heading: it => {
+    if (it.level == 1) {
+      pagebreak()
+    }
+    block(it.body)
+  }
+  
   include("appendixes.typ")
 }
 

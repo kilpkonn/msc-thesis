@@ -1,3 +1,5 @@
+#import "@preview/codelst:2.0.0": sourcecode
+
 = Appendix 1: List of crates <appendix-crates>
 #table(
   columns: (auto, auto),
@@ -159,6 +161,32 @@
 [web-programming], [hyper-1.2.0],
 [web-programming], [http-1.0.0],
 [web-programming], [httparse-1.8.0],
-
-
 )
+
+= Appendix 2: Highly generic code example <appendix-generics>
+#figure(
+sourcecode()[
+```rs
+impl<T, R: Dim, C: Dim, S> AbsDiffEq for Unit<Matrix<T, R, C, S>>
+where
+    T: Scalar + AbsDiffEq,
+    S: RawStorage<T, R, C>,
+    T::Epsilon: Clone,
+{
+    type Epsilon = T::Epsilon;
+
+    #[inline]
+    fn default_epsilon() -> Self::Epsilon {
+        T::default_epsilon()
+    }
+
+    #[inline]
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.as_ref().abs_diff_eq(other.as_ref(), epsilon)
+    }
+}
+```],
+caption: [
+    `nalgebra` code example
+  ],
+) <eval-nalgebra>

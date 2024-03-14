@@ -787,68 +787,6 @@ If we manage to recursively prove all the subgoals, then we know that the unify.
 If some goals remain unsolved but there is also no contradiction, then simply more information is needed to guarantee unification.
 How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
 
-==== Subtyping
-#todo("Delete")
-Rust's type system also supports subtyping.
-This means that if we have subtyping relationship `A <: B` (`A` is a subtype of `B`) we can use an expression with type `A` where `B` is expected without violating the typesystem rules.
-Rust supports subtyping only for reference types as for other types the sizes of the types may vary.
-The subtyping relation is related to two cases:
-1. Variance with respect to lifetimes. If we have `'a: 'b` (read as `a` outlives `b`) then `'a` is a subtype of `'b`.
-   For example the program in @rust-lifetimes-simple is valid.
-   #figure(
-sourcecode(numbering: none)[```rs
-fn bar<'a, 'b>() where 'a: 'b {
-    let subtype: &'a str = "hi";
-    let supertype: &'b str = subtype;
-}
-```],
-caption: [
-    Subtyping with lifetimes
-  ],
-) <rust-lifetimes-simple>
-2. Between types with higher ranked lifetimes. Higher ranked lifetime `for<'a>` specifies that the type is valid for any lifetime `'a`.
-   In the @rust-higher-ranked-lifetimes we can see that as as `'a` can be any lifetime it can also be `'static` making the higher ranked lifetime a subtype of concrete lifetime.
-   #figure(
-sourcecode(numbering: none)[```rs
-let subtype: &(dyn for<'a> Fn(&'a i32) -> &'a i32) = &|x| x;
-let supertype: &(dyn Fn(&'static i32) -> &'static i32) = subtype;
-```],
-caption: [
-    Higher ranked lifetimes
-  ],
-) <rust-higher-ranked-lifetimes>
-
-Variance is a property that generic types have with respect to their arguments.
-A generic type's variance in a parameter is how the subtyping of the parameter affects the subtyping of the generic type.
-
-- $F(T)$ is covariant over $T$ if $T <: U -> F(T) <: F(U)$ (subtyping "passes through")
-- $F(T)$ is contravariant over T if $T <: U -> F(U) <: F(T)$
-- $F(T)$ is invariant over T otherwise (no subtyping relation can be derived)
-
-
-#figure(
-  table(
-    columns: 3,
-    [Type], [Variance in `'a`], [Variance in `T`],
-    [`&'a T`], [covariant], [covariant],
-    [`&'a mut T`], [covariant], [invariant],
-    [`*const T`], [], [covariant],
-    [`*mut T`], [], [invariant],
-    [`[T]` and `[T; n]`], [], [covariant],
-    [`fn() -> T`], [], [covariant],
-    [`fn(T) -> ()`], [], [contravariant],
-    [`std::cell::UnsafeCell<T>`], [], [invariant],
-    [`std::marker::PhantomData<T>`], [], [covariant],
-    [`dyn Trait<T> + 'a`], [covariant], [invariant]
-  ),
-  caption: [Automatically determined variance in Rust according to Ferrocene #footnote(link("https://spec.ferrocene.dev/types-and-traits.html#subtyping-and-variance"))],
-)
-
-
-The variance of other `struct`, `enum`, and `union` types is decided by looking at the variance of the types of their fields.
-If the parameter is used in positions with different variances, then the parameter is invariant. #footnote(link("https://doc.rust-lang.org/reference/subtyping.html"))
-As the subtyping is only relavant for lifetimes the rules are checked in the borrow checking phase rather than type unification phase. // TODO: move to start?
-
 === Borrow checking
 Another crucial step for the Rust compiler is borrow checking#footnote(link("https://rustc-dev-guide.rust-lang.org/borrow_check.html")).
 The main responisbilities for the borrow checker are to make sure that:
@@ -1450,7 +1388,7 @@ The items in scope contains:
 
 As this tactic only depends on the values in scope we don't have to call it every iteration.
 In fact, we only call it once before any of the other tactics to populate the lookup table for forward direction tactics with the values in scope.
-
+/*
 $
 (x_"constant": A in Gamma #h(0.5cm) ?: A) / (? := x_"constant") 
 #h(1cm)
@@ -1460,6 +1398,7 @@ $
 #h(1cm)
 (x_"local": A in Gamma #h(0.5cm) ?: A) / (? := x_"local") 
 $
+*/
 
 ==== Tactic "famous types"
 "Famous types" is another rather trivial tactic.
@@ -1477,12 +1416,13 @@ For unit types it can use any function that has "no return type" meaning it retu
 There is all most always at least one that kind of function in scope but suggesting it is unexpected more often than suggesting `()`.
 Moreover suggesting a random function with `()` return type can often be wrong as the functions can have side effects.
 Similarly to tactic "trivial" this tactic helps populating the lookup table for the forward pass tactics.
-
+/*
 $
 (?: "bool") / (? := "true" #h(0.5cm) ? := "false")
 #h(1cm)
 (?: "()") / (? := "()")
 $
+*/
 
 ==== Tactic "type constructor"
 "Type constructor" is first of our tactics that takes us from some types to another types.
@@ -1502,7 +1442,7 @@ struct Vec<T, #[unstable] A: Allocator = Global>
 ```
 As the users normally avoid providing generics arguments that have default values we also decided to avoid filling them.
 This means that for the `Vec` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
-
+/*
 #todo("How to indicate arbitary number of fields / variants?")
 #todo("Should we indicate that we actually need type constructor, arguments and type is not enough or is it implementation detail?")
 $
@@ -1520,6 +1460,7 @@ T_"struct" = A times B times A times C #h(1cm) T_"enum" = A + B + C\
 (c: C in Gamma #h(0.5cm) ?: T_"enum") /
 (? := T_"enum" (c))
 $
+*/
 
 ==== Tactic "free function"
 "Free function" is a tactic that tries different functions in scope.
@@ -1531,12 +1472,12 @@ This is an issue if the generic parameters that the function takes are not prese
 As we ignore all the functions that have non-default generic parametrs we can run this tactic in only forward direction.
 As described in @tactics the tactic avoids functions that return types that contain references.
 However, we do allow function arguments to take items by shared references as this is a common practice to pass by reference rather than value.
-
+/*
 $
 (a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
 (? := f(a, b)) \
 $
-
+*/
 
 ==== Tactic "impl method"
 "Impl method" is a tactic that attempts functions that have `self` parameter.
@@ -1575,12 +1516,13 @@ We've also decided to ignore all the methods that return the same type as the ty
 This is because they do not take us any closer to goal type, and we've considered it unhelpful to show user all the possible options.
 I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
 Similar issues arise often when using the builder pattern as shown in @rust-builder
-
+/*
 #todo("same as free function as the self is not really that special")
 $
 (a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
 (? := f(a, b)) \
 $
+*/
 
 ==== Tactic "struct projection" <tactic-struct-projection>
 "Struct projection" is a simple tactic that attempts all field accesses of struct.
@@ -1593,7 +1535,7 @@ As a result the implementation for DFS was about 2 times longer than the impleme
 
 As a performance optimization we only run this tactic on every type once.
 For this tactic this optimization does not reduce the total search space covered as accessing the fields doesn't depend on rest of the search space covered.
-
+/*
 #todo("Should we show all fields and how to name them?")
 $
 T_"struct" = A times B times A times C\
@@ -1601,6 +1543,7 @@ T_"struct" = A times B times A times C\
 (s: T_"struct" in Gamma #h(0.5cm) ?: A) /
 (? := s.a) \
 $
+*/
 
 ==== Tactic "static method" <tactic-static-method>
 "Static method" tactic attempts static methods of `impl` blocks, that is methods that are associated with either type or trait, but do not take `self` parameter.
@@ -1611,12 +1554,13 @@ This is because we figured that the most common use case for static methods is t
 Quering `impl` blocks is a costy operation so we only do it for types that are contributiong towards the goal meaing they are in wishlist.
 
 Similarly to "Impl method" tactic we ignore all the methods that have generic parameters defined on the method level for the same reasoning.
-
+/*
 #todo("This is same as free function again...")
 $
 (a: A, b: B in Gamma #h(0.5cm) f: A times B -> C in Gamma #h(0.5cm) ?: C) /
 (? := f(a, b)) \
 $
+*/
 
 ==== Tactic "make tuple"
 "Make tuple" tactic attempts to build types by constructing a tuple of other types.
@@ -1624,12 +1568,12 @@ This is another tactic that runs only in the backwards direction as otherwise th
 In Rust the issue is even workse as there is no limit for how many items can be in a tuple meaning that even with only one term in scope we can create infinitely many tuples by repeating the term infinite amount of times.
 
 Going in the backwards direction we can only construct tuples that are useful and therefore keep the search space in reasonably small.
-
+/*
 $
 (a: A, b: B in Gamma #h(0.5cm) ?: (A, B)) /
 (? := (a, b)) \
 $
-
+*/
 
 = Evaluation <evaluation>
 In this chapter we evaluate the performace of the three iterations of algorithms we implemented in @term-search-iters.
@@ -1637,24 +1581,27 @@ The main focus is on the third and final iteration but we compare it to previous
 
 First we are perform empirical evaluation of the tree algorithms by performing a resynthesis on existing Rust programs.
 Later we focus on some hand picked examples to show the strengts and weaknesses of the tool.
-#todo("compare...")
 
 == Resynthesis
-#todo("reword")
-The idea is to modify the program by removing some expression from it (therefore creating a hole in the program) and then use term search to search for expressions that fit the hole.
-Then we can compare the results of the term search to original program.
+Resynthesis is using the tool to synthesise programs we already have.
+This allows comparinon of the generated suggestions to what humen have written.
+For resynthesis we do the following:
+1. Take exisiting open source project as a baseline
+2. Remove one expression from it, thus create a hole in the program
+3. Run term search on the hole
+4. Compare generated results with what was there before
+5. Put back the original expression and repeat on rest of the expressions
 
 ==== Chosen expressions
 We chose to perform the the resynthesis only on the tail expressions of every block.
 Other options that we considered are let assignments and arguments of function calls.
 We chose tail expressions as we consider this the most common usecase for our tool.
-#todo("what is tail expr")
+Tail expression are the last expression in a block expression which value is returned as a value of the block.
 The most well known place for them is the tail expression in the function body.
 However since we consider all the block expressions the tail expressions in each of the branches of `if condition { ... } else { ... }` expression are also considered as well as the expressions in `match` arms or the plain block expressions used for scoping.
 To better understand what is considered the tail expression we have constructed hypothetical example of code in @rust-tail-expr and highlighted all the lines that have tail expressions on them.
-#todo("add some other statements...")
 #figure(
-sourcecode(highlighted: (4, 9, 11, 15, 19))[
+sourcecode(highlighted: (4, 10, 13, 17, 21))[
 ```rs
 fn foo(x: Option<i32>) -> Option<bool> {
   let y = {
@@ -1664,8 +1611,10 @@ fn foo(x: Option<i32>) -> Option<bool> {
   let res = match x {
     Some(it) => {
       if x < 0 {
+        /* Do something */
         true
       } else {
+        /* Do something else */
         false
       }
     }
@@ -1693,8 +1642,11 @@ Here is a list of metrics we are interested in for resynthesis
 4. Average options per hole - This shows the average amount of options provided to the user.
 
 ==== Chosen crates
-#todo("libraries? code samples etc. what is crates.io")
-To choose crates that are representative also to what average rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io#footnote(link("https://crates.io/")).
+Crate is a name for a Rust library.
+We use crates.io#footnote(link("https://crates.io/")), the Rust community’s crate registry as a source of information of the most popular crates.
+Crates.io is _de facto_ standard crate registry so we believe that it reflects the popularity of the crates in the Rust ecosystem very well.
+
+To choose crates that are representative also to what average rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io.
 To filter reduce the sample size we decided to filter out categories that have fewer than 1000 crates in them.
 That left us with 31 categories with 155 crates in them.
 Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "Appendix").
@@ -1735,49 +1687,24 @@ In @usability we will highlight some examples where the algorithm performs very 
 #todo("Some numbers for algorithm with upper bound for time")
 #todo("First two iterations of the algorithm")
 
-== Usability (week 5) <usability>
+== Usability <usability>
 In this section we study cases where our algorithm works either very well or very poorly.
-#todo("discuss programs etc")
+We discuss some styles of programming, and places in program for that.
+In addition of highlighting the programs we discuss why the algorithm behaves the way it does.
 
 ==== Generics
 Although we managed to make the algorithm work decently with low amount of generics some libraries make extensive use of generics which is problematic for our algorithm.
 One example of such library is `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")).
-It uses generic parameters in all most all of it's functions so a typical function from `nalgebra` looks something like whats shown in @eval-nalgebra.
+It uses generic parameters in all most all of it's functions.
+A typical function from `nalgebra` can be seen in @eval-nalgebra.
 
-#todo("move listing somewhere")
-#figure(
-sourcecode()[
-```rs
-impl<T, R: Dim, C: Dim, S> AbsDiffEq for Unit<Matrix<T, R, C, S>>
-where
-    T: Scalar + AbsDiffEq,
-    S: RawStorage<T, R, C>,
-    T::Epsilon: Clone,
-{
-    type Epsilon = T::Epsilon;
-
-    #[inline]
-    fn default_epsilon() -> Self::Epsilon {
-        T::default_epsilon()
-    }
-
-    #[inline]
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.as_ref().abs_diff_eq(other.as_ref(), epsilon)
-    }
-}
-```],
-caption: [
-    `nalgebra` code example
-  ],
-) <eval-nalgebra>
 As we can see from the listing it makes use of many generic parameters which result in a slower performance of our tool.
 This is because the amount of types in wishlist can grow very large as there will be many generic types with different trait bounds.
 
 ==== Tail expressions
-#todo("reword to emphasize that tail exprs are good fit")
-One of the most useful places where to run the term search is tail expressions as shown in @rust-tail-expr.
-of This is for the following reasons:
+We find that tail expressions to be one of the best suited places for term search.
+They are a good fit for both filling the holes but also for providing autocompletion suggestions.
+This is for the following reasons:
 1. Tail expressions usually have the expected type known.
   The type is either explicitly written (for example function return type) or can be inferred from the context (for example all the match arms need to have the same return type).
 2. Once the user starts writing the tail expression they usually have enough terms available in the context to fill the hole.
@@ -1802,22 +1729,20 @@ Adding the type explicitly fixes the issue but this is extra work for the user.
 As we previously discussed in @machine-learning the term search is not very effective in case the functions do not have the actions they do encoded into types.
 One of the most common examples for it is the builder pattern in Rust.
 There are usually only two methods on builder that change the return type which means the algorithm can only suggest them.
-This results in suggestions like `Foo::builder().build()` which is a valid code but often not what the user wants.
+This results in suggestions like `Foo::builder().build()` which is a incomplete but valid suggestion.
 However from personal experience with using the tool we found that in some cases also such suggestions provide value when the user is writing code in "exploration mode".
-#todo("inclomplete, but valid")
 Such suggestions indicate an option of getting something of desired type and now the user has to evaluate if they want to manually call relavant methods on the builder or they do not wish to use the builder at all.
 Without the term search suggestions the user may even not know that there exists a builder for the type.
 
 ==== Procedural Macros
 An interesting observation was that filling holes in the implementation of procedural macros is less useful than usually and can even cause compile errors.
-The decrease in usability is caused by procedural macros working on `TokenStream` and having type `proc_macro: TokenStream -> TokenStream`. #todo("map rust syntax to rust syntax")
+The decrease in usability is caused by procedural macros mapping `TokenStream` to `TokenStream` (Rust syntax to Rust syntax) meaning we do not have useful type information available.
 This is very similar to builder pattern so the decrease in usefulness originates from the same reasons.
 However procedural macros are somewhat special in Rust and they can also rise compile time errors.
 For example one can assert that the input `TokenStream` contains a non-empty `struct` definition.
 As the term search has no way of knowing that the `TokenStream` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
 
 ==== Formatting
-#todo("UFC is not fundamental limitation")
 We found that formatting of the expressions can cause significat impact on the usability of the term search in case of autocompletion.
 This is because is is common for the LSP Clients to filter out suggestions that do not look similar to what the user is typing.
 Similarity is measured at the level of text with no semantinc information available.
@@ -1825,11 +1750,13 @@ This means that even though `x.foo()` (method syntax) and `Foo::foo(x)` (univers
 This causes some problems for our algorithm as we decided to use universal function call syntax whenever possible as this avoids ambuigity.
 However users usually prefer method syntax as it is less verbose and easier to understand for humans.
 
+However this is not a fundamental limitation of the algorithm.
 One option to solve this would be to produce suggestions with using both of the options.
 That however has it's own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
 There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we'd suggest both options.
 
 ==== C style stuff
+#todo("Write something here for outliers of sys crates")
 
 == Limitations of the methods (week 5)
 ==== Resynthesis
@@ -1888,10 +1815,15 @@ This would have some benefits over using LLMs as the code generation tools.
 All the terms would be still generated by term search and would be valid programs by construction which is a guarantee that LLMs cannot have.
 The ordering of suggestions is something that is very hard to do analytically and therefore we believe that it makes sense to train a model for it.
 
-#pagebreak()
 = Conclusion
 In this thesis our main objective was to implement term search for the Rust programming language.
 We achieved it by implementing it as a addition to `rust-analyzer`, the official LSP server for Rust.
+
+We started by giving overview of similar tools used in Agda, Idris, Haskell and StandardML.
+We analyzed both their functionality and algorithms they use and compared them to one another.
+
+After that we dove into Rust programming language to give context of the langauge we are working in.
+We also covered the LSP protocol and some of the autocompletion tools to have some uderstanding of the constrainsts we have when trying to use the term search for autocompletion.
 
 The term search search algorithm we implemented is based on the term search tools used in Agda, Idris, Haskell and StandardML.
 We took the different approach from the previos implementations by using the bidirectional search.
@@ -1903,5 +1835,5 @@ For measuring the performace we chose top 5 projects of the most popular categor
 This resulted in 155 crates.
 
 We added term search based autocompletion suggestions to evaluate the usability of term search for autocompletion.
-With smal depth the algorithm proved to be fast enough and resulted in more advanced autocompletion suggestions compared to usual ones.
-
+With small depth the algorithm proved to be fast enough and resulted in more advanced autocompletion suggestions compared to usual ones.
+As the autocompletion in `rust-analyzer` is already rather slow the feature is disabled by default, yet all the users of it can opt into it.
