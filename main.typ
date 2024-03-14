@@ -27,6 +27,7 @@
 // your own content!
 
 = Introduction
+#todo("More overview of rust, borrow checker model of types, what makes it safe")
 Rust#footnote(link("https://www.rust-lang.org/")) is a new programming language for developing reliable and efficient systems.
 The language was originally created by Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
 Rust has expressive type system that guarantees no undefined behavior even though it has reference types.
@@ -73,6 +74,8 @@ caption: [
   ],
 ) <motivation-example-1>
 
+#todo("decrease the amount of same citations")
+#todo("-LLM stuff, say why we care")
 We can see that converting the result from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
 This means that term search can be used to reduce the amount of code the programmer has to write.
 In @how-programmers-interact-with-code-generation-models[p. 19] they suggest that Large Language Model (LLM) based code generation tools are used to reduce the amount of code the programmer has to write therefore making them faster (_acceleration mode_).
@@ -82,6 +85,7 @@ They state that both modes are common usage patters among programmers @how-progr
 In acceleration mode, term search is not as powerful as language models, but it can be more predictable as it has well-defined tactics that it uses rather than deep neural networks.
 There is not so much "wow" effect - it just produces code that one could write by trying different programs that type-check.
 
+#todo("@ref finds ...")
 However, there seems to be a bigger advantage for term search in _exploration mode_.
 In @how-programmers-interact-with-code-generation-models[p. 10], they also stated that programmers tend to explore only if they have confidence in the tool.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
@@ -105,6 +109,7 @@ We will also take a look at the type system of the Rust programming language to 
 In the end we'll briefly cover how autocomplete is implemented in modern tools. #todo("..to give some context of what we are improving on?")
 
 == Term search <term-search>
+#todo("term search is..")
 The Curry-Howard correspondence is a direct correspondence between computer programs and mathematical proofs.
 It is the basic idea in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
@@ -139,6 +144,7 @@ However, if there are more steps required, writing proofs manually gets cumberso
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
 
 === Term search in Agda
+#todo("Is agsy first?, fix next sentences...")
 Agda is one of the "more famous" languages that has tools leveraging term search.
 In @dependently-typed-programming-in-agda they describe Agda as a dependently typed functional programming language and also a proof assistant.
 We'll be more interested in the proof assistants as they are the ones leveraging the term search to help the programmer with coming up with proofs. 
@@ -150,6 +156,7 @@ Agsy is the term search based proof assistant that comes with Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#footnote(link("https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html")).
 
 We will be looking at the high level implementation of the algorithm used by Agsy for term search described in @tool-for-automated-theorem-proving-in-agda.
+#todo("No need to reference many times here")
 In @tool-for-automated-theorem-proving-in-agda they say that in Agsy search space is explored using iterated deepening.
 This is necessary since a problem may in general be refined to infinite depth.
 The proof search can have multiple branches with subproblems.
@@ -264,9 +271,10 @@ They suggest that more advanced search space reduction techniques can be used as
 It is also noted that there seems to be many false subproblems that can never be solved so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems potentially faster to reduce the search space.
 
 ==== Mimer
-Mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
-As of February 2024, Mimer has been merged#footnote(link("https://github.com/agda/agda/pull/6410")) to Agda and will be released as a replacement for Agsy.
-In @mimer they say that Mimer is designed to handle many small synthesis problems rather than complex ones as compared to Agsy.
+Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
+As of February 2024, Mimer has become part of Agda#footnote(link("https://github.com/agda/agda/pull/6410")) and will be released as a replacement for Agsy.
+#todo("see if direct quote")
+Mimer is designed to handle many small synthesis problems rather than complex ones as compared to Agsy.
 Mimer also doesn't perform case splits to reduce the search space.
 Otherwise the main algorithm closely follows the one used in Agsy and described in @agsy.
 
@@ -275,23 +283,26 @@ The main differences to original Agsy implementation are:
 2. Mimer guides the search with branch costs
 
 Branch costs is a heuristic to hopefully guide the search to an answer faster that randomly picking branches.
-In @mimer, they gave lower cost to branches that contain more local variables and less external definitions.
+Mimer gives lower cost to branches that contain more local variables and less external definitions.
 The rationale for that is that it is more likely that user wishes to use variables from local scope than from outside of it.
-However, they noted in @mimer that the costs for the tactics need to be tweaked in future work as this was not their focus.
+However, they noted that the costs for the tactics need to be tweaked in future work as this was not their focus.
 
 === Term search in Standard ML <standardml>
+#todo("as part of redprl project, @ref implements ...")
 In @algebraic-foundations-of-proof-refinement they implemented term search for Standard ML as a part of RedPRL#footnote(link("https://redprl.org/")) @redprl project.
 
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
 The telescope is required to work on type systems with dependent types.
+#todo("in contrast,...")
 For typesystems without dependent types ordinary `List` data structure can be used as there are no relations between subproblems.
 
+#todo("To more ...")
 In @algebraic-foundations-of-proof-refinement they suggest to use BFS instead of DFS to more effectively propagete substitutions to subproblems in telescope.
 The idea is to run all the tactics once on each subproblem, repeatedly.
 This way substitutions propagate along the telescope of subproblems after every iteration.
 In the case of DFS we would propagate the constraints only after exhausting the search on the first subproblem in the sequence.
-To better understand the difference between the BFS approach suggested in @algebraic-foundations-of-proof-refinement and DFS approach lets  see how each of them work.
+To better understand the difference between the BFS approach of @algebraic-foundations-of-proof-refinement and DFS approach lets  see how each of them work.
 
 First let's consider the DFS approach as a baseline.
 The high level algorithm for DFS is to first generate possible ways of how to refine the problem into new subproblems and then solving each of the subproblems fully before contiuing to next subproblem. 
@@ -395,6 +406,7 @@ Another example where dependent goals arise would be a list together with a finc
 Note that in this example we want the first member of pair to be list but we do not care of the types inside the list.
 The only requirement is that the second member of pair can map the same type to integer.
 We have following items in scope:
+#todo("maybe int to string, aka show")
 ```hs
 bar : Bar
 mk_foo : Bar -> Foo
@@ -559,7 +571,7 @@ In @idris2-design-and-implementation they note that using binders to represent h
 Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
 
 $"TT"_"dev"$ consists of terms, bindings and constants as shown in @idris-tt-syntax.
-
+#todo("reference idris paper for the figure")
 #figure(
 sourcecode(numbering: none)[```
 Terms, t ::= c (constant)
@@ -776,6 +788,7 @@ If some goals remain unsolved but there is also no contradiction, then simply mo
 How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
 
 ==== Subtyping
+#todo("Delete")
 Rust's type system also supports subtyping.
 This means that if we have subtyping relationship `A <: B` (`A` is a subtype of `B`) we can use an expression with type `A` where `B` is expected without violating the typesystem rules.
 Rust supports subtyping only for reference types as for other types the sizes of the types may vary.
@@ -1370,8 +1383,9 @@ This means that we limit the depth for the generics to 1 which is a very severe 
 In @third-iter-bidirectional-bfs we will discuss how to get around this limitation.
 
 === Third iteration: Bidirectional BFS <third-iter-bidirectional-bfs>
+#todo("paragraph for terminology, directions, why, example. this should be before 2nd iter")
 The third iteration of our algorithm is a small yet powerful improvement on the second iteration described in @second-iter-bfs.
-This iteration differs from the second iteration by improving the handling of generics.
+This iteration differs from the previous one by improving the handling of generics.
 We note that the handling of generics is a lot smaller problem if going in the backwards direction as other term search tools do.
 This is because we can only construct the types that actually contribute towards reaching the goal.
 However if we only go in the backwards direction we can still end up with terms such as `Some(Some(...)).is_some()` that do contribute towards the goal but not in a very meaningful way.
@@ -1617,27 +1631,28 @@ $
 $
 
 
-= Evaluation (week 7-8) <evaluation>
+= Evaluation <evaluation>
 In this chapter we evaluate the performace of the three iterations of algorithms we implemented in @term-search-iters.
 The main focus is on the third and final iteration but we compare it to previous iterations to highlight the differences.
 
 First we are perform empirical evaluation of the tree algorithms by performing a resynthesis on existing Rust programs.
 Later we focus on some hand picked examples to show the strengts and weaknesses of the tool.
+#todo("compare...")
 
 == Resynthesis
-To empirically evaluate the performace of the three iterations of the algorithm we implemented we use it to resynthesise human written programs.
-
+#todo("reword")
 The idea is to modify the program by removing some expression from it (therefore creating a hole in the program) and then use term search to search for expressions that fit the hole.
 Then we can compare the results of the term search to original program.
 
 ==== Chosen expressions
 We chose to perform the the resynthesis only on the tail expressions of every block.
-Other options that we considered are let assignments and function calls.
+Other options that we considered are let assignments and arguments of function calls.
 We chose tail expressions as we consider this the most common usecase for our tool.
+#todo("what is tail expr")
 The most well known place for them is the tail expression in the function body.
-However since we consider all the block expressions the tail expressions in each of the branches of `if { ... } else { ... }` expression are also considered as well as the expressions in `match` arms or the plain block expressions used for scoping.
+However since we consider all the block expressions the tail expressions in each of the branches of `if condition { ... } else { ... }` expression are also considered as well as the expressions in `match` arms or the plain block expressions used for scoping.
 To better understand what is considered the tail expression we have constructed hypothetical example of code in @rust-tail-expr and highlighted all the lines that have tail expressions on them.
-
+#todo("add some other statements...")
 #figure(
 sourcecode(highlighted: (4, 9, 11, 15, 19))[
 ```rs
@@ -1671,11 +1686,14 @@ Intuitively we can thing of them as the all the expressions that are on the last
 ==== Chosen metrics
 Here is a list of metrics we are interested in for resynthesis
 1. Tail expressions found - This represents the precentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
-2. Syntactic hits - This represents the precentage of tail expressions that are syntactically exactly what was there before therefore exactly what the programmer inteded to write. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same code. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+2. Syntactic hits - This represents the precentage of tail expressions in relation to total amount of terms that are syntactically exactly what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+   To make the metric slightly more robust we remove all the whitespace from the programs before comapring them.
 3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average usecase as `rust-analyzer` as it only wipes the cache on restart.
+   To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
 4. Average options per hole - This shows the average amount of options provided to the user.
 
 ==== Chosen crates
+#todo("libraries? code samples etc. what is crates.io")
 To choose crates that are representative also to what average rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io#footnote(link("https://crates.io/")).
 To filter reduce the sample size we decided to filter out categories that have fewer than 1000 crates in them.
 That left us with 31 categories with 155 crates in them.
@@ -1709,21 +1727,24 @@ For depth 10 there were 5 crates out of 155 that coused the out of memory error 
 
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
 Average number of suggestions per hole is 18.6 and they are found in 35ms.
-However the numbers vary alot depending on the style of the program.
+However the numbers vary alot depending on the style of the program. #todo("std dev")
 In @usability we will highlight some examples where the algorithm performs very well or very poorly.
 
+#todo("table, maybe violin/box plot")
 
 #todo("Some numbers for algorithm with upper bound for time")
 #todo("First two iterations of the algorithm")
 
 == Usability (week 5) <usability>
 In this section we study cases where our algorithm works either very well or very poorly.
+#todo("discuss programs etc")
 
 ==== Generics
 Although we managed to make the algorithm work decently with low amount of generics some libraries make extensive use of generics which is problematic for our algorithm.
 One example of such library is `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")).
 It uses generic parameters in all most all of it's functions so a typical function from `nalgebra` looks something like whats shown in @eval-nalgebra.
 
+#todo("move listing somewhere")
 #figure(
 sourcecode()[
 ```rs
@@ -1754,15 +1775,16 @@ As we can see from the listing it makes use of many generic parameters which res
 This is because the amount of types in wishlist can grow very large as there will be many generic types with different trait bounds.
 
 ==== Tail expressions
+#todo("reword to emphasize that tail exprs are good fit")
 One of the most useful places where to run the term search is tail expressions as shown in @rust-tail-expr.
-This is for the following reasons:
+of This is for the following reasons:
 1. Tail expressions usually have the expected type known.
   The type is either explicitly written (for example function return type) or can be inferred from the context (for example all the match arms need to have the same return type).
 2. Once the user starts writing the tail expression they usually have enough terms available in the context to fill the hole.
   For example it is common to store struct fields in local variable and then combine them into struct only in the tail expression.
 The effect is the bigger in the case of using term search for autocompletion than in case of using it to fill the holes.
-This is because in case of filling holes the user has often already done some extra effort such as specifing the type of the hole.
-Ihe accurate type information is essential for the term search to provide good suggestions and non-tail expressions do not often have it availabel when typing.
+In case of filling holes the user has often already done some extra effort such as specifing the type of the hole.
+Ihe accurate type information is essential for the term search to provide good suggestions and non-tail expressions often do not have it availabel when typing.
 
 ==== Function arguments
 We found that another very useful place for the term search alogrithm is to find parameters for the function call.
@@ -1772,28 +1794,30 @@ Often there are also arguments available in the context so the term search can e
 
 ==== Local variables
 We found that in practice the terms search is not very useful for genereating the terms for local variables.
-The main reason for that is that it is common to not write the type of the variable explicitly and let the compiler infer the type.
+The main reason for that is that it is common to omit the type of the variable explicitly and let the compiler infer the type.
 This however means that there is not type information available for the term search.
 Adding the type explicitly fixes the issue but this is extra work for the user.
 
 ==== Builder pattern
-As we previously discussed in @machine-learning the term search is not very effective in case the functions do not have the actions they do into types.
+As we previously discussed in @machine-learning the term search is not very effective in case the functions do not have the actions they do encoded into types.
 One of the most common examples for it is the builder pattern in Rust.
 There are usually only two methods on builder that change the return type which means the algorithm can only suggest them.
 This results in suggestions like `Foo::builder().build()` which is a valid code but often not what the user wants.
 However from personal experience with using the tool we found that in some cases also such suggestions provide value when the user is writing code in "exploration mode".
+#todo("inclomplete, but valid")
 Such suggestions indicate an option of getting something of desired type and now the user has to evaluate if they want to manually call relavant methods on the builder or they do not wish to use the builder at all.
 Without the term search suggestions the user may even not know that there exists a builder for the type.
 
 ==== Procedural Macros
-An interesting observation was that filling holes in procedural macros is less useful than usually and can even cause compile errors.
-The decrease in usability is caused by procedural macros working on `TokenStream` and having type `proc_macro: TokenStream -> TokenStream`.
+An interesting observation was that filling holes in the implementation of procedural macros is less useful than usually and can even cause compile errors.
+The decrease in usability is caused by procedural macros working on `TokenStream` and having type `proc_macro: TokenStream -> TokenStream`. #todo("map rust syntax to rust syntax")
 This is very similar to builder pattern so the decrease in usefulness originates from the same reasons.
 However procedural macros are somewhat special in Rust and they can also rise compile time errors.
 For example one can assert that the input `TokenStream` contains a non-empty `struct` definition.
 As the term search has no way of knowing that the `TokenStream` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
 
 ==== Formatting
+#todo("UFC is not fundamental limitation")
 We found that formatting of the expressions can cause significat impact on the usability of the term search in case of autocompletion.
 This is because is is common for the LSP Clients to filter out suggestions that do not look similar to what the user is typing.
 Similarity is measured at the level of text with no semantinc information available.
@@ -1805,18 +1829,79 @@ One option to solve this would be to produce suggestions with using both of the 
 That however has it's own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
 There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we'd suggest both options.
 
+==== C style stuff
 
 == Limitations of the methods (week 5)
-#todo("Or should it be under either of them")
-#todo("Not sure what to write here now :P")
+==== Resynthesis
+The precentage of terms that the term search managed to fill does not reflect the usability of the tool very well.
+This would be useful metric if we would use it as a proof search.
+In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
+Other suggestions are noise as they produce programs that noone asked for.
+
+Syntactic hits (equality) is a misleading metric as we really care about semantic equality of programs.
+The metric may depend more on the style of the program than the formatting than on the real capabilities of the tool.
+
+Instead of average time and amount of suggestions per term search we should measure the worst case performace.
+Having the IDE freeze for for a second once in a while is not acceptable even if at other times the algorithm is very fast.
+
+==== Usability
+This sections is really based on very small amount of personal experience and may therefore not reflect the average user very well.
+
 
 
 = Future work (week 9) <future-work>
-#todo("Or after related work?")
+In this section we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
+Some of these topics consist of features for which there was not enough time to complete them in the timeframe of the thesis.
+Other focus on improving the `rust-analyzer` functionality overall.
 
+==== More permissive borrow checking
+The current borrow checking algorithm we implemented for `rust-analyzer` is rather conservative and also forbids many of the correct programs.
+This decreases the usefulness of term search usefulnesss whenever reference types are involved.
+The goal would be to make the borrow checking algorithm in `rust-analyzer` use parts of the algorithm that is in the official compiler, but somehow allow borrow checking also on incomplete programs.
+Lowering incomplete programs (user is still typing) to MIR and performing borrow checking incrementally is a complex problem however we believe that also many other parts of the `rust-analyzer` could benfeit from it.
 
-= Related Work (week 9)
-#todo("What here?
-Kind of similar to what is in Background section.")
-Maybe subsection to state of the art.
+==== Smarter handling of generics
+In projects with hundreds of functions that take generic parameters our algorithm effectiveness decreases.
+One of the main reasons for it is that we fully normalize all types before working with them.
+In case of types and functions that have generic parameters this means substituting in the generic parameters.
+However that is always not required.
+Some methods in `impl` block do not require knowing exact generic parameters and therefore can be used without substituting in the generic types.
+Some examples of it are `Option::is_some` and `Option::is_none`.
+Others only use some of the generic parameters of the type.
+In case not all generic parameters are used we could avoid substituting in the generic types that are not needed as long as we know that we have some options available for them.
+
+==== Development of more tactics
+A fairly obvious improvement that we believe still should be touched on is the addition of new tactics.
+Addition of new tactics would allow usage in new context.
+Some ideas for new tactics:
+- Tuple projection - very similar to struct projection. Very easy to add.
+- Macro call - similarly to function calls macros can be used to to produce terms of new types.
+  As macros allow more custom syntax and work at the level of metaprogramming adding them can be more complex.
+- Higher order functions - generating terms for function types is more complex than working with simple types.
+  On the other hand higher order functions would allow usage of term search in iterators and therefore increase it's usefulness by a considerable margin.
+
+==== Machine learning based techniques
+We find that machine learning based techniques could be used to prioritize generated suggestions.
+This could allow also suggestions that do not affect the type of the term.
+For example suggestions for builder pattern could be made more useful by also suggesting some setter methods.
+This would have some benefits over using LLMs as the code generation tools.
+All the terms would be still generated by term search and would be valid programs by construction which is a guarantee that LLMs cannot have.
+The ordering of suggestions is something that is very hard to do analytically and therefore we believe that it makes sense to train a model for it.
+
+#pagebreak()
+= Conclusion
+In this thesis our main objective was to implement term search for the Rust programming language.
+We achieved it by implementing it as a addition to `rust-analyzer`, the official LSP server for Rust.
+
+The term search search algorithm we implemented is based on the term search tools used in Agda, Idris, Haskell and StandardML.
+We took the different approach from the previos implementations by using the bidirectional search.
+The bidirectional approach allowed us to implement each tactic for the direction that is the most natural fit for it.
+This yielded in a rather simple implementations of tactics that achieve realtively high performace.
+
+To evaluate the performace of the algorithm we ran the algortithm on existing open source projects.
+For measuring the performace we chose top 5 projects of the most popular categories on crates.io, the Rust community’s crate registry.
+This resulted in 155 crates.
+
+We added term search based autocompletion suggestions to evaluate the usability of term search for autocompletion.
+With smal depth the algorithm proved to be fast enough and resulted in more advanced autocompletion suggestions compared to usual ones.
 
