@@ -1653,22 +1653,26 @@ Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "A
 
 ==== Results
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
-The relation between depth and all the metrics is shown in @term-search-depth.
-We can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
+The relation between depth and all the metrics.
+From @term-search-depth-accuracy we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
 The amount of suggestions also follows similar pattern but the curve is flatter.
-The search time of the algortihm seems to be in linear realtion with the search depth.
+The search time of the algortihm seems to be in linear realtion with the search depth with a root mean square error of 8.1ms.
 
 #figure(
-  grid(
-    image("fig/accuracy.png", width: 90%),
-    image("fig/time.png", width: 90%),
-  ),
+  image("fig/accuracy.png", width: 90%),
   caption: [
     Term search depth effect on metrics
   ],
-) <term-search-depth>
+) <term-search-depth-accuracy>
 
-From the mesurments shown in @term-search-depth we see that increasing the search depth over two can actually have somewhat negative effects.
+#figure(
+  image("fig/time.png", width: 90%),
+  caption: [
+    Term search depth effect on time and amount of suggestions
+  ],
+) <term-search-depth-time>
+
+From the mesurments shown in @term-search-depth-accuracy and @term-search-depth-time we see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more suggestions which can often mean more irrelavant suggestions as the syntactic hits is growing really slowly.
 
 There was also an issue of the search space growing too large to fit into memory on projects that use generics a lot.
