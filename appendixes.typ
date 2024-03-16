@@ -2,10 +2,10 @@
 
 = Appendix 1: List of crates <appendix-crates>
 #table(
-  columns: (auto, auto),
+  columns: 2,
   inset: 5pt,
   align: horizon,
-  [*Category*], [*Crate*],
+  table.header[*Category*][*Crate*],
 [algorithms], [rand-0.8.5],
 [algorithms], [num-traits-0.2.18],
 [algorithms], [crossbeam-utils-0.8.19],
@@ -192,3 +192,45 @@ caption: [
     `nalgebra` code example
   ],
 ) <eval-nalgebra>
+
+= Appendix 3: Per category results <appendix-per-category-results>
+#figure(
+table(
+  columns: 5,
+  inset: 5pt,
+  align: horizon,
+  table.header[*Category*][*Syntax hits*][*Found*][*Suggestions per expr*][*Avg time (ms)*],
+[algorithms], [0.073], [0.727], [3.92], [6.2], 
+[api-bindings], [0.077], [0.669], [5.68], [12.2], 
+[asynchronous], [0.104], [0.694], [2.96], [5.4], 
+[command-line-interface], [0.043], [0.7], [2.4], [8.2], 
+[command-line-utilities], [0.164], [0.797], [3.48], [15.0], 
+[concurrency], [0.148], [0.746], [5.84], [4.6], 
+[cryptography], [0.101], [0.768], [3.92], [23.2], 
+[data-structures], [0.034], [0.582], [2.58], [5.8], 
+[database], [0.185], [0.594], [28.18], [86.2], 
+[development-tools], [0.169], [0.803], [3.98], [15.0], 
+[embedded], [0.083], [0.609], [3.48], [22.8], 
+[encoding], [0.081], [0.673], [3.54], [19.2], 
+[external-ffi-bindings], [0.115], [0.842], [303.02], [571.8], 
+[filesystem], [0.078], [0.696], [2.82], [7.2], 
+[game-development], [0.068], [0.686], [4.68], [61.8], 
+[graphics], [0.123], [0.808], [4.36], [17.8], 
+[gui], [0.094], [0.829], [3.64], [37.0], 
+[hardware-support], [0.01], [0.992], [15.8], [48.4], 
+[mathematics], [0.052], [0.744], [7.14], [784.2], 
+[multimedia], [0.121], [0.821], [4.76], [44.0], 
+[network-programming], [0.098], [0.786], [3.14], [10.0], 
+[no-std], [0.084], [0.526], [76.6], [113.0], 
+[os], [0.049], [0.623], [77.66], [106.2], 
+[parser-implementations], [0.113], [0.817], [5.38], [28.6], 
+[parsing], [0.047], [0.682], [4.54], [18.4], 
+[rendering], [0.135], [0.76], [5.14], [3.4], 
+[rust-patterns], [0.072], [0.604], [2.82], [6.2], 
+[science], [0.062], [0.904], [6.06], [64.6], 
+[text-processing], [0.102], [0.765], [5.54], [8.2], 
+[wasm], [0.165], [0.807], [13.04], [79.2], 
+[web-programming], [0.083], [0.775], [4.0], [11.2], 
+),
+caption: [Per category results ($"depth"=2$)]
+) <tbl-per-category-results>

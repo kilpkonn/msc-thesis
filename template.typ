@@ -1,4 +1,4 @@
-#import "@preview/codelst:2.0.0": sourcecode
+#import "typst-codelst.typ": sourcecode
 // The project function defines how your document looks.
 // It takes your content and some metadata and formats it.
 // Go ahead and customize it to your liking!

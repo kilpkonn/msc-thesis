@@ -1655,8 +1655,7 @@ Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "A
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
 The relation between depth and all the metrics.
 From @term-search-depth-accuracy we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
-The amount of suggestions also follows similar pattern but the curve is flatter.
-The search time of the algortihm seems to be in linear realtion with the search depth with a root mean square error of 8.1ms.
+From @tbl-depth-hyper-param we can see that the curve for terms found is not entirely flat, but the improvements are very minor.
 
 #figure(
   image("fig/accuracy.png", width: 90%),
@@ -1664,6 +1663,9 @@ The search time of the algortihm seems to be in linear realtion with the search 
     Term search depth effect on metrics
   ],
 ) <term-search-depth-accuracy>
+
+The amount of suggestions follows similar pattern to terms found but the curve is flatter.
+The search time of the algortihm seems to be in linear realtion with the search depth with a root mean square error of 8.1ms.
 
 #figure(
   image("fig/time.png", width: 90%),
@@ -1675,20 +1677,32 @@ The search time of the algortihm seems to be in linear realtion with the search 
 From the mesurments shown in @term-search-depth-accuracy and @term-search-depth-time we see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more suggestions which can often mean more irrelavant suggestions as the syntactic hits is growing really slowly.
 
-There was also an issue of the search space growing too large to fit into memory on projects that use generics a lot.
-For example the crate `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")) has most of the functions defined for generic types.
-This results causes an explosion of search space in some cases causing the computer to run out of memory.
-For that reason we filtered out all the crates that caused `rust-analyzer` to run out of memory.
-For depth 10 there were 5 crates out of 155 that coused the out of memory error on at least one of the searches.
+#figure(
+  table(
+    columns: 5,
+    inset: 5pt,
+    align: horizon,
+    table.header[*Depth*][*Syntax hits*][*Found*][*Suggestions per expr*][*Avg time (ms)*],
+[0], [0.02], [0.188], [15.058], [23.419], 
+[1], [0.093], [0.68], [18.137], [33.032], 
+[2], [0.095], [0.745], [20.003], [72.419], 
+[3], [0.098], [0.761], [21.514], [111.813], 
+[4], [0.096], [0.76], [22.101], [137.065], 
+[5], [0.095], [0.762], [22.257], [151.103], 
+  ),
+  caption: [Depth hyperparameter effect on metrics]
+) <tbl-depth-hyper-param>
+
+More interestingly we can see from the table that syntax hits starts to decrease after depth of 2.
+This is because we get more results for subterms and squash them to _Many_ option, or in other words replace with new hole.
+Terms that would result in syntactic hits get also squased into _Many_ resulting in a decrease in syntactic hits.
 
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
 Average number of suggestions per hole is 18.6 and they are found in 35ms.
-However the numbers vary alot depending on the style of the program. #todo("std dev")
-In @usability we will highlight some examples where the algorithm performs very well or very poorly.
+However the numbers vary alot depending on the style of the program.
+Standard deviation for average number of suggestions is about 56 and 167ms for average time.
+Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
 
-#todo("table, maybe violin/box plot")
-
-#todo("Some numbers for algorithm with upper bound for time")
 #todo("First two iterations of the algorithm")
 
 == Usability <usability>
@@ -1698,11 +1712,15 @@ In addition of highlighting the programs we discuss why the algorithm behaves th
 
 ==== Generics
 Although we managed to make the algorithm work decently with low amount of generics some libraries make extensive use of generics which is problematic for our algorithm.
+
+Extensive usage of generics is very common among math related crates.
+As a result the average search time for category "mathematics" is abount 10 times longer than the average over all categories. (784ms vs 72ms).
+
 One example of such library is `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")).
 It uses generic parameters in all most all of it's functions.
 A typical function from `nalgebra` can be seen in @eval-nalgebra.
 
-As we can see from the listing it makes use of many generic parameters which result in a slower performance of our tool.
+Use of many generic parameters which result in a slower performance of our tool.
 This is because the amount of types in wishlist can grow very large as there will be many generic types with different trait bounds.
 
 ==== Tail expressions
@@ -1759,8 +1777,18 @@ One option to solve this would be to produce suggestions with using both of the 
 That however has it's own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
 There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we'd suggest both options.
 
-==== C style stuff
-#todo("Write something here for outliers of sys crates")
+==== Foreign function interface crates <c-style-stuff>
+We found that for some types of crates the performace of the term search was significantly worse than for others.
+Category "external-ffi-bindings" has an average search time of 571ms that is a lot slower than average of 72ms.
+It also affers a lot more suggestions per term by suggesting 303 terms per hole which is about 15 times more than average of 20.
+Such a big number of suggestions is overwhelming to user as 300 suggestions do not even fit onto screen.
+
+Slow search times and high number of suggestions are caused by those crates not using many different types.
+The only foreign function interface Rust supports is C, and C does not have such an expressive type system as Rust.
+Foreign function interface (FFI) crates are wrappers around C functions and therefore often use integer types for most operations.
+Searching for an integer however is not very useful as most functions in C return integers which all fit to the hole based on type.
+As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performace of term search in FFI crates.
+
 
 == Limitations of the methods (week 5)
 ==== Resynthesis
@@ -1771,6 +1799,7 @@ Other suggestions are noise as they produce programs that noone asked for.
 
 Syntactic hits (equality) is a misleading metric as we really care about semantic equality of programs.
 The metric may depend more on the style of the program than the formatting than on the real capabilities of the tool.
+Syntactic hits also suffers from squashing multiple terms to `Many` option as the new holes produced by _Many_ are obviously not what was written by user.
 
 Instead of average time and amount of suggestions per term search we should measure the worst case performace.
 Having the IDE freeze for for a second once in a while is not acceptable even if at other times the algorithm is very fast.
