@@ -27,10 +27,10 @@
 // your own content!
 
 = Introduction
-#todo("More overview of rust, borrow checker model of types, what makes it safe")
+#todo("More overview of rust, borrow checker model of types, what makes it safe. Not sure what to add tbh...")
 Rust#footnote(link("https://www.rust-lang.org/")) is a new programming language for developing reliable and efficient systems.
 The language was originally created by Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
-Rust has expressive type system that guarantees no undefined behavior even though it has reference types.
+Rust has an expressive type system that guarantees no undefined behavior even though it has reference types.
 This is done by rejecting all programs that may contain undefined behavior during the compilation.
 We will call the set of programs that can be compiled valid, as they are guaranteed to not cause undefined behavior.
 Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (also called expressions in Rust) that satisfy the type system.
@@ -74,20 +74,24 @@ caption: [
   ],
 ) <motivation-example-1>
 
-#todo("decrease the amount of same citations")
-#todo("-LLM stuff, say why we care")
 We can see that converting the result from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
 This means that term search can be used to reduce the amount of code the programmer has to write.
-In @how-programmers-interact-with-code-generation-models[p. 19] they suggest that Large Language Model (LLM) based code generation tools are used to reduce the amount of code the programmer has to write therefore making them faster (_acceleration mode_).
-In @how-programmers-interact-with-code-generation-models[p. 19] they say that in addition to _acceleration mode_, LLMs are also be used in so-called _exploration mode_ where the programmer is unsure of how to proceed and uses the term search to explore possible paths to go forward.
-They state that both modes are common usage patters among programmers @how-programmers-interact-with-code-generation-models[p. 2].
+
+In @how-programmers-interact-with-code-generation-models[p. 19] they suggest that code generation tools are used in two different modes.
+1. They are used to reduce the amount of code the programmer has to write therefore making them faster.
+  They call it the _acceleration mode_.
+2. They are used to explore possible ways to complete incomplete programs.
+  This is mostly used when the programmer is new to the libraries they are touching and is unsure how to continue.
+  They call this usage pattern as _exploration mode_.
+  
+They found that both modes are common usage patters among programmers using large language model based code generation tools.
+We argue that the same patterns can be found among programmer using term search.
 
 In acceleration mode, term search is not as powerful as language models, but it can be more predictable as it has well-defined tactics that it uses rather than deep neural networks.
 There is not so much "wow" effect - it just produces code that one could write by trying different programs that type-check.
 
-#todo("@ref finds ...")
-However, there seems to be a bigger advantage for term search in _exploration mode_.
-In @how-programmers-interact-with-code-generation-models[p. 10], they also stated that programmers tend to explore only if they have confidence in the tool.
+However, we hope there is a bigger advantage for term search in _exploration mode_.
+@how-programmers-interact-with-code-generation-models[p. 10] finds that programmers tend to explore only if they have confidence in the tool.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
 == Research Objectives
@@ -106,10 +110,12 @@ In this thesis we make following contributions:
 = Background <background>
 In this chapter we are taking a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we've chosen.
 We will also take a look at the type system of the Rust programming language to see how it relates to type systems of other languages that have tools for term search.
-In the end we'll briefly cover how autocomplete is implemented in modern tools. #todo("..to give some context of what we are improving on?")
+In the end we'll briefly cover how autocomplete is implemented in modern tools to give some context of the framefork we are working in and tools what we are improving on.
 
 == Term search <term-search>
-#todo("term search is..")
+Term search (often known as proof search) is generating programs (searching terms) that satisfy some type in given context.
+It is often used in automated theorem proving.
+
 The Curry-Howard correspondence is a direct correspondence between computer programs and mathematical proofs.
 It is the basic idea in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
@@ -144,10 +150,9 @@ However, if there are more steps required, writing proofs manually gets cumberso
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
 
 === Term search in Agda
-#todo("Is agsy first?, fix next sentences...")
-Agda is one of the "more famous" languages that has tools leveraging term search.
-In @dependently-typed-programming-in-agda they describe Agda as a dependently typed functional programming language and also a proof assistant.
-We'll be more interested in the proof assistants as they are the ones leveraging the term search to help the programmer with coming up with proofs. 
+Agda @dependently-typed-programming-in-agda is a dependently typed functional programming language and also a proof assistant.
+It is one of the first languages that has tools leveraging term search.
+We'll be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
 As there are many alternatives we've picked two that seem the most popular or relevant for our use case.
 We chose Agsy as this is the well known tool that comes with Agda and Mimer that attempts to improve on Agsy.
 
@@ -155,13 +160,14 @@ We chose Agsy as this is the well known tool that comes with Agda and Mimer that
 Agsy is the term search based proof assistant that comes with Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#footnote(link("https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html")).
 
-We will be looking at the high level implementation of the algorithm used by Agsy for term search described in @tool-for-automated-theorem-proving-in-agda.
-#todo("No need to reference many times here")
-In @tool-for-automated-theorem-proving-in-agda they say that in Agsy search space is explored using iterated deepening.
+We will be looking at the high level implementation of the algorithm used by Agsy for term search.
+
+Agsy explores it's search space by using iterated deepening.
 This is necessary since a problem may in general be refined to infinite depth.
-The proof search can have multiple branches with subproblems.
-In some cases we need to solve one of the subproblems to solve the "top-level" problem.
-This is the case when we try different approaches to come up with a term.
+The refinment of a problem can produce multiple branches with subproblems.
+In some cases we need to solve all the subproblems but in other cases it is sufficent to solve just one to solve the "top-level" problem.
+
+An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
 #figure(
@@ -171,8 +177,7 @@ For example, we can either use some local variable, function or type constructor
   ],
 ) <agsy_transformation_branches>
 
-In other cases it is necessary to solve all the subproblems to solve the "top-level" problem.
-This is the case when we use type constructors that take multiple members or functions with multiple arguments.
+Some examples where we need to solve all the subproblems are using a type constructors that take multiple members or functions with multiple arguments.
 In case of case splitting we also have to solve all the subproblems produced.
 For example shown in @agsy_all_branches we see that function `foo(a: A, b: B, c: C)` can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
 
@@ -274,9 +279,9 @@ It is also noted that there seems to be many false subproblems that can never be
 Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#footnote(link("https://github.com/agda/agda/pull/6410")) and will be released as a replacement for Agsy.
 #todo("see if direct quote")
-Mimer is designed to handle many small synthesis problems rather than complex ones as compared to Agsy.
-Mimer also doesn't perform case splits to reduce the search space.
-Otherwise the main algorithm closely follows the one used in Agsy and described in @agsy.
+"Mimer is designed to handle many small synthesis problems rather than complex ones" @mimer.
+Mimer is less powerful than Agsy as it doesn't perform case splits but on the other hand it is designed to be more rubust.
+Other than not using case splits and the main algorithm follows the one used in Agsy and described in @agsy.
 
 The main differences to original Agsy implementation are:
 1. Mimer uses memoization to avoid searching for same term multiple times.
@@ -288,21 +293,18 @@ The rationale for that is that it is more likely that user wishes to use variabl
 However, they noted that the costs for the tactics need to be tweaked in future work as this was not their focus.
 
 === Term search in Standard ML <standardml>
-#todo("as part of redprl project, @ref implements ...")
-In @algebraic-foundations-of-proof-refinement they implemented term search for Standard ML as a part of RedPRL#footnote(link("https://redprl.org/")) @redprl project.
+As a part of the RedPRL#footnote(link("https://redprl.org/")) @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
 
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
 The telescope is required to work on type systems with dependent types.
-#todo("in contrast,...")
-For typesystems without dependent types ordinary `List` data structure can be used as there are no relations between subproblems.
+In contrast, typesystems without dependent types can use ordinary `List` data structure as there are no relations between subproblems.
 
-#todo("To more ...")
-In @algebraic-foundations-of-proof-refinement they suggest to use BFS instead of DFS to more effectively propagete substitutions to subproblems in telescope.
+To more effectively propagete substitutions to subproblems in telescope @algebraic-foundations-of-proof-refinement suggests to use BFS instead of DFS.
 The idea is to run all the tactics once on each subproblem, repeatedly.
 This way substitutions propagate along the telescope of subproblems after every iteration.
 In the case of DFS we would propagate the constraints only after exhausting the search on the first subproblem in the sequence.
-To better understand the difference between the BFS approach of @algebraic-foundations-of-proof-refinement and DFS approach lets  see how each of them work.
+To better understand the difference between the BFS approach suggested and DFS approach lets see how each of them work.
 
 First let's consider the DFS approach as a baseline.
 The high level algorithm for DFS is to first generate possible ways of how to refine the problem into new subproblems and then solving each of the subproblems fully before contiuing to next subproblem. 
