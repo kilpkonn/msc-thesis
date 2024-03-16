@@ -401,30 +401,28 @@ caption: [
   ],
 ) <standardml-bfs-code>
 
-Consider the example where we are searching for a goal `?goal :: ([a], a -> Integer)` that is a pair of a list of some type and a function of that type to `Integer`.
-Similar goals in real word could arrise from finding a list together with a function that can map the elements to integer to sum them.
-Another example where dependent goals arise would be a list together with a finction to print all the elements.
+Consider the example where we are searching for a goal `?goal :: ([a], a -> String)` that is a pair of a list of some type and a function of that type to `String`.
+Similar goals in real word could arrise from finding a list together with a function that can map the elements to string to print them (`show` function).
 
 Note that in this example we want the first member of pair to be list but we do not care of the types inside the list.
-The only requirement is that the second member of pair can map the same type to integer.
+The only requirement is that the second member of pair can map the same type to `String`.
 We have following items in scope:
-#todo("maybe int to string, aka show")
 ```hs
 bar : Bar
 mk_foo : Bar -> Foo
 mk_list_foo : Foo -> [Foo]
 mk_list_bar : Bar -> [Bar]
-bar_to_int  : Bar -> Integer
+show_bar  : Bar -> String
 ```
 
 To simplify the notation we will name the goals as `?<number>`, for example `?1` for goal 1.
 
-First we can split the goal of finding a pair to two subgoals `[?1 : [a], ?2 : a -> Integer]`.
+First we can split the goal of finding a pair to two subgoals `[?1 : [a], ?2 : a -> String]`.
 This is the same step for BFS and DFS as there is not much else to do with `?goal` as there are now functions
 that take us to pair of any types exept using pair constructor.
 At this point we have two subgoals to solve
 ```hs
-(?1 : [a], ?2 : a -> Integer)
+(?1 : [a], ?2 : a -> String)
 ```
 
 Now we are at where the differences between DFS and BFS start playing out.
@@ -434,41 +432,41 @@ We can use `mk_list_foo` to transform the goal to finding of something of type `
 Now we have the following solution and goals.
 
 ```hs
-(mk_list_foo(?3 : Foo), ?2 : a -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : a -> String)
 ```
 
 Note that although the `a` in `?s2` has to be of type `Foo` we do not propagate this knowledge there yet as we are focusing on `?3`.
 We only propagate the constrains when we discard the hole as filled.
 We use `mk_foo` to create new goal `?4 : Bar` which we solve by providing `bar`.
 Now we propagate the constraints to the remaining subgoals, `?2` in this example.
-This means that the second subgoal becomes `?2 : Foo -> Integer` as shown below.
+This means that the second subgoal becomes `?2 : Foo -> String` as shown below.
 
 ```hs
-(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> Integer)
-(mk_list_foo(mk_foo(bar)), ?2 : Foo -> Integer)
+(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> String)
+(mk_list_foo(mk_foo(bar)), ?2 : Foo -> String)
 ```
-However, we cannot find anything of type `Foo -> Integer` so we have to revert all the way to `?1`.
-This time we use `mk_list_bar` to fill `?1` meaning that the remaining subgoal becomes `?2 : Bar -> Integer`.
-We can fill it by providing `bar_to_int`.
+However, we cannot find anything of type `Foo -> String` so we have to revert all the way to `?1`.
+This time we use `mk_list_bar` to fill `?1` meaning that the remaining subgoal becomes `?2 : Bar -> String`.
+We can fill it by providing `show_bar`.
 As there are no more subgoals remaining the problem is solved with the steps shown below.
 
 ```hs
-(mk_list_bar(?3 : Bar), ?2 : a -> Integer)
-(mk_list_bar(bar), ?2 : Bar -> Integer)
-(mk_list_bar(bar), bar_to_int)
+(mk_list_bar(?3 : Bar), ?2 : a -> String)
+(mk_list_bar(bar), ?2 : Bar -> String)
+(mk_list_bar(bar), show_bar)
 ```
 
 An overview of all the steps we took can be seen in the @standardml-dfs-steps.
 #figure(
 sourcecode()[```hs
-?goal : ([a], a -> Integer)
-(?1 : [a], ?2 : a -> Integer)
-(mk_list_foo(?3 : Foo), ?2 : a -> Integer)
-(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> Integer)
-(mk_list_foo(mk_foo(bar)), ?2 : Foo -> Integer) -- Revert to ?1
-(mk_list_bar(?3 : Bar), ?2 : a -> Integer)
-(mk_list_bar(bar), ?2 : Bar -> Integer)
-(mk_list_bar(bar), bar_to_int)
+?goal : ([a], a -> String)
+(?1 : [a], ?2 : a -> String)
+(mk_list_foo(?3 : Foo), ?2 : a -> String)
+(mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> String)
+(mk_list_foo(mk_foo(bar)), ?2 : Foo -> String) -- Revert to ?1
+(mk_list_bar(?3 : Bar), ?2 : a -> String)
+(mk_list_bar(bar), ?2 : Bar -> String)
+(mk_list_bar(bar), show_bar)
 ```],
 caption: [
     DFS algorithm steps
@@ -478,21 +476,21 @@ caption: [
 Now let's take a look at the algorithm that uses BFS for to handle the goals.
 The first iteration is the same as described above after which we have two subgoals to fill.
 ```hs
-(?1 : [a], ?2 : a -> Integer)
+(?1 : [a], ?2 : a -> String)
 queue = [[?1, ?2]]
 ```
 
 As we are always working on the head element of the queue we are still working on `?1`.
 Once again we use `mk_list_foo` to transform the first subgoal to `?3 : Foo` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
-We also propagate the information to other subgoals so that we constrain `?2` to either `Foo -> Integer` or `Bar -> Integer`.
+We also propagate the information to other subgoals so that we constrain `?2` to either `Foo -> String` or `Bar -> String`.
 ```hs
-(mk_list_foo(?3 : Foo), ?2 : Foo -> Integer)
-(mk_list_bar(?4 : Bar), ?2 : Bar -> Integer)
+(mk_list_foo(?3 : Foo), ?2 : Foo -> String)
+(mk_list_bar(?4 : Bar), ?2 : Bar -> String)
 
 queue = [[?3, ?2], [?4, ?2]]
 ```
 
-In the next step we search for something of type `Foo` for `?3` and a function of type `Foo -> Integer` in `?2`.
+In the next step we search for something of type `Foo` for `?3` and a function of type `Foo -> String` in `?2`.
 We find `bar` for the first goal, but not anything for the second goal.
 This means we discard the branch as we are not able to solve the problem collection.
 Note that at this point we still have `?4` pending, meaning we have not yet exhausted the search in current "branch".
@@ -500,7 +498,7 @@ Reverting now means that we save some work that was guaranteed to have no effect
 The search space becomes
 ```hs
 (mk_list_foo(mk_foo(?4 : Bar)), ?2 : <impossible>) -- discarded
-(mk_list_bar(?4 : Bar), ?2 : Bar -> Integer)
+(mk_list_bar(?4 : Bar), ?2 : Bar -> String)
 
 queue = [[?4, ?2]]
 ```
@@ -508,19 +506,20 @@ Now we focus on the other problem collection.
 In this iteration we find solutions for both of the goals as following.
 As all the problems in the problem collection get get solved we can turn it into solution and return it.
 ```hs
-(mk_list_bar(?5 : Bar), ?2 : Bar -> Integer)
-(mk_list_bar(bar), bar_to_int)
+(mk_list_bar(?5 : Bar), ?2 : Bar -> String)
+(mk_list_bar(bar), show_bar)
 ```
 
-An overview of all the steps we took can be seen in @standardml-bfs-steps. #todo("this is confusing for parallel stuff tho")
+An overview of all the steps we took can be seen in @standardml-bfs-steps.
+Note that from line 3 to line 5 there are two branches is parallel and order between branches is arbritary.
 #figure(
 sourcecode()[```hs
-?goal : ([a], a -> Integer)
-(?1 : [a], ?2 : a -> Integer)
-(mk_list_foo(?3 : Foo), ?2 : Foo -> Integer)
-(mk_list_foo(mk_foo(?4 : Bar)), ?2 : <impossible>) -- Discard branch
-(mk_list_bar(?5 : Bar), ?2 : Bar -> Integer)
-(mk_list_bar(bar), bar_to_int)
+?goal : ([a], a -> String)
+(?1 : [a], ?2 : a -> String)
+(mk_list_foo(?3 : Foo), ?2 : Foo -> String)        -- Branch 1
+(mk_list_foo(mk_foo(?4 : Bar)), ?2 : <impossible>) -- Discard branch 1
+(mk_list_bar(?5 : Bar), ?2 : Bar -> String)        -- Branch 2
+(mk_list_bar(bar), show_bar)
 ```],
 caption: [
     DFS algorithm steps
@@ -561,19 +560,18 @@ In case of eager evaluation the execution would still halt on producing all the 
 
 
 === Term search in Idris2
-Idris2 is a dependently typed programming language that has term search built into it's compiler.
+Idris2 @idris2-design-and-implementation is a dependently typed programming language that has term search built into it's compiler.
 Internally the compiler makes use of a small language they call TT.
-In @idris2-design-and-implementation they say that TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
+TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
 The language is kept as small as reasonably possible to make working with it easier.
 
 As the term search algorithm also works on TT we'll take a closer look at it.
 More precise we'll look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
 The guess binding is similar to a let binding, but without any reduction rules for guess bindings.
-In @idris2-design-and-implementation they note that using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
+Using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
 Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
 
 $"TT"_"dev"$ consists of terms, bindings and constants as shown in @idris-tt-syntax.
-#todo("reference idris paper for the figure")
 #figure(
 sourcecode(numbering: none)[```
 Terms, t ::= c (constant)
@@ -594,7 +592,7 @@ Constants, c ::= Type (type universes)
     | str (string literal)
 ```],
 caption: [
-    $"TT"_"dev"$ syntax
+    $"TT"_"dev"$ syntax by @idris2-design-and-implementation /  © Cambridge University Press 2013
   ],
 ) <idris-tt-syntax>
 
@@ -1155,6 +1153,11 @@ As there were were many issues with optimizing the DFS approach we decided to no
 === Second iteration: BFS <second-iter-bfs>
 The second iteration of our algorithm was based on BFS as suggested in @algebraic-foundations-of-proof-refinement.
 However it differs from it by doing the search in the opposite direction.
+
+To not confuse the directions we use _forward_ when we are constructing term from what we have (working towards the goal) and _backward_  when we work backwards from the goal.
+Forward is also what we as humen generally use when writing programs.
+For example we usually write `x.foo().bar()` left to right (forwards from arguments to goal) instead of right to left (backwards from goal to arguments)
+
 The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backwards from it towards what we already have.
 For example if we have function in scope that takes us to the goal we create new goals for all the arguments of the function, therefore move backwards from the return type towards the arguments.
 Our algorithm however works in the forward direction, meaning that we start from what we have in scope.
@@ -1323,7 +1326,6 @@ This means that we limit the depth for the generics to 1 which is a very severe 
 In @third-iter-bidirectional-bfs we will discuss how to get around this limitation.
 
 === Third iteration: Bidirectional BFS <third-iter-bidirectional-bfs>
-#todo("paragraph for terminology, directions, why, example. this should be before 2nd iter")
 The third iteration of our algorithm is a small yet powerful improvement on the second iteration described in @second-iter-bfs.
 This iteration differs from the previous one by improving the handling of generics.
 We note that the handling of generics is a lot smaller problem if going in the backwards direction as other term search tools do.
