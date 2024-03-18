@@ -1,7 +1,5 @@
 #import "template.typ": *
 
-// Take a look at the file `template.typ` in the file panel
-// to customize this template and discover how it works.
 #show: project.with(
   title: "Term Search in Rust",
   title_estonian: "Avaldise otsing programmeerimiskeeles Rust",
@@ -22,18 +20,16 @@
   date: "January 17, 2024",
 )
 
-// We generated the example code below so you can see how
-// your document will look. Go ahead and replace it with
-// your own content!
-
 = Introduction
-#todo("More overview of rust, borrow checker model of types, what makes it safe. Not sure what to add tbh...")
-Rust#footnote(link("https://www.rust-lang.org/")) is a new programming language for developing reliable and efficient systems.
+Rust#footnote(link("https://www.rust-lang.org/")) is a programming language for developing reliable and efficient systems.
 The language was originally created by Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
-Rust has an expressive type system that guarantees no undefined behavior even though it has reference types.
-This is done by rejecting all programs that may contain undefined behavior during the compilation.
+It differs from other popular systems programming languages such as C and C++ by more focusing on reliablility and productivity of the programmer.
+Rust has an expressive type system that guarantees lack of undefined behavior at compile type.
+It is done with a novel ownership model and is enforced by a compiler tool called borrow checker.
+Borrow checker rejects all programs that may contain illegal memory accesses or data races.
+
 We will call the set of programs that can be compiled valid, as they are guaranteed to not cause undefined behavior.
-Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (also called expressions in Rust) that satisfy the type system.
+Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (usually called expressions in Rust) that satisfy the type system.
 Rust, however, does not have tools for term search, although the type system makes it a perfect candidate for one.
 Consider the following Rust program in @into-example-1:
 #figure(
@@ -721,10 +717,12 @@ Quite often the synthesis time was 2-3s and sometimes reached as high as 18.3s.
 This is fast enough to use for filling holes, but too slow to use for autocompletion.
 
 == The Rust language
+#todo("Maybe before term search chapter")
 Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
 It takes lots of inspiration from functional programming languages, namely, it supports algebraic data types, higher-order functions, and immutability.
 
 === Type unification in Rust
+#todo("Type system?")
 Rust has multiple different kinds of types.
 There are primitives, references, abstract data types, generics, lifetimes, alias types, and more.
 It is possible to check for either syntactic or semantic equality between two types.
@@ -1017,6 +1015,7 @@ caption: [
 
 
 == Autocompletion
+#todo("Term search for autocompletion")
 In addition to filling holes, term search can be used to give user "smarter" autocompletion suggestions as they are typing.
 The general idea is the same as for filling holes.
 We start by attempting to infer the expected type at the cursor.
@@ -1670,16 +1669,27 @@ From @tbl-depth-hyper-param we can see that the curve for terms found is not ent
 
 The amount of suggestions follows similar pattern to terms found, but the curve is flatter.
 The search time of the algorithm seems to be in linear relation with the search depth with a root-mean-square error of 8.1ms.
+#todo("Talk about both figures")
+#figure(
+  image("fig/nr_suggestions.png", width: 90%),
+  caption: [
+    Term search depth effect on number of suggestions
+  ],
+) <term-search-depth-nr-suggestions>
 
 #figure(
   image("fig/time.png", width: 90%),
   caption: [
-    Term search depth effect on time and amount of suggestions
+    Term search depth effect on average time
   ],
 ) <term-search-depth-time>
 
 From the measurements shown in @term-search-depth-accuracy and @term-search-depth-time we see that increasing the search depth over two can actually have somewhat negative effects.
-The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic hits is growing really slowly.
+The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic hits and found terms are growing really slowly.
+
+#todo("Link figures to tables")
+#todo("Consistent rounding, use %")
+#todo("need more depth for linear, sepparate firgure maybe")
 
 #figure(
   table(
@@ -1704,10 +1714,13 @@ Terms that would result in syntactic hits get also squashed into _Many_ resultin
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
 Average number of suggestions per hole is 18.6, and they are found in 35ms.
 However, the numbers vary a lot depending on the style of the program.
-Standard deviation for average number of suggestions is about 56 and 167ms for average time.
+Standard deviation for average number of suggestions is about 56 suggestions, and standard deviation average time is 167ms.
 Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
 
 #todo("First two iterations of the algorithm")
+To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
+However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
+
 
 == Usability <usability>
 In this section we study cases where our algorithm works either very well or very poorly.
@@ -1787,6 +1800,7 @@ Category "external-ffi-bindings" has an average search time of 571ms that is a l
 It also offers a lot more suggestions per term by suggesting 303 terms per hole which is about 15 times more than average of 20.
 Such a big number of suggestions is overwhelming to user as 300 suggestions do not even fit onto screen.
 
+#todo("using only few primitive types, mostly integers. For example ...")
 Slow search times and high number of suggestions are caused by those crates not using many different types.
 The only foreign function interface Rust supports is C, and C does not have such an expressive type system as Rust.
 Foreign function interface (FFI) crates are wrappers around C functions and therefore often use integer types for most operations.
@@ -1795,11 +1809,13 @@ As the point of FFI crates is to serve as a wrapper around C code so that other 
 
 
 == Limitations of the methods (week 5)
+#todo("some intro")
 ==== Resynthesis
+#todo("reword paragraph")
 The percentage of terms that the term search managed to fill does not reflect the usability of the tool very well.
-This would be useful metric if we would use it as a proof search.
+This would be useful metric if we would use it as a proof search as when searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
 In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
-Other suggestions are noise as they produce programs that no-one asked for.
+Other suggestions can be considered as a noise as they produce programs that no-one asked for.
 
 Syntactic hits (equality) is a misleading metric as we really care about semantic equality of programs.
 The metric may depend more on the style of the program than the formatting than on the real capabilities of the tool.
@@ -1808,14 +1824,17 @@ Syntactic hits also suffers from squashing multiple terms to `Many` option as th
 Instead of average time and amount of suggestions per term search we should measure the worst case performance.
 Having the IDE freeze for a second once in a while is not acceptable even if at other times the algorithm is very fast.
 
+#todo("latency analysis")
+
 ==== Usability
-This sections is really based on very small amount of personal experience and may therefore not reflect the average user very well.
-
-
+This sections is based on a personal experience of the author and may therefore not reflect the average user very well.
+Modeling average user is a hard task on it's own and would require a us to conduct a study on it.
+As studying usage of IDE tools is outside the scope of this thesis we only attempt to give general overview of strenghts and weaknesses of the tool.
+Different issues may arise when using the tool for different context.
 
 = Future work (week 9) <future-work>
 In this section we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
-Some of these topics consist of features for which there was not enough time to complete them in the timeframe of the thesis.
+Some of these topics consist of features for which were not in scope of this thesis.
 Other focus on improving the `rust-analyzer` functionality overall.
 
 ==== More permissive borrow checking
@@ -1829,7 +1848,7 @@ In projects with hundreds of functions that take generic parameters our algorith
 One of the main reasons for it is that we fully normalize all types before working with them.
 In case of types and functions that have generic parameters this means substituting in the generic parameters.
 However, that is always not required.
-Some methods in `impl` block do not require knowing exact generic parameters and therefore can be used without substituting in the generic types.
+Some methods on types with generic parameters do not require knowing exact generic parameters and therefore can be used without substituting in the generic types.
 Some examples of it are `Option::is_some` and `Option::is_none`.
 Others only use some of the generic parameters of the type.
 In case not all generic parameters are used we could avoid substituting in the generic types that are not needed as long as we know that we have some options available for them.
@@ -1839,30 +1858,42 @@ A fairly obvious improvement that we believe still should be touched on is the a
 Addition of new tactics would allow usage in new context.
 Some ideas for new tactics:
 - Tuple projection - very similar to struct projection. Very easy to add.
-- Macro call - similarly to function calls macros can be used to produce terms of new types.
+- Macro call - similarly to function calls macros can be used to produce terms of unexplored types.
   As macros allow more custom syntax and work at the level of metaprogramming adding them can be more complex.
 - Higher order functions - generating terms for function types is more complex than working with simple types.
   On the other hand higher order functions would allow usage of term search in iterators and therefore increase its usefulness by a considerable margin.
+- Case analysis - Perform a case split and find a term of suitable type for all the match arms.
+  May require to change the algorithm slightly as the each of the match arms has different context.
 
 ==== Machine learning based techniques
 We find that machine learning based techniques could be used to prioritize generated suggestions.
-This could allow also suggestions that do not affect the type of the term.
-For example suggestions for builder pattern could be made more useful by also suggesting some setter methods.
-This would have some benefits over using LLMs as the code generation tools.
 All the terms would be still generated by term search and would be valid programs by construction which is a guarantee that LLMs cannot have.
-The ordering of suggestions is something that is very hard to do analytically, and therefore we believe that it makes sense to train a model for it.
+On the other hand, ordering of suggestions is very hard to do analytically, and therefore we believe that it makes sense to train a model for it.
+With better ordering of suggestions we can be more permissive and allow suggestions that do not affect the type of the term (endofunctions).
+For example suggestions for builder pattern could be made more useful by also suggesting some setter methods.
+
+==== LSP response streaming
+Adding LSP response streaming is an addition to `rust-analyzer` that would also benefit term search.
+Response streaming would be especially helpful in the context of autocompletion.
+It would allow us to incrementally present the user autocompletion suggestions meaning that latecy would become less of an issue.
+With the latency issue solved we believe that term search based autocompletion suggestions could be turned on by default.
+Currently the main reason for making them opt-in was that the autocompletion is already slow in `rust-analyzer` and term search makes in even slower.
 
 = Conclusion
 In this thesis our main objective was to implement term search for the Rust programming language.
 We achieved it by implementing it as an addition to `rust-analyzer`, the official LSP server for Rust.
 
-We started by giving overview of similar tools used in Agda, Idris, Haskell and StandardML.
-Furthermore, we analyzed both their functionality and algorithms they use and compared them to one another.
+First we gave an overview of the Rust programming language to understand the context we are working in.
+We focusing on type system and borrow checking as they are two fundamental consepts in Rust.
 
-After that we dove into Rust programming language to give context of the language we are working in.
-We also covered the LSP protocol and some of the autocompletion tools to have some understanding of the constraints we have when trying to use the term search for autocompletion.
+After that we gave an overview of term search and tools for it.
+We focused on tools used in Agda, Idris, Haskell and StandardML.
+We analyzed both their functionality and algorithms they use.
+By comparing them to one another we layed the groundwork for our own implementation.
 
-The term search algorithm we implemented is based on the term search tools used in Agda, Idris, Haskell and StandardML.
+After that we covered the LSP protocol and some of the autocompletion tools to have some understanding of the constraints we have when trying to use the term search for autocompletion.
+
+The term search algorithm we implemented is based on the tools used in Agda, Idris, Haskell and StandardML.
 We took the different approach from the previous implementations by using the bidirectional search.
 The bidirectional approach allowed us to implement each tactic for the direction that is the most natural fit for it.
 This yielded in a rather simple implementations of tactics that achieve relatively high performance.

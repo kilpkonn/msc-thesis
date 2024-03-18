@@ -87,7 +87,6 @@
 [graphics], [tiny-skia-path-0.11.4],
 [graphics], [gpu-alloc-0.6.0],
 [graphics], [gpu-alloc-types-0.3.0],
-[gui], [winit-0.29.14],
 [gui], [winit-0.29.15],
 [gui], [stdweb-0.4.20],
 [gui], [stdweb-internal-macros-0.2.9],
