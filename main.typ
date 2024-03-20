@@ -274,7 +274,6 @@ It is also noted that there seems to be many false subproblems that can never be
 ==== Mimer
 Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#footnote(link("https://github.com/agda/agda/pull/6410")) and will be released as a replacement for Agsy.
-#todo("see if direct quote")
 "Mimer is designed to handle many small synthesis problems rather than complex ones" @mimer.
 Mimer is less powerful than Agsy as it doesn't perform case splits but on the other hand it is designed to be more robust.
 Other than not using case splits and the main algorithm follows the one used in Agsy and described in @agsy.
@@ -718,11 +717,11 @@ This is fast enough to use for filling holes, but too slow to use for autocomple
 
 == The Rust language
 #todo("Maybe before term search chapter")
+
 Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
 It takes lots of inspiration from functional programming languages, namely, it supports algebraic data types, higher-order functions, and immutability.
 
-=== Type unification in Rust
-#todo("Type system?")
+=== Type system
 Rust has multiple different kinds of types.
 There are primitives, references, abstract data types, generics, lifetimes, alias types, and more.
 It is possible to check for either syntactic or semantic equality between two types.
@@ -1014,8 +1013,7 @@ caption: [
 ) <rust-filling-typed-hole>
 
 
-== Autocompletion
-#todo("Term search for autocompletion")
+== Term search for autocompletion
 In addition to filling holes, term search can be used to give user "smarter" autocompletion suggestions as they are typing.
 The general idea is the same as for filling holes.
 We start by attempting to infer the expected type at the cursor.
@@ -1642,7 +1640,7 @@ Here is a list of metrics we are interested in for resynthesis
    To make the metric slightly more robust we remove all the whitespace from the programs before comparing them.
 3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
-4. Average options per hole - This shows the average amount of options provided to the user.
+4. Suggestions per hole - This shows the average amount of options provided to the user.
 
 ==== Chosen crates
 Crate is a name for a Rust library.
@@ -1657,19 +1655,19 @@ Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "A
 ==== Results
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
 The relation between depth and all the metrics.
-From @term-search-depth-accuracy we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
-From @tbl-depth-hyper-param we can see that the curve for terms found is not entirely flat, but the improvements are very minor.
+From @term-search-depth-accuracy and @tbl-depth-hyper-param we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
+From @tbl-depth-hyper-param we can see that the curve for terms found is not entirely flat, but the improvements are very minor. for the amount of found terms.
 
+#todo("maybe 'holes filled' and something..")
 #figure(
   image("fig/accuracy.png", width: 90%),
   caption: [
-    Term search depth effect on metrics
+    Term search depth effect on terms found and syntactic hits
   ],
 ) <term-search-depth-accuracy>
 
-The amount of suggestions follows similar pattern to terms found, but the curve is flatter.
-The search time of the algorithm seems to be in linear relation with the search depth with a root-mean-square error of 8.1ms.
-#todo("Talk about both figures")
+The amount of suggestions shown in @term-search-depth-nr-suggestions follows similar pattern to terms found, but the curve is flatter.
+Note that for amount of suggestions, bigger number is not always better as too many suggestions is overwhelming.
 #figure(
   image("fig/nr_suggestions.png", width: 90%),
   caption: [
@@ -1677,6 +1675,10 @@ The search time of the algorithm seems to be in linear relation with the search 
   ],
 ) <term-search-depth-nr-suggestions>
 
+To more closely investigate the time complexity of the algorithm we ran the experiment up to depth of 20.
+In order to speed up the process we sampled only the top crate from all the categories as running the experiment on all 155 crates would take about half a month.
+From @term-search-depth-time we can see that search time of the algorithm seems to be in linear relation with the search depth.
+The standard deviation of the data is 8.1ms.
 #figure(
   image("fig/time.png", width: 90%),
   caption: [
@@ -1687,22 +1689,20 @@ The search time of the algorithm seems to be in linear relation with the search 
 From the measurements shown in @term-search-depth-accuracy and @term-search-depth-time we see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic hits and found terms are growing really slowly.
 
-#todo("Link figures to tables")
-#todo("Consistent rounding, use %")
-#todo("need more depth for linear, sepparate firgure maybe")
+#todo("Link figures to tables >> is it done or how should I do it?")
 
 #figure(
   table(
     columns: 5,
     inset: 5pt,
     align: horizon,
-    table.header[*Depth*][*Syntax hits*][*Found*][*Suggestions per expr*][*Avg time (ms)*],
-[0], [0.02], [0.188], [15.058], [23.419], 
-[1], [0.093], [0.68], [18.137], [33.032], 
-[2], [0.095], [0.745], [20.003], [72.419], 
-[3], [0.098], [0.761], [21.514], [111.813], 
-[4], [0.096], [0.76], [22.101], [137.065], 
-[5], [0.095], [0.762], [22.257], [151.103], 
+    table.header[*Depth*][*Syntax hits*][*Found*][*Suggestions per expr*][*Average time*],
+[0], [2.0%], [18.8%], [15.1], [23.4ms], 
+[1], [9.3%], [68.0%], [18.1], [33.0ms], 
+[2], [9.5%], [74.5%], [20.0], [72.4ms], 
+[3], [9.8%], [76.1%], [21.5], [111.8ms], 
+[4], [9.6%], [76.0%], [22.1], [137.1ms], 
+[5], [9.5%], [76.2%], [22.3], [151.1ms],  
   ),
   caption: [Depth hyperparameter effect on metrics]
 ) <tbl-depth-hyper-param>
@@ -1717,10 +1717,29 @@ However, the numbers vary a lot depending on the style of the program.
 Standard deviation for average number of suggestions is about 56 suggestions, and standard deviation average time is 167ms.
 Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
 
-#todo("First two iterations of the algorithm")
 To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
 However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
+As some of the worst cases are eliminated the for iterations v1 and v2, the results in @tbl-versions-comparison are more optimistic for them than for the final iteration of the algorithm.
+Nevertheless we can see that the third iteration manages to fill over 60% more holes than second and 180% more holes than first iteration of the algorithm.
+The third iteration also manages to produce 60% more syntactic hits than second and 150% more than first iteration of the algorithm.
+These results are achieved in a 23% longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
+The first iteration is also obviously worse than others by running all most two magnitudes slower than other iterations and still filling less holes.
 
+#figure(
+  table(
+    columns: 5,
+    inset: 5pt,
+    align: horizon,
+    table.header[*Algorithm*][*Syntax hits*][*Found*][*Suggestions per expr*][*Avg time (ms)*],
+[v1, $"depth"=1$], [4%], [26%], [5.8], [4.9s], 
+[v2, $"depth"=3$], [6%], [46%], [17.2], [90ms], 
+[v3, $"depth"=2$], [10%], [75%], [20.0], [72ms], 
+[v3, $"depth"=3$], [10%], [76%], [21.5], [111ms],
+  ),
+  caption: [Comparioson of algorithm iterations]
+) <tbl-versions-comparison>
+
+#todo("latency stuff")
 
 == Usability <usability>
 In this section we study cases where our algorithm works either very well or very poorly.
@@ -1800,19 +1819,21 @@ Category "external-ffi-bindings" has an average search time of 571ms that is a l
 It also offers a lot more suggestions per term by suggesting 303 terms per hole which is about 15 times more than average of 20.
 Such a big number of suggestions is overwhelming to user as 300 suggestions do not even fit onto screen.
 
-#todo("using only few primitive types, mostly integers. For example ...")
-Slow search times and high number of suggestions are caused by those crates not using many different types.
-The only foreign function interface Rust supports is C, and C does not have such an expressive type system as Rust.
-Foreign function interface (FFI) crates are wrappers around C functions and therefore often use integer types for most operations.
+Slow search times and high number of suggestions are caused by those crates using only few primitive types, mostly integers.
+For example in C it is common to return errors, indexes and sometimes even pointers as integers.
+Yet C's application binary interface (ABI) is the only stable ABI Rust has.
+Foreign function interface (FFI) crates are wrappers around C ABI and therefore often use integer types for most operations.
+
 Searching for an integer however is not very useful as most functions in C return integers which all fit to the hole based on type.
+This means that there is a fundamental limitation of our algorithm when writing C-like code in Rust and working with FFI crates.
 As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performance of term search in FFI crates.
 
+== Limitations of the methods
+In this section we highlight the main limitations of the evaluation methods we use.
+#todo("not sure what more to write here")
 
-== Limitations of the methods (week 5)
-#todo("some intro")
 ==== Resynthesis
-#todo("reword paragraph")
-The percentage of terms that the term search managed to fill does not reflect the usability of the tool very well.
+Metric "found terms" does not reflect the usability of the tool very well.
 This would be useful metric if we would use it as a proof search as when searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
 In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
 Other suggestions can be considered as a noise as they produce programs that no-one asked for.
@@ -1824,15 +1845,13 @@ Syntactic hits also suffers from squashing multiple terms to `Many` option as th
 Instead of average time and amount of suggestions per term search we should measure the worst case performance.
 Having the IDE freeze for a second once in a while is not acceptable even if at other times the algorithm is very fast.
 
-#todo("latency analysis")
-
 ==== Usability
 This sections is based on a personal experience of the author and may therefore not reflect the average user very well.
 Modeling average user is a hard task on it's own and would require a us to conduct a study on it.
 As studying usage of IDE tools is outside the scope of this thesis we only attempt to give general overview of strenghts and weaknesses of the tool.
 Different issues may arise when using the tool for different context.
 
-= Future work (week 9) <future-work>
+= Future work <future-work>
 In this section we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
 Some of these topics consist of features for which were not in scope of this thesis.
 Other focus on improving the `rust-analyzer` functionality overall.
