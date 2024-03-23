@@ -22,11 +22,11 @@
 
 = Introduction
 Rust#footnote(link("https://www.rust-lang.org/")) is a programming language for developing reliable and efficient systems.
-The language was originally created by Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
-It differs from other popular systems programming languages such as C and C++ by more focusing on reliablility and productivity of the programmer.
+The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#footnote(link("https://lkml.org/lkml/2022/10/16/359")).
+It differs from other popular systems programming languages such as C and C++ by focusing more on reliablility and productivity of the programmer.
 Rust has an expressive type system that guarantees lack of undefined behavior at compile type.
 It is done with a novel ownership model and is enforced by a compiler tool called borrow checker.
-Borrow checker rejects all programs that may contain illegal memory accesses or data races.
+The borrow checker rejects all programs that may contain illegal memory accesses or data races.
 
 We will call the set of programs that can be compiled valid, as they are guaranteed to not cause undefined behavior.
 Many programming languages with type systems that guarantee the program to be valid have tools that help the programmer with term search i.e. by searching for valid programs (usually called expressions in Rust) that satisfy the type system.
@@ -47,11 +47,11 @@ caption: [
 ) <into-example-1>
 
 
-From the types of values in scope and constructors of `Option`, we can produce the expected result of wrapping the argument in `Option` and returning it.
+From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by wrapping the argument into `Option` and returning it.
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
 
 == Motivation
-Due to Rust having an expressive type system, the programmer might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#footnote(link("https://actix.rs/")), a typical JSON endpoint function might look something like shown in @motivation-example-1.
+Due to Rusts's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#footnote(link("https://actix.rs/")), a typical JSON endpoint function might look something like shown in @motivation-example-1.
 #figure(
 sourcecode()[
 ```rs
@@ -70,50 +70,62 @@ caption: [
   ],
 ) <motivation-example-1>
 
-We can see that converting the result from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
+We can see that converting the result `service_res` from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
 This means that term search can be used to reduce the amount of code the programmer has to write.
 
-In @how-programmers-interact-with-code-generation-models[p. 19] they suggest that code generation tools are used in two different modes.
+When investigating common usage patterns among programmers using large language models for code generation, @how-programmers-interact-with-code-generation-models[p. 19] found two patterns:
 1. They are used to reduce the amount of code the programmer has to write therefore making them faster.
   They call it the _acceleration mode_.
 2. They are used to exploring possible ways to complete incomplete programs.
-  This is mostly used when the programmer is new to the libraries they are touching and is unsure how to continue.
+  This is mostly used when a programmer is using new libraries and is unsure how to continue.
   They call this usage pattern as _exploration mode_.
 
-They found that both modes are common usage patters among programmers using large language model based code generation tools.
 We argue that the same patterns can be found among programmer using term search.
 
 In acceleration mode, term search is not as powerful as language models, but it can be more predictable as it has well-defined tactics that it uses rather than deep neural networks.
 There is not so much "wow" effect - it just produces code that one could write by trying different programs that type-check.
 
-However, we hope there is a bigger advantage for term search in _exploration mode_.
+However, we expect term search to perform well in _exploration mode_.
 @how-programmers-interact-with-code-generation-models[p. 10] finds that programmers tend to explore only if they have confidence in the tool.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
 == Research Objectives
 The main objective of this thesis is to implement tactics-based term search for a programming language Rust.
+The algorithm should:
+- only produce valid programs i.e. programs that compile
+- finish fast enough to be use interactively while typing
+- produce suggestions for a wide variety of Rust programs
+- not crash or cause other issues on any Rust program
+
 Other objectives include:
 - Evaluating the fitness of tactics on existing large codebases
 - Investigating term search usability for autocompletion
 
+
 == Contributions of the thesis
 In this thesis we make following contributions:
-1. In @background, we give overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of Rust programming language that are relevant for the term search.
-2. In @design, we introduce term search to Rust by implementing it to the official language server of the Rust programming language. We discuss different use cases for it as well as the implementation details. In @tactics, we describe the capabilities of our tool.
-3. In @evaluation, we evaluate the performance of the tool. We compare it to mainstream tools, some machine learning based methods and term search tools in other programming languages.
-4. In @future-work, we describe future work that would improve our implementation. This includes technical challenges, but also describes possible extensions to the algorithm.
+- @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of Rust programming language that are relevant for the term search.
+- @design introduces term search to Rust by extending the official language server of the Rust programming language. 
+  We discuss the implementation of the algorithm in detail as well as different use cases.
+  In @tactics, we describe the capabilities of our tool.
+- @evaluation evaluates the performance of the tool. We compare it to mainstream tools, some machine learning based methods and term search tools in other programming languages.
+- @future-work describes future work that would improve our implementation. This includes technical challenges, but also describes possible extensions to the algorithm.
+
+We upstreamed our implementation to the official `rust-analyzer` on #link("https://github.com/rust-lang/rust-analyzer/pull/16092")[12th of February 2024].
+The archived version of the program can be found at #link("https://archive.softwareheritage.org/browse/origin/https://github.com/kilpkonn/rust-analyzer").
 
 = Background <background>
-In this chapter we are taking a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we've chosen.
+In this chapter we are taking a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we have chosen.
 We will also take a look at the type system of the Rust programming language to see how it relates to type systems of other languages that have tools for term search.
-In the end we'll briefly cover how autocomplete is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
+In the end we will briefly cover how autocomplete is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
 
 == Term search <term-search>
-Term search (often known as proof search) is generating programs (searching terms) that satisfy some type in given context.
-It is often used in automated theorem proving.
+Term search is the process of generating terns that satisfy some type in a given context.
+In automated theorem proving this is usually known as proof search.
+In Rust, we call it a term search as we don't usually think of programs as proofs.
 
 The Curry-Howard correspondence is a direct correspondence between computer programs and mathematical proofs.
-It is the basic idea in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
+The correspondence is used in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
 
 For example, if we have addition on natural numbers defined in Idris as shown in @idirs-add-nat.
@@ -129,40 +141,40 @@ caption: [
   ],
 ) <idirs-add-nat>
 We can prove that adding any natural number `m` to 0 is equal to the natural number `m`.
-For that, we create a declaration `plus_reduces_Z` with the type of the proposition and prove it by defining a program that satisfies the type.
+For that, we create a declaration `add_zero` with the type of the proposition and prove it by defining a program that satisfies the type.
 #figure(
 sourcecode()[
 ```hs
-plus_reduces_Z : (m : Nat) -> plus Z m = m  -- Proposition
-plus_reduces_Z m = Refl                     -- Proof
+add_zero : (m : Nat) -> add Z m = m  -- Proposition
+add_zero m = Refl                     -- Proof
 ```],
 caption: [
     Prove $0 + n = n$ in Idris
   ],
 ) <idirs-plus-reduces-z>
-The example above is quite trivial, as the compiler can figure out from the definition of `plus` that `plus Z m` is defined to be `m` according to first definition of `add`
-Based on that we can prove `plus_reduces_Z` by reflexivity.
+The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to first definition of `add`
+Based on that we can prove `add_zero` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type i.e. proposition.
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
 
 === Term search in Agda
-Agda @dependently-typed-programming-in-agda is a dependently typed functional programming language and also a proof assistant.
-It is one of the first languages that has tools leveraging term search.
-We'll be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
-As there are many alternatives we've picked two that seem the most popular or relevant for our use case.
+Agda @dependently-typed-programming-in-agda is a dependently typed functional programming language and proof assistant.
+It is one of the first languages that has sufficiently good tools leveraging term search for inductive proofs.
+We will be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
+As there are many alternatives we have picked two that seem the most popular or relevant for our use case.
 We chose Agsy as this is the well known tool that comes with Agda and Mimer that attempts to improve on Agsy.
 
 ==== Agsy <agsy>
 Agsy is the term search based proof assistant that comes with Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#footnote(link("https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html")).
 
-We will be looking at the high level implementation of the algorithm used by Agsy for term search.
+We will be looking at the high level implementation of its algorithm for term search.
+In principle Agsy iteratively refines problems into more subproblems, until enough subproblems can be solved.
+It is done by iterative deepening.
+This is necessary as a problem may in general be refined to infinite depth.
 
-Agsy explores its search space by using iterated deepening.
-This is necessary since a problem may in general be refined to infinite depth.
 The refinement of a problem can produce multiple branches with subproblems.
 In some cases we need to solve all the subproblems but in other cases it is sufficient to solve just one to solve the "top-level" problem.
-
 An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
@@ -173,7 +185,7 @@ For example, we can either use some local variable, function or type constructor
   ],
 ) <agsy_transformation_branches>
 
-Some examples where we need to solve all the subproblems are using a type constructors that take multiple members or functions with multiple arguments.
+Some examples where we need to solve all the subproblems are using a type constructors or functions that take multiple arguments.
 In case of case splitting we also have to solve all the subproblems produced.
 For example shown in @agsy_all_branches we see that function `foo(a: A, b: B, c: C)` can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
 
@@ -186,37 +198,44 @@ For example shown in @agsy_all_branches we see that function `foo(a: A, b: B, c:
 
 Agsy uses problem collections (`PrbColl`) to model the subproblems that need to be all solved individually for the "top-level" problem to be solved.
 Solution collections (`SolColl`) are used to keep track of solutions for particular problem collection.
-Solution collection has a solution for each of the problems in a corresponding problem collection.
+A solution collection has a solution for each of the problems in a corresponding problem collection.
 
 The intuition for the tool is following:
 1. Given a problem we create set of possible subproblem collections out of which we need to solve one as show in @agsy_transformation_branches.
 2. We attempt to solve all the subproblem collections by recursively solving all the problems in collection
 3. If we manage to solve all the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
 
-The algorithm itself is based around DFS and consists of two subfunctions.
-Function $"search": "problem" -> ["solution"]$ is the main entry point that attempts to find a set of solutions for a problem.
-The function internally makes use of another function $"searchColl": "PrbColl" -> ["SolColl"]$ that attempts to find set of solution collections for a problem collection.
+The algorithm itself is based around depth first search (DFS) and consists of two subfunctions.
+Function `search: Problem -> Maybe [Solution]` is the main entry point that attempts to find a set of solutions for a problem.
+The function internally makes use of another function `searchColl: PrbColl -> Maybe [SolColl]` that attempts to find set of solution collections for a problem collection.
 The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-snippet.
 
-We model Problem collection as a list of subproblems together with a _refinement_ that produces those problems.
-Refinement is a recipe to transform the problem so that we get zero or more subproblems out for the input problem.
-For example problem of finding a pair `(Bool, Int)` can be refined to two subproblems of finding `Bool` and finding `Int`.
+We model Problem collections as a list of subproblems together with a _refinement_ that produces those problems.
+A refinement is a recipe to transform the problem into zero or more subproblems.
+For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding `Bool` and finding `Int`.
 In case we refine the problem without creating any new subproblems then we can call the problem solved.
 Otherwise, all the subproblems need to be solved for the solution to hold.
-Refinement is stored so that on a successful solution we would know how to construct the solution term from the solution collection.
+The refinement is stored so that on a successful solution we would know how to construct the solution term from the solution collection.
 
 The `search` algorithm starts by refining the problem into new problem collections.
 Refining is done by tactics that are essentially just a way of organizing possible refinements.
 An example tactic that attempts to solve the problem by filling it with locals in scope can be seen in @agsy-example-tactic.
 // The example in the @agsy_transformation_branches contains three possible kinds if refinements for the problem: 1) Replace it with local (no new subproblems), 2) Replace it with function and create new subproblems for every argument, 3) Replace problem with a type constructor and create subproblem for all fields required by constructor.
 Once we have the solution collections we attempt to solve them via the `searchColl` function.
-Problem collections where we can't solve all the problems cannot be turned into solution collections as there is way to build well-formed term with problems remaining in it.
+Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
 As we only care about cases where we can fully solve the problem we discard them.
 For the successful solution collections we substitute the refinements we took into the problem to get back solution.
 As the solution is a well-formed term with no remaining subproblems we return it.
-In case there are no problem collections to solve we can call the problem to be trivially solved.
+In case there are no more problem collections to solve, the problem can be trivially solved.
 This acts as a "base case" for the algorithm.
 In case there are problem collections, but we cannot solve any of them then we cannot solve the problem, so we return nothing instead of solution.
+
+#todo-philipp[Suggestion for reformulation:
+  - In case refining does not create any new problem collections, base case is reached: the problem is trivally solved
+  - When there's new problem collections, either
+    - no solutions at all: unsolvable problem, give up
+    - any solution: return them
+]
 
 #figure(
 sourcecode()[```hs
@@ -560,8 +579,8 @@ Internally the compiler makes use of a small language they call TT.
 TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
 The language is kept as small as reasonably possible to make working with it easier.
 
-As the term search algorithm also works on TT we'll take a closer look at it.
-More precise we'll look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
+As the term search algorithm also works on TT we will take a closer look at it.
+More precise we will look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
 The guess binding is similar to a let binding, but without any reduction rules for guess bindings.
 Using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
 Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
@@ -776,7 +795,7 @@ This is also known as lazy normalization, as the normalization is only done on d
 To check if types `X` and `Y` unify, we register a new obligation `Eq(X = Y)`.
 To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
 Now we try to solve for it.
-Solving is done by the Prolog like engine, that tries to find solution based on the clauses we've registered.
+Solving is done by the Prolog like engine, that tries to find solution based on the clauses we have registered.
 If contradiction is found between the goal and clauses registered from the typing environment then there is no solution.
 In other words this means that the types do not unify.
 On successful solution we are given a new set of subgoals that still need to be proven.
@@ -826,7 +845,7 @@ We will explore the LSP protocol in @lsp-protocol to have the basic understandin
 This is essential to later understand some of our design choices for implementation later described in @design.
 
 Let's take a look at some of the popular autocompletion tools and their autocompletion related features to give some intuition of what is the common approach for implementing them.
-We'll be mostly looking at what kind of semantic information the tools used to provide suggestions.
+We will be mostly looking at what kind of semantic information the tools used to provide suggestions.
 
 ==== Clangd
 Clangd#footnote(link("https://clangd.llvm.org/")) is one of the most used autocompletion tools for C/C++.
@@ -974,7 +993,7 @@ examples of its usages in `rust-analyzer`.
 We will first take a look at using it for filling "holes" in the program and later dive into using it for autocompletion.
 
 == Filling holes
-Filling holes is a common use case for term search as we've found in @term-search.
+Filling holes is a common use case for term search as we have found in @term-search.
 Timing constrains for it are not as strict as for autocompletion, yet the user certainly doesn't want to wait for a considerable amount of time.
 
 One of the most known examples of holes in Rust programs is the `todo!()` macro.
@@ -1019,7 +1038,7 @@ The general idea is the same as for filling holes.
 We start by attempting to infer the expected type at the cursor.
 If we manage to infer the type then we run the term search in order to get the suggestions which we can then show to the user.
 
-The main difference between using term search for autocompletion and using it to fill holes is that we've decided to disable borrow checking when generating suggestions for autocompletion.
+The main difference between using term search for autocompletion and using it to fill holes is that we have decided to disable borrow checking when generating suggestions for autocompletion.
 This means that not all the suggestions are valid programs and may need some modifications by user.
 
 The rationale for it comes from both technical limitations of the tool and different expectations from the user.
@@ -1058,7 +1077,7 @@ If we only suggest items that borrow check the `bar(my_string)` function call wo
 
 
 == Implementation
-We've implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
+We have implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
 To have better understanding of the context we are working in we will first describe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
 When the LSP server is started, `rust-analyzer` first indexes whole project, including its dependencies as well as standard library.
@@ -1225,7 +1244,7 @@ Before entering the main loop we populate the lookup table by running a tactic c
 Essentially it attempts to fulfill the goal by trying variables we have in scope.
 More information about the `trivial` tactic can be found in @tactic-trivial.
 All the terms it produces get added to lookup table and can be later used in other tactics.
-After that we iteratively expand the search space by attempting different tactics until we've exceeded the preconfigured search depth.
+After that we iteratively expand the search space by attempting different tactics until we have exceeded the preconfigured search depth.
 We keep iterating after finding the first match as there may be many possible options.
 For example otherwise we would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has fewer arguments.
 During every iteration we sequentially attempt different tactics.
@@ -1276,7 +1295,7 @@ We start with variables `a` of type `A` and `b` of type `B`.
 In the first iteration we are able to use function $f: A -> C$ on `a` and get something of type `C`.
 The iteration after that we are able to use $g: C times B -> D$ and produce something of type `D`.
 
-Once we've reached the maximum depth we take all the elements that unify with the goal type and filter out the duplicates returning all the unique paths that take us to goal type.
+Once we have reached the maximum depth we take all the elements that unify with the goal type and filter out the duplicates returning all the unique paths that take us to goal type.
 
 ==== Lookup table <lookup-table>
 The main task for lookup table throughout the algorithm is to keep track of the state.
@@ -1426,13 +1445,84 @@ $
 */
 
 ==== Tactic "type constructor"
-"Type constructor" is first of our tactics that takes us from some types to another types.
-The idea is to try type constructors for types we have in scope.
-This includes both sum and product types (`enum` and `struct` for rust).
+#todo("Move type constructor stuff to rust chapter")
 
-As the ADT types may or may not contain generic arguments the tactic work in both forward and backward direction.
-Forward direction is used if the ADT does not have any generic parameters.
-Backward direction is used for types that have generic parameters.
+Rust has two kinds of user defined compound types: _structures_ (also referred as `struct`-s) and _enumerations_ (also reffered as `enum`-s)
+Structures are product types and enumerations are sum types.
+Each of them come with their own type constructors.
+Structures have one type constructor that takes arguments for all of its fields.
+Enumerations have one type constructor for each of their variants.
+
+Both of them are shown in @rust-type-constructor.
+
+#figure(
+sourcecode()[```rs
+struct Foo {
+  x: i32,
+  y: bool,
+}
+
+enum Bar {
+  A(i32),
+  B(bool),
+}
+
+fn main() {
+  let foo = Foo { x: 1, y: true };  // Initialize struct
+  let bar = Bar::B(false);          // Initialize enum with one of it's variants
+}
+```],
+caption: [
+    Sum and product types in Rust
+  ],
+) <rust-type-constructor>
+
+To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
+For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
+Note that structuress and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
+For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of genric type `T` rather than some concrete type.
+One of the most used generic enums in Rust is the `Option` type which has two constructors.
+The `None` constructor takes no arguments and `Some(T)` constructor takes one term of generic type `T`.
+Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
+
+#figure(
+sourcecode()[```rs
+struct Foo<T> {
+  x: T,
+  y: bool,
+}
+
+enum Option<T> {
+  Some(T),
+  None,
+}
+
+fn main() {
+  let foo_bool: Foo<bool> = Foo { x: true, y: true};
+  let foo_int: Foo<i32> = Foo { x: 123, y: true};
+  let option_str: Option<&str> = Some("some string");
+  let option_bool: Option<bool> = Some(false);
+}
+```],
+caption: [
+    Sum and product types with generics
+  ],
+) <rust-type-constructor-generics>
+
+
+
+
+"Type constructor" is first of our tactics that takes us from some types to another types.
+The idea is to attempt to apply type constructors we have in scope.
+We try them by looking for terms for each of the arguments the constructor has from the lookup table.
+If we have terms for all the arguments then we have successfully applied the constructor.
+If not then we cannot apply the constructor at this iteration of the algorithm.
+
+The tactic includes both sum and product types (`enum` and `struct` for rust).
+
+As compound types may contain generic arguments, the tactic works in both forward and backward direction.
+The forward direction is used if the ADT does not have any generic parameters.
+The backward direction is used for types that have generic parameters.
 In the backward direction all the generic type arguments are taken from the types in wishlist so we know that we only produce types that somehow contribute towards our search.
 
 The tactic avoids types that have unstable generic parameters that do not have default values.
@@ -1464,9 +1554,9 @@ $
 */
 
 ==== Tactic "free function"
-"Free function" is a tactic that tries different functions in scope.
+"Free function" is a tactic that #note[Tries to do _what_? → "apply free functions"][tries] different functions in scope.
 It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
-We've decided to filter out all the functions that have non-default generic parameters.
+We have decided to filter out all the functions that have non-default generic parameters.
 This is because `rust-analyzer` does not have proper checking for the function to be well-formed with a set of generic parameters.
 This is an issue if the generic parameters that the function takes are not present in the return type.
 
@@ -1481,10 +1571,41 @@ $
 */
 
 ==== Tactic "impl method"
-"Impl method" is a tactic that attempts functions that have `self` parameter.
+This tactic attempts functions that take `self` parameter.
 This includes both trait methods and methods implemented directly on type.
+Examples for both of these cases are shown in @rust-impl-method.
+Both of the impl blocks are highlighted and each of them has a single method that takes `self` parameter.
+These methods can be called as `example.get_number()` and `example.do_thingy()`.
+
+#figure(
+sourcecode(highlighted: (5,6,7,8,9, 15,16,17,18,19))[```rs
+struct Example {
+    number: i32,
+}
+
+impl Example {
+    fn get_number(&self) -> i32 {
+        self.number
+    }
+}
+
+trait Thingy {
+    fn do_thingy(&self);
+}
+
+impl Thingy for Example {
+    fn do_thingy(&self) {
+        println!("doing a thing! also, number is {}!", self.number);
+    }
+}
+```],
+caption: [
+    Impl block examples in rust
+  ],
+) <rust-impl-method>
+
 Similarly to "free function" tactic it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
-However, generics defined on the impl block possess no issues as they are associated with the target type, and we can provide concrete values for them.
+However, generics defined on the `impl` block #suggestion[possess][pose] no issues as they are associated with the target type, and we can provide concrete values for them.
 
 A performance tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not present in the last iteration.
 This implies we run this tactic only in the forward direction i.e. we need to have term for the receiver type before using this tactic.
@@ -1494,6 +1615,8 @@ For example, it may happen that we can use some method from the `impl` block lat
 
 We considered also running this tactic in the reverse direction, but it turned out to be very hard to do efficiently.
 The main issue is that there are many `impl` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
+
+#todo-philipp[Is there an example for this? Blanket-implementations for `Into` and `From` maybe?]
 
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
 This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
@@ -1513,9 +1636,9 @@ caption: [
 As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
 However, the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
 
-We've also decided to ignore all the methods that return the same type as the type of `self` parameter.
-This is because they do not take us any closer to goal type, and we've considered it unhelpful to show user all the possible options.
-I've we'd allow them then we'd also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
+We have also decided to ignore all the methods that return the same type as the type of `self` parameter.
+This is because they do not take us any closer to goal type, and we have considered it unhelpful to show user all the possible options.
+If we would allow them then we would also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
 Similar issues often arise when using the builder pattern as shown in @rust-builder
 /*
 #todo("same as free function as the self is not really that special")
@@ -1634,9 +1757,12 @@ caption: [
 Intuitively we can think of them as the all the expressions that are on the last line of the block expression (`{ .. }`) and that do not end with a semicolon.
 
 ==== Chosen metrics
+#todo("Holes filled & syntactic matches")
+
+
 Here is a list of metrics we are interested in for resynthesis
-1. Tail expressions found - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
-2. Syntactic hits - This represents the percentage of tail expressions in relation to total amount of terms that are syntactically exactly what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+1. Holes filled - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
+2. Holes filled (syntactic match) - This represents the percentage of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
    To make the metric slightly more robust we remove all the whitespace from the programs before comparing them.
 3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
@@ -1658,45 +1784,46 @@ The relation between depth and all the metrics.
 From @term-search-depth-accuracy and @tbl-depth-hyper-param we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
 From @tbl-depth-hyper-param we can see that the curve for terms found is not entirely flat, but the improvements are very minor. for the amount of found terms.
 
-#todo("maybe 'holes filled' and something..")
+#todo("Bar chart, precentage max to 100%, maybe less y axis markers")
 #figure(
-  image("fig/accuracy.png", width: 90%),
+  placement: auto,
+  grid(
+  image("fig/accuracy.png", width: 100%),
+  image("fig/nr_suggestions.png", width: 100%),
+
+  ),
   caption: [
-    Term search depth effect on terms found and syntactic hits
+    Term search depth effect on holes filled, syntactic matches and number of suggestions per hole
   ],
 ) <term-search-depth-accuracy>
 
-The amount of suggestions shown in @term-search-depth-nr-suggestions follows similar pattern to terms found, but the curve is flatter.
+The amount of suggestions shown in @term-search-depth-time follows similar pattern to terms found, but the curve is flatter.
 Note that for amount of suggestions, bigger number is not always better as too many suggestions is overwhelming.
-#figure(
-  image("fig/nr_suggestions.png", width: 90%),
-  caption: [
-    Term search depth effect on number of suggestions
-  ],
-) <term-search-depth-nr-suggestions>
 
 To more closely investigate the time complexity of the algorithm we ran the experiment up to depth of 20.
 In order to speed up the process we sampled only the top crate from all the categories as running the experiment on all 155 crates would take about half a month.
 From @term-search-depth-time we can see that search time of the algorithm seems to be in linear relation with the search depth.
 The standard deviation of the data is 8.1ms.
 #figure(
+  placement: auto,
   image("fig/time.png", width: 90%),
   caption: [
     Term search depth effect on average time
   ],
 ) <term-search-depth-time>
 
-From the measurements shown in @term-search-depth-accuracy and @term-search-depth-time we see that increasing the search depth over two can actually have somewhat negative effects.
+We can see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic hits and found terms are growing really slowly.
+In @term-search-depth-accuracy we can see the found terms and syntactic hits all most stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
 
-#todo("Link figures to tables >> is it done or how should I do it?")
-
+#todo("Reorder syntactic matches <-> Holes filled")
 #figure(
+  placement: auto,
   table(
     columns: 5,
     inset: 5pt,
     align: horizon,
-    table.header[*Depth*][*Syntax hits*][*Found*][*Suggestions per expr*][*Average time*],
+    table.header[*Depth*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Average time*],
 [0], [2.0%], [18.8%], [15.1], [23.4ms], 
 [1], [9.3%], [68.0%], [18.1], [33.0ms], 
 [2], [9.5%], [74.5%], [20.0], [72.4ms], 
@@ -1720,18 +1847,20 @@ Standard deviation is pushed so high by some outliers which we discuss in @c-sty
 To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
 However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
 As some of the worst cases are eliminated the for iterations v1 and v2, the results in @tbl-versions-comparison are more optimistic for them than for the final iteration of the algorithm.
-Nevertheless we can see that the third iteration manages to fill over 60% more holes than second and 180% more holes than first iteration of the algorithm.
-The third iteration also manages to produce 60% more syntactic hits than second and 150% more than first iteration of the algorithm.
-These results are achieved in a 23% longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
-The first iteration is also obviously worse than others by running all most two magnitudes slower than other iterations and still filling less holes.
+Nevertheless we can see that the third iteration manages to fill 1.6 times more holes than second and 2.8 times more holes than first iteration of the algorithm.
+The third iteration also manages to produce 1.6 times more syntactic hits than second and 2.5 times more than first iteration of the algorithm.
+These results are achieved in a 1.2 times longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
+The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
 
+#todo("Reorder syntactic matches <-> Holes filled")
 #figure(
+  // placement: auto,
   table(
     columns: 5,
+    align: (x, _) => if x == 4 { right } else { horizon },
     inset: 5pt,
-    align: horizon,
-    table.header[*Algorithm*][*Syntax hits*][*Found*][*Suggestions per expr*][*Avg time (ms)*],
-[v1, $"depth"=1$], [4%], [26%], [5.8], [4.9s], 
+    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Avg time (ms)*],
+[v1, $"depth"=1$], [4%], [26%], [5.8], [4900ms], 
 [v2, $"depth"=3$], [6%], [46%], [17.2], [90ms], 
 [v3, $"depth"=2$], [10%], [75%], [20.0], [72ms], 
 [v3, $"depth"=3$], [10%], [76%], [21.5], [111ms],
@@ -1811,7 +1940,7 @@ However, users usually prefer method syntax as it is less verbose and easier to 
 However, this is not a fundamental limitation of the algorithm.
 One option to solve this would be to produce suggestions with using both of the options.
 That however has its own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
-There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we'd suggest both options.
+There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we would suggest both options.
 
 ==== Foreign function interface crates <c-style-stuff>
 We found that for some types of crates the performance of the term search was significantly worse than for others.

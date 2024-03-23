@@ -136,3 +136,6 @@ align(center)[
 }
 
 #let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
+#let todo-philipp(txt) = box(fill: silver, text(top-edge: "ascender", bottom-edge: "descender")[\u{1F534} #highlight(fill: orange, [TODO:]) #txt ])
+#let note(note, txt) = highlight(txt) + super(typographic: false, [(#note)])
+#let suggestion(old, new) = highlight(fill: red, old) + highlight(fill: green, new)
