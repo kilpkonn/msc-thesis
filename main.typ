@@ -1771,9 +1771,6 @@ caption: [
 Intuitively we can think of them as the all the expressions that are on the last line of the block expression (`{ .. }`) and that do not end with a semicolon.
 
 ==== Chosen metrics
-#todo("Holes filled & syntactic matches")
-
-
 Here is a list of metrics we are interested in for resynthesis
 1. Holes filled - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
 2. Holes filled (syntactic match) - This represents the percentage of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
@@ -1796,9 +1793,8 @@ Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "A
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
 The relation between depth and all the metrics.
 From @term-search-depth-accuracy and @tbl-depth-hyper-param we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
-From @tbl-depth-hyper-param we can see that the curve for terms found is not entirely flat, but the improvements are very minor. for the amount of found terms.
+From @tbl-depth-hyper-param we can see that the curve for holes filled is not entirely flat, but the improvements are very minor. for the amount of holes filled.
 
-#todo("Bar chart, precentage max to 100%, maybe less y axis markers")
 #figure(
   placement: auto,
   grid(
@@ -1811,7 +1807,7 @@ From @tbl-depth-hyper-param we can see that the curve for terms found is not ent
   ],
 ) <term-search-depth-accuracy>
 
-The amount of suggestions shown in @term-search-depth-time follows similar pattern to terms found, but the curve is flatter.
+The amount of suggestions shown in @term-search-depth-time follows similar pattern to holes filled, but the curve is flatter.
 Note that for amount of suggestions, bigger number is not always better as too many suggestions is overwhelming.
 
 To more closely investigate the time complexity of the algorithm we ran the experiment up to depth of 20.
@@ -1827,30 +1823,29 @@ The standard deviation of the data is 8.1ms.
 ) <term-search-depth-time>
 
 We can see that increasing the search depth over two can actually have somewhat negative effects.
-The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic hits and found terms are growing really slowly.
-In @term-search-depth-accuracy we can see the found terms and syntactic hits all most stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
+The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic matches and holes filled are growing really slowly.
+In @term-search-depth-accuracy we can see the holes filled and syntactic matches all most stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
 
-#todo("Reorder syntactic matches <-> Holes filled")
 #figure(
   placement: auto,
   table(
     columns: 5,
     inset: 5pt,
     align: horizon,
-    table.header[*Depth*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Average time*],
-[0], [2.0%], [18.8%], [15.1], [23.4ms], 
-[1], [9.3%], [68.0%], [18.1], [33.0ms], 
-[2], [9.5%], [74.5%], [20.0], [72.4ms], 
-[3], [9.8%], [76.1%], [21.5], [111.8ms], 
-[4], [9.6%], [76.0%], [22.1], [137.1ms], 
-[5], [9.5%], [76.2%], [22.3], [151.1ms],  
+    table.header[*Depth*][*Holes filled*][*Syntactic matches*][*Suggestions per hole*][*Average time*],
+[0], [18.8%], [2.0%], [15.1], [23.4ms], 
+[1], [68.0%], [9.3%], [18.1], [33.0ms], 
+[2], [74.5%], [9.5%], [20.0], [72.4ms], 
+[3], [76.1%], [9.8%], [21.5], [111.8ms], 
+[4], [76.0%], [9.6%], [22.1], [137.1ms], 
+[5], [76.2%], [9.5%], [22.3], [151.1ms],   
   ),
   caption: [Depth hyperparameter effect on metrics]
 ) <tbl-depth-hyper-param>
 
-More interestingly we can see from the table that syntax hits starts to decrease after depth of 2.
+More interestingly we can see from the table that syntactic matches starts to decrease after depth of 2.
 This is because we get more results for subterms and squash them to _Many_ option, or in other words replace with new hole.
-Terms that would result in syntactic hits get also squashed into _Many_ resulting in a decrease in syntactic hits.
+Terms that would result in syntactic matches get also squashed into _Many_ resulting in a decrease in syntactic matches.
 
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
 Average number of suggestions per hole is 18.6, and they are found in 35ms.
@@ -1862,18 +1857,17 @@ To give some context on the results we decided to compare them to results from p
 However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
 As some of the worst cases are eliminated the for iterations v1 and v2, the results in @tbl-versions-comparison are more optimistic for them than for the final iteration of the algorithm.
 Nevertheless we can see that the third iteration manages to fill 1.6 times more holes than second and 2.8 times more holes than first iteration of the algorithm.
-The third iteration also manages to produce 1.6 times more syntactic hits than second and 2.5 times more than first iteration of the algorithm.
+The third iteration also manages to produce 1.6 times more syntactic matches than second and 2.5 times more than first iteration of the algorithm.
 These results are achieved in a 1.2 times longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
 The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
 
-#todo("Reorder syntactic matches <-> Holes filled")
 #figure(
   // placement: auto,
   table(
     columns: 5,
     align: (x, _) => if x == 4 { right } else { horizon },
     inset: 5pt,
-    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Avg time (ms)*],
+    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Avg time*],
 [v1, $"depth"=1$], [4%], [26%], [5.8], [4900ms], 
 [v2, $"depth"=3$], [6%], [46%], [17.2], [90ms], 
 [v3, $"depth"=2$], [10%], [75%], [20.0], [72ms], 
@@ -1882,7 +1876,17 @@ The first iteration is also obviously worse than others by running almost two or
   caption: [Comparioson of algorithm iterations]
 ) <tbl-versions-comparison>
 
-#todo("latency stuff")
+In addition to average time of the algorithm we care that the latency for the response is sufficiently low.
+We choose 100ms as a latency threshold which is a reccommended latency threshold for web applications by @usability-engineering.
+According to @typing-latency, mean latency of writing digraphs while programming is around 170ms we believe that the latency of 100ms is also suffucient for IDE.
+We will use our algorithm with depth of 2 as this seems to be the optimal depth for autocompletion.
+We found that 88% holes can be filled faster than is 100ms.
+
+We believe that this is a sufficiently good result as most this shows that most of the times the algorithm is fast enough.
+In 8 of the categories, all holes could be filled in 100ms.
+The main issues arose in categories "hardware-support" and "external-ffi-bindings" in which only 6% and 16% of the holes could be filled withing 100ms threshold.
+These categories were also problematic from the other aspects and we will discuss the issues in them in detail in @c-style-stuff.
+
 
 == Usability <usability>
 In this section we study cases where our algorithm works either very well or very poorly.
@@ -1981,9 +1985,9 @@ This would be useful metric if we would use it as a proof search as when searchi
 In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
 Other suggestions can be considered as a noise as they produce programs that no-one asked for.
 
-Syntactic hits (equality) is a misleading metric as we really care about semantic equality of programs.
+Syntactic matches (equality) is a misleading metric as we really care about semantic equality of programs.
 The metric may depend more on the style of the program than the formatting than on the real capabilities of the tool.
-Syntactic hits also suffers from squashing multiple terms to `Many` option as the new holes produced by _Many_ are obviously not what was written by user.
+Syntactic matches also suffers from squashing multiple terms to `Many` option as the new holes produced by _Many_ are obviously not what was written by user.
 
 Instead of average time and amount of suggestions per term search we should measure the worst case performance.
 Having the IDE freeze for a second once in a while is not acceptable even if at other times the algorithm is very fast.
