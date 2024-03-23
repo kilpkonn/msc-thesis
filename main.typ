@@ -220,22 +220,22 @@ The refinement is stored so that on a successful solution we would know how to c
 The `search` algorithm starts by refining the problem into new problem collections.
 Refining is done by tactics that are essentially just a way of organizing possible refinements.
 An example tactic that attempts to solve the problem by filling it with locals in scope can be seen in @agsy-example-tactic.
-// The example in the @agsy_transformation_branches contains three possible kinds if refinements for the problem: 1) Replace it with local (no new subproblems), 2) Replace it with function and create new subproblems for every argument, 3) Replace problem with a type constructor and create subproblem for all fields required by constructor.
-Once we have the solution collections we attempt to solve them via the `searchColl` function.
-Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
-As we only care about cases where we can fully solve the problem we discard them.
-For the successful solution collections we substitute the refinements we took into the problem to get back solution.
-As the solution is a well-formed term with no remaining subproblems we return it.
-In case there are no more problem collections to solve, the problem can be trivially solved.
-This acts as a "base case" for the algorithm.
-In case there are problem collections, but we cannot solve any of them then we cannot solve the problem, so we return nothing instead of solution.
 
-#todo-philipp[Suggestion for reformulation:
-  - In case refining does not create any new problem collections, base case is reached: the problem is trivally solved
-  - When there's new problem collections, either
-    - no solutions at all: unsolvable problem, give up
-    - any solution: return them
-]
+In case refining does not create any new problem collections, base case is reached and the problem is trivally solved.
+When there are new problem collections, we try to solve any of them.
+In case we cannot solve any of the problem collections, then the problem is unsolvable and we give up by returning `Nothing`.
+Otherwise we return the solution.
+The code for all these cases can be seen on lines 12 - 15 in @agsy-snippet.
+
+We solve problem collections by using the `searchColl` function.
+Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
+As we only care about cases where we can fully solve the problem we discard them by returning `Nothing`.
+On line 9 of @agsy-snippet we filter out unsuccessful solutions.
+
+For the successful solution collections we substitute the refinements we took into the problem to get back solution.
+The solution is a well-formed term with no remaining subproblems which we can return to the callee.
+
+#todo("By describing the base case and other cases in the beginning this end seems little weird as rest of the description follows the code quite closele. Is it ok tho?")
 
 #figure(
 sourcecode()[```hs
@@ -247,7 +247,7 @@ search :: Problem -> Maybe [Solution]
 search p = 
   let
     probColls: [ProbColl] = createRefs p
-    solColls: [SolColl] = flatten [sc | Just sc <- map searchColl probColls]
+    solColls: [SolColl] = flatten $ catMaybes $ map searchColl probColls
     sols: [Solution] = map (\sc -> substitute sc p) solColls 
   in 
     case (probColls, sols) of
@@ -1554,8 +1554,12 @@ $
 */
 
 ==== Tactic "free function"
-"Free function" is a tactic that #note[Tries to do _what_? → "apply free functions"][tries] different functions in scope.
+This tactic attempts to apply free functions we have in scope.
 It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
+
+A function can be successfully applied if we have terms in the lookup table for all the arguments that the function takes.
+If we are missing terms for some arguments we cannot use the function and we try again the next iteration when we hopefully have more terms in the lookup table.
+
 We have decided to filter out all the functions that have non-default generic parameters.
 This is because `rust-analyzer` does not have proper checking for the function to be well-formed with a set of generic parameters.
 This is an issue if the generic parameters that the function takes are not present in the return type.
@@ -1605,7 +1609,7 @@ caption: [
 ) <rust-impl-method>
 
 Similarly to "free function" tactic it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
-However, generics defined on the `impl` block #suggestion[possess][pose] no issues as they are associated with the target type, and we can provide concrete values for them.
+However, generics defined on the `impl` block pose no issues as they are associated with the target type, and we can provide concrete values for them.
 
 A performance tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not present in the last iteration.
 This implies we run this tactic only in the forward direction i.e. we need to have term for the receiver type before using this tactic.
@@ -1615,8 +1619,18 @@ For example, it may happen that we can use some method from the `impl` block lat
 
 We considered also running this tactic in the reverse direction, but it turned out to be very hard to do efficiently.
 The main issue is that there are many `impl` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
+One example of this is shown in @rust-blanket-impl.
 
-#todo-philipp[Is there an example for this? Blanket-implementations for `Into` and `From` maybe?]
+#figure(
+sourcecode(numbering: none)[```rs
+impl<T: fmt::Display + ?Sized> ToString for T {
+    fn to_string(&self) -> String { /* ... */ }
+}
+```],
+caption: [
+    Blanket `impl` block for `ToString` trait in the standard libray
+  ],
+) <rust-blanket-impl>
 
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
 This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#footnote(link("https://doc.rust-lang.org/reference/items/associated-items.html#methods")).
