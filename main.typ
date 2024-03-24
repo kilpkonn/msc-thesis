@@ -115,9 +115,200 @@ We upstreamed our implementation to the official `rust-analyzer` on #link("https
 The archived version of the program can be found at #link("https://archive.softwareheritage.org/browse/origin/https://github.com/kilpkonn/rust-analyzer").
 
 = Background <background>
-In this chapter we are taking a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we have chosen.
-We will also take a look at the type system of the Rust programming language to see how it relates to type systems of other languages that have tools for term search.
+In this chapter we will take a look at the type system of the Rust programming language to understand the context of our task.
+Next we will take a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we have chosen.
 In the end we will briefly cover how autocomplete is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
+
+== The Rust language
+Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
+It takes lots of inspiration from functional programming languages, namely, it supports algebraic data types, higher-order functions, and immutability.
+
+=== Type system
+Rust has multiple different kinds of types.
+There are scalar types, references, compound data types, algebraic data types, function types, and more.
+In this section we will discuss types that are relavant for the term search implementation we are building.
+We will ignore some of the more complex data types such as function types as implementing term search for them is not in scope of this thesis.
+
+Scalar types are the simplest data types in Rust.
+A scalar type represents a single value.
+Rust has four primary scalar types: integers, floating-point numbers, booleans, and characters.
+
+Compound types can group multiple values into one type.
+Rust has two primitive compound types: arrays and tuples.
+Array is a type that can store fixed amount of elements of same type.
+Tuple however, is a type that groups together values of different types.
+Examples for both array and tuple types can be seen in @rust-types on lines 2 and 3.
+
+Reference types are types that contain no other data than a reference to some other type.
+An example of reference type can be seen in @rust-types on line 4.
+
+#figure(
+sourcecode()[```rs
+let a: i32 = 0; // Scalar type for 32 bit signed integer
+let b: [u8, 3] = [1, 2, 3]; // Array type that stores 3 values of type `u8`
+let c: (bool, char, f32) = (true, 'z', 0.0); // Tuple that consists of 3 types
+let d: &i32 = &a; // Reference type to `i32`
+```],
+caption: [
+    Types in Rust
+  ],
+) <rust-types>
+
+Rust has two kinds of algebraic types: _structures_ (also referred as `struct`-s) and _enumerations_ (also reffered as `enum`-s)
+Structures are product types and enumerations are sum types.
+Each of them come with their own type constructors.
+Structures have one type constructor that takes arguments for all of its fields.
+Enumerations have one type constructor for each of their variants.
+
+Both of them are shown in @rust-type-constructor.
+
+#figure(
+sourcecode()[```rs
+struct Foo {
+  x: i32,
+  y: bool,
+}
+
+enum Bar {
+  A(i32),
+  B(bool),
+}
+
+fn main() {
+  let foo = Foo { x: 1, y: true };  // Initialize struct
+  let bar = Bar::B(false);          // Initialize enum with one of it's variants
+}
+```],
+caption: [
+    Sum and product types in Rust
+  ],
+) <rust-type-constructor>
+
+To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
+For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
+Note that structuress and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
+For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of genric type `T` rather than some concrete type.
+One of the most used generic enums in Rust is the `Option` type which has two constructors.
+The `None` constructor takes no arguments and `Some(T)` constructor takes one term of generic type `T`.
+Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
+
+#figure(
+sourcecode()[```rs
+struct Foo<T> {
+  x: T,
+  y: bool,
+}
+
+enum Option<T> {
+  Some(T),
+  None,
+}
+
+fn main() {
+  let foo_bool: Foo<bool> = Foo { x: true, y: true};
+  let foo_int: Foo<i32> = Foo { x: 123, y: true};
+  let option_str: Option<&str> = Some("some string");
+  let option_bool: Option<bool> = Some(false);
+}
+```],
+caption: [
+    Sum and product types with generics
+  ],
+) <rust-type-constructor-generics>
+
+=== Type unification
+It is possible to check for either syntactic or semantic equality between two types.
+Syntactic equality is very conservative compared to semantic equality as it requires to items to be exactly the same.
+This can sometimes be a problem as in Rust high-level intermediate representation (HIR), there are multiple ways to define a type.
+For example, in `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
+However, their types are semantically the same as `0` is inferred to have the type `i32`.
+
+To check for semantic equality of types we see if two types can be unified.
+Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
+In Rust trait solver is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
+The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
+The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
+To check for unification of types, we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
+In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
+#figure(
+sourcecode()[
+```rs
+type Foo = u8; // Type alias
+
+impl SomeTrait for u8 {
+  type Bar = u8;   // Associated type
+  type Baz = Self; // Associated type with extra level of indirection
+}
+```],
+caption: [
+    Type projections in Rust
+  ],
+) <rust-type-projections>
+Normalization is done in the context of typing environment.
+First we register clauses provided by the typing environment to the trait solver.
+After that we register a new inference variable in, and then we solve for it.
+A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
+#figure(
+sourcecode(numbering: none)[```txt
+AliasEq(Foo = u8)
+Projection(Foo, ?normalized_var)  <- normalized_var is constrained to u8 after solving
+```],
+caption: [
+    Normalizing types in Rust
+  ],
+) <rust-normalizing>
+Not all types can be fully normalized.
+For example, consider the function below.
+```rs
+fn foo<T: IntoIterator>(...) { ... }
+```
+In this example, there is now a way to know the exact type of `T`.
+In that case, we use placeholder types, and later there will be an extra obligation to solve that the placeholder type is equal to some actual type.
+This is also known as lazy normalization, as the normalization is only done on demand.
+
+To check if types `X` and `Y` unify, we register a new obligation `Eq(X = Y)`.
+To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
+Now we try to solve for it.
+Solving is done by the Prolog like engine, that tries to find solution based on the clauses we have registered.
+If contradiction is found between the goal and clauses registered from the typing environment then there is no solution.
+In other words this means that the types do not unify.
+On successful solution we are given a new set of subgoals that still need to be proven.
+If we manage to recursively prove all the subgoals, then we know that they unify.
+If some goals remain unsolved, but there is also no contradiction, then simply more information is needed to guarantee unification.
+How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
+
+=== Borrow checking
+Another crucial step for the Rust compiler is borrow checking#footnote(link("https://rustc-dev-guide.rust-lang.org/borrow_check.html")).
+The main responsibilities for the borrow checker are to make sure that:
+- All variables are initialized before being used
+- No value is moved twice or used after being dropped
+- No value is moved while borrowed
+- No immutable variable can be mutated
+- There can be only one mutable borrow
+
+The borrow checker works at the Middle Intermediate Representation (MIR) level of abstraction.
+The currently used model for borrows is Non-Lexical Lifetimes (NLL).
+The borrow cheker first builds up a control flow graph to find all possible data accesses and moves.
+Then it builds up constraints between lifetimes.
+After that, regions for every lifetime are built up.
+A region for a lifetime is a set of program points at which the region is valid.
+The regions are built up from constraints:
+- A liveness constraint arises when some variable whose type includes a region R is live at some point P. This simply means that the region R must include the point P.
+- Outlives constraint `'a: 'b` means that the region of `'a` has to also be a superset of the region of `'b`.
+From the regions, the borrow checker can calculate all the borrows at every program point.
+An extra pass is made over all the variables, and errors are reported whenever aliasing rules are violated.
+
+Rust also has a concept of two-phased borrows that splits the borrow into two phases: reservation and activation.
+These are used to allow nested function calls like `vec.push(vec.len())`.
+These programs would otherwise be invalid, as in the example above `vec.len()` is immutably borrowed while `vec.push(...)` takes the mutable borrow.
+The two-stage borrows are treated as follows:
+- It is checked that no mutable borrow is in conflict with the two-phase borrow at the reservation point (`vec.len()` for the example above).
+- Between the reservation and the activation point, the two-phase borrow acts as a shared borrow.
+- After the activation point, the two-phase borrow acts as a mutable borrow.
+
+There is also an option to escape the restrictions of borrow checker by using `unsafe` code blocks.
+In an `unsafe` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow checker.
+
 
 == Term search <term-search>
 Term search is the process of generating terns that satisfy some type in a given context.
@@ -734,108 +925,6 @@ From the benchmarks on top 100 crates on crates.io it was measured that it takes
 Quite often the synthesis time was 2-3s and sometimes reached as high as 18.3s.
 This is fast enough to use for filling holes, but too slow to use for autocompletion.
 
-== The Rust language
-#todo("Maybe before term search chapter")
-
-Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
-It takes lots of inspiration from functional programming languages, namely, it supports algebraic data types, higher-order functions, and immutability.
-
-=== Type system
-Rust has multiple different kinds of types.
-There are primitives, references, abstract data types, generics, lifetimes, alias types, and more.
-It is possible to check for either syntactic or semantic equality between two types.
-Syntactic equality is very conservative compared to semantic equality as it requires to items to be exactly the same.
-This can sometimes be a problem as in Rust high-level intermediate representation (HIR), there are multiple ways to define a type.
-For example, in `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
-However, their types are semantically the same as `0` is inferred to have the type `i32`.
-
-To check for semantic equality of types we see if two types can be unified.
-Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
-In Rust trait solver is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
-The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
-The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
-To check for unification of types, we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
-In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
-#figure(
-sourcecode()[
-```rs
-type Foo = u8; // Type alias
-
-impl SomeTrait for u8 {
-  type Bar = u8;   // Associated type
-  type Baz = Self; // Associated type with extra level of indirection
-}
-```],
-caption: [
-    Type projections in Rust
-  ],
-) <rust-type-projections>
-Normalization is done in the context of typing environment.
-First we register clauses provided by the typing environment to the trait solver.
-After that we register a new inference variable in, and then we solve for it.
-A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
-#figure(
-sourcecode(numbering: none)[```txt
-AliasEq(Foo = u8)
-Projection(Foo, ?normalized_var)  <- normalized_var is constrained to u8 after solving
-```],
-caption: [
-    Normalizing types in Rust
-  ],
-) <rust-normalizing>
-Not all types can be fully normalized.
-For example, consider the function below.
-```rs
-fn foo<T: IntoIterator>(...) { ... }
-```
-In this example, there is now a way to know the exact type of `T`.
-In that case, we use placeholder types, and later there will be an extra obligation to solve that the placeholder type is equal to some actual type.
-This is also known as lazy normalization, as the normalization is only done on demand.
-
-To check if types `X` and `Y` unify, we register a new obligation `Eq(X = Y)`.
-To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
-Now we try to solve for it.
-Solving is done by the Prolog like engine, that tries to find solution based on the clauses we have registered.
-If contradiction is found between the goal and clauses registered from the typing environment then there is no solution.
-In other words this means that the types do not unify.
-On successful solution we are given a new set of subgoals that still need to be proven.
-If we manage to recursively prove all the subgoals, then we know that they unify.
-If some goals remain unsolved, but there is also no contradiction, then simply more information is needed to guarantee unification.
-How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
-
-=== Borrow checking
-Another crucial step for the Rust compiler is borrow checking#footnote(link("https://rustc-dev-guide.rust-lang.org/borrow_check.html")).
-The main responsibilities for the borrow checker are to make sure that:
-- All variables are initialized before being used
-- No value is moved twice or used after being dropped
-- No value is moved while borrowed
-- No immutable variable can be mutated
-- There can be only one mutable borrow
-
-The borrow checker works at the Middle Intermediate Representation (MIR) level of abstraction.
-The currently used model for borrows is Non-Lexical Lifetimes (NLL).
-The borrow cheker first builds up a control flow graph to find all possible data accesses and moves.
-Then it builds up constraints between lifetimes.
-After that, regions for every lifetime are built up.
-A region for a lifetime is a set of program points at which the region is valid.
-The regions are built up from constraints:
-- A liveness constraint arises when some variable whose type includes a region R is live at some point P. This simply means that the region R must include the point P.
-- Outlives constraint `'a: 'b` means that the region of `'a` has to also be a superset of the region of `'b`.
-From the regions, the borrow checker can calculate all the borrows at every program point.
-An extra pass is made over all the variables, and errors are reported whenever aliasing rules are violated.
-
-Rust also has a concept of two-phased borrows that splits the borrow into two phases: reservation and activation.
-These are used to allow nested function calls like `vec.push(vec.len())`.
-These programs would otherwise be invalid, as in the example above `vec.len()` is immutably borrowed while `vec.push(...)` takes the mutable borrow.
-The two-stage borrows are treated as follows:
-- It is checked that no mutable borrow is in conflict with the two-phase borrow at the reservation point (`vec.len()` for the example above).
-- Between the reservation and the activation point, the two-phase borrow acts as a shared borrow.
-- After the activation point, the two-phase borrow acts as a mutable borrow.
-
-There is also an option to escape the restrictions of borrow checker by using `unsafe` code blocks.
-In an `unsafe` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow checker.
-
-
 == Autocompletion
 Autocompletion is predicting of what the user is typing and then suggesting the predictions to user.
 In case of programming the suggestions are usually derived form context and may be just a word from current buffer or maybe functions reachable in the current context.
@@ -1445,69 +1534,6 @@ $
 */
 
 ==== Tactic "type constructor"
-#todo("Move type constructor stuff to rust chapter")
-
-Rust has two kinds of user defined compound types: _structures_ (also referred as `struct`-s) and _enumerations_ (also reffered as `enum`-s)
-Structures are product types and enumerations are sum types.
-Each of them come with their own type constructors.
-Structures have one type constructor that takes arguments for all of its fields.
-Enumerations have one type constructor for each of their variants.
-
-Both of them are shown in @rust-type-constructor.
-
-#figure(
-sourcecode()[```rs
-struct Foo {
-  x: i32,
-  y: bool,
-}
-
-enum Bar {
-  A(i32),
-  B(bool),
-}
-
-fn main() {
-  let foo = Foo { x: 1, y: true };  // Initialize struct
-  let bar = Bar::B(false);          // Initialize enum with one of it's variants
-}
-```],
-caption: [
-    Sum and product types in Rust
-  ],
-) <rust-type-constructor>
-
-To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
-For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
-Note that structuress and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
-For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of genric type `T` rather than some concrete type.
-One of the most used generic enums in Rust is the `Option` type which has two constructors.
-The `None` constructor takes no arguments and `Some(T)` constructor takes one term of generic type `T`.
-Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
-
-#figure(
-sourcecode()[```rs
-struct Foo<T> {
-  x: T,
-  y: bool,
-}
-
-enum Option<T> {
-  Some(T),
-  None,
-}
-
-fn main() {
-  let foo_bool: Foo<bool> = Foo { x: true, y: true};
-  let foo_int: Foo<i32> = Foo { x: 123, y: true};
-  let option_str: Option<&str> = Some("some string");
-  let option_bool: Option<bool> = Some(false);
-}
-```],
-caption: [
-    Sum and product types with generics
-  ],
-) <rust-type-constructor-generics>
 
 
 
@@ -1977,10 +2003,10 @@ As the point of FFI crates is to serve as a wrapper around C code so that other 
 
 == Limitations of the methods
 In this section we highlight the main limitations of the evaluation methods we use.
-#todo("not sure what more to write here")
+#todo("what to say here??")
 
 ==== Resynthesis
-Metric "found terms" does not reflect the usability of the tool very well.
+Metric "holes filled" does not reflect the usability of the tool very well.
 This would be useful metric if we would use it as a proof search as when searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
 In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
 Other suggestions can be considered as a noise as they produce programs that no-one asked for.
