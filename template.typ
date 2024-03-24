@@ -6,7 +6,6 @@
   title: "",
   title_estonian: "",
   thesis_type: "",
-  abstract: [],
   authors: (),
   supervisors: (),
   date: none,
@@ -83,13 +82,13 @@
 
   // Abstract page.
   v(1fr)
-align(center)[
+  align(center)[
     #heading(
       outlined: false,
       numbering: none,
       text(0.85em, smallcaps[Abstract]),
     )
-    #abstract
+    #include("abstract.typ")
   ]
   v(1.618fr)
   pagebreak()

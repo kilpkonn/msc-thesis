@@ -13,9 +13,6 @@
   supervisors: (
     "Philipp Joram",
   ),
-  // Insert your abstract after the colon, wrapped in brackets.
-  // Example: `abstract: [This is my abstract...]`
-  abstract: lorem(59),
   location: "Tallinn",
   date: "January 17, 2024",
 )
