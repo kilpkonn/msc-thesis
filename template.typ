@@ -1,4 +1,4 @@
-#import "typst-codelst.typ": sourcecode
+#import "@preview/codelst:2.0.1": sourcecode
 #import "@preview/drafting:0.2.0": * // For notes in margins
 
 // The project function defines how your document looks.
@@ -22,11 +22,15 @@
   set text(font: "New Computer Modern", lang: "en")
   show math.equation: set text(weight: 400)
   show par: set block(spacing: 1.5em)
+  show link: it => [
+    #text(rgb("0000FF"))[#it]
+  ]
 
   // Set up notes in margin
   // https://github.com/ntjess/typst-drafting
   set page(
-    margin: (right: 2in), paper: "a4"
+    // Extra wide A4 to give extra room for notes
+    margin: (left: 2.5cm, right: 6.5cm), paper: "a4", width: 25cm
   )
   set-page-properties()
 

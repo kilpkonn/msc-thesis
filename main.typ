@@ -44,7 +44,7 @@ caption: [
 ) <into-example-1>
 
 
-From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by #suggestion[wrapping the argument into `Option`][applying the constructor `Some` to `arg`] and returning it.
+From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by applying the constructor `Some` to `arg` and returning it.
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
 
 == Motivation
@@ -87,9 +87,9 @@ However, we expect term search to perform well in _exploration mode_.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
 == Research Objectives
-The main objective of this thesis is to implement tactics-based term search for #suggestion[a][the] programming language Rust.
+The main objective of this thesis is to implement tactics-based term search for the programming language Rust.
 The algorithm should:
-- only produce valid programs#suggestion[][, ] i.e. programs that compile
+- only produce valid programs, i.e. programs that compile
 - finish fast enough to be use interactively while typing
 - produce suggestions for a wide variety of Rust programs
 - not crash or cause other issues on any Rust program
@@ -101,7 +101,7 @@ Other objectives include:
 
 == Contributions of the thesis
 In this thesis we make following contributions:
-- @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of #suggestion[][the] Rust programming language that are relevant for the term search.
+- @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of the Rust programming language that are relevant for the term search.
 - @design introduces term search to Rust by extending the official language server of the Rust programming language, `rust-analyzer`. 
   We discuss the implementation of the algorithm in detail as well as different use cases.
   In @tactics, we describe the capabilities of our tool.
@@ -112,12 +112,11 @@ We have upstreamed our implementation of term search to the `rust-analyzer` proj
 It is part of the official distribution since version #link("https://rust-analyzer.github.io/thisweek/2024/02/19/changelog-221.html")[`v0.3.1850`], released on February 19th 2024.
 An archived version can be found at #link("https://archive.softwareheritage.org/browse/revision/6b250a22c41b2899b0735c5bc607e50c3d774d74/?origin_url=https://github.com/kilpkonn/rust-analyzer&snapshot=25aaa3ceeca154121a5c2944f50ec7b17819a315")[`swh:1:rev:6b250a22c41b2899b0735c5bc607e50c3d774d74`].
 
-#todo("Show for links")
-
 = Background <background>
 In this chapter we will take a look at the type system of the Rust programming language to understand the context of our task.
-Next we will take a look at what the term search is, how is it used and #note[Split sentence before.][how are the algorithms for it implemented] in some of the tools we have chosen.
-In the end we will briefly cover how #suggestion[autocomplete][autocompletion]#note[Maybe in _italics_ to highlight the first usage of this term][] is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
+Next we will take a look at what the term search is and how it is commonly used.
+Later we will study some implementations for term search to better understand how the algorithms for it work.
+In the end we will briefly cover how _autocompletion_ is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
 
 == The Rust language
 Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
@@ -127,7 +126,7 @@ It takes lots of inspiration from functional programming languages, namely, it s
 Rust has multiple different kinds of types.
 There are scalar types, references, compound data types, algebraic data types, function types, and more.
 In this section we will discuss types that are relavant for the term search implementation we are building.
-We will ignore some of the more complex data types such as function types as implementing term search for them is #suggestion[not in scope of][out of scope for] this thesis.
+We will ignore some of the more complex data types such as function types as implementing term search for them is out of scope for this thesis.
 
 Scalar types are the simplest data types in Rust.
 A scalar type represents a single value.
@@ -154,7 +153,7 @@ caption: [
   ],
 ) <rust-types>
 
-Rust has two kinds of algebraic types: _structures_ (also referred as #note[This is good notation, but drop the "-"][`struct`-s]) and _enumerations_ (also referred as `enum`-s).
+Rust has two kinds of algebraic types: _structures_ (also referred as `struct`s) and _enumerations_ (also referred as `enum`s).
 Structures are product types and enumerations are sum types.
 Each of them come with their own type constructors.
 Structures have one type constructor that takes arguments for all of its fields.
@@ -164,11 +163,13 @@ Both of them are shown in @rust-type-constructor.
 
 #figure(
 sourcecode()[```rs
+// Product type, has values for both `x` and `y`
 struct Foo {
   x: i32,
   y: bool,
 }
 
+// Sum type, has values for either constructor `A` or `B`
 enum Bar {
   A(i32),
   B(bool),
@@ -186,13 +187,12 @@ caption: [
 
 To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
 For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
-Note that structures#suggestion[s][] and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
+Note that structures and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
 For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of genric type `T` rather than some concrete type.
-One of the most used generic enums in Rust is the `Option` type which has two constructors.
-The `None` constructor takes no arguments and `Some(T)` constructor takes one term of generic type `T`.
+One of the most used generic enums in Rust is the `Option` type which is used to represent optional values.
+The `None` constructor takes no arguments and indicates that there is no value.
+Constructor `Some(T)` takes one term of type `T` and indicates that there is some value stored in `Option`.
 Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
-
-#todo-philipp[You could add a short explanation of how `Option` is used in practice: "Terms of type `Option<T>` are either..., or ..."]
 
 #figure(
 sourcecode()[```rs
@@ -220,19 +220,26 @@ caption: [
 
 === Type unification
 It is possible to check for either syntactic or semantic equality between two types.
-Syntactic equality is very conservative #note[Split this sentence, define syntactic equality first, then say that semantic equality is different][compared to] semantic equality as it requires to items to be exactly the same.
-This can sometimes be a problem as in Rust high-level intermediate representation (HIR), there are multiple ways to define a type.
-#note[Move this sentence after the next, and then say that `i32` and the literal type of `0` unify][
-  For example, in `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
-  However, their types are semantically the same as `0` is inferred to have the type `i32`.
-]
+Two types are syntactically equal if they have exactly the same syntax.
+Syntactic equality is very restricitve way to compare types.
+Much more permissive way to compare types is semantic equality.
+Semantic equality of types means that two types contain the same information and can be used interchangeably.
+
+Using syntactic equality to compare types can cause problems.
+Rust high-level intermediate representation (HIR) has multiple ways to define a type.
+This means that the same type can be defined in in multiple ways that are not syntactically equal.
+
+For example, in program `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
+However, by inferring `0` to have type of `i32` we see that they are semantically equal.
+This means that the types unify even though they are syntactically different.
+
 
 To check for semantic equality of types we see if two types can be unified.
 Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
-In Rust#suggestion[][,] #suggestion[trait solver][the _trait solver_] is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
+In Rust, the _trait solver_ is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
 The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
-The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are #suggestion[horn][Horn]#note[Alfred Horn, a mathematician][] clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
-#note["Before unification, types are normalized to..."][To check for unification of types], we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
+The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are Horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
+Before unification, types are normalized to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
 In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
 
 #todo-philipp[In the following, I suggest to replace "we" with passive voice:
@@ -253,9 +260,9 @@ caption: [
     Type projections in Rust
   ],
 ) <rust-type-projections>
-Normalization is done in the context of #suggestion[][a/the] typing environment.
-First we register clauses provided by the typing environment to the trait solver.
-After that we register a new inference variable #suggestion[in][], and then we solve for it.
+Normalization is done in the context of a typing environment.
+First clauses provided by the typing environment are registered to the trait solver.
+After that a new inference variable is registered, and then it is solved for the registered inference variable.
 A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
 #figure(
 sourcecode(numbering: none)[```txt
@@ -267,21 +274,26 @@ caption: [
   ],
 ) <rust-normalizing>
 Not all types can be fully normalized.
-For example, consider #suggestion[][the type of] the function #suggestion[below.][]
+For example, considerthe type of the function
 ```rs
-fn foo<T: IntoIterator>(...) { ... }
+fn foo<T: IntoIterator>(x: T) { /* ... */ }
 ```
-In this example, there is #suggestion[now a way][no way] to know the #note[We only know that `T` has to implement `IntoIterator`][exact] type of `T`.
-In that case, we use placeholder types, and later there will be an extra obligation to solve that the placeholder type is equal to some actual type.
+We only know that `T` has to implement `IntoIterator`, not the exact type of `T`.
+To cope with that, placeholder types are used.
+Instead of fully normalizing the type, an extra obligation of implementing `IntoIterator` is added to `T`.
+The obligation is later used once the placeholder type is related to some actual type.
 This is also known as lazy normalization, as the normalization is only done on demand.
 
-To check if types `X` and `Y` unify, we register a new obligation `Eq(X = Y)`.
+Unification of types `X` and `Y` is done by registering a new clause `Eq(X = Y)` and solving for it.
 To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
 Now we try to solve for it.
-Solving is done by the Prolog#suggestion[][-]like engine, that tries to find solution based on the clauses we have registered.#note[Summarize the algorithm: "The engine tries to either derive a contradiction or to satisfy all clauses". Then continue your explanation.][]
+Solving is done by the Prolog-like engine.
+The engine tries to either find a contradiction or to satisfy all clauses. 
 If contradiction is found between the goal and clauses registered from the typing environment then there is no solution.
-In other words this means that the types do not unify.
-On successful solution we are given a new set of #note[Are these subgoals? You call them _clauses_ earlier. Pick one and stick with it.][subgoals] that still need to be proven.
+In other words, the types do not unify.
+On successful solution we are given a new set of #note[Are these subgoals? You call them _clauses_ earlier. Pick one and stick with it. 
+
+Tavo: Prolog seems to also distinguis them. Clause is like implication, goal is like a proposition. To satisfy some clause you need to prove all goals in the body of the Horn clause][subgoals] that still need to be proven.
 If we manage to recursively prove all the subgoals, then we know that they unify.
 If some goals remain unsolved, but there is also no contradiction, then simply more information is needed to guarantee unification.
 How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
@@ -295,11 +307,11 @@ The main responsibilities for the borrow checker are to make sure that:
 - No immutable variable can be mutated
 - There can be only one mutable borrow
 
-#todo-philipp[Say what kind of bugs the borrow checker prevents: _use-after-free_, _double-free_, etc.]
+Some examples of kinds of bugs that the borrow checker prevents are _use-after-free_ and _double-free_
 
 The borrow checker works at the Middle Intermediate Representation (MIR) level of abstraction.
 The currently used model for borrows is Non-Lexical Lifetimes (NLL).
-The borrow #suggestion[cheker][checker] first builds up a control flow graph to find all possible data accesses and moves.
+The borrow checker first builds up a control flow graph to find all possible data accesses and moves.
 Then it builds up constraints between lifetimes.
 After that, regions for every lifetime are built up.
 A region for a lifetime is a set of program points at which the region is valid.
