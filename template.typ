@@ -1,4 +1,6 @@
 #import "typst-codelst.typ": sourcecode
+#import "@preview/drafting:0.2.0": * // For notes in margins
+
 // The project function defines how your document looks.
 // It takes your content and some metadata and formats it.
 // Go ahead and customize it to your liking!
@@ -13,12 +15,20 @@
   logo: none,
   body,
 ) = {
+
   // Set the document's basic properties.
   let doc_authors = authors.map(author => author.name)
   set document(author: doc_authors, title: title)
   set text(font: "New Computer Modern", lang: "en")
   show math.equation: set text(weight: 400)
   show par: set block(spacing: 1.5em)
+
+  // Set up notes in margin
+  // https://github.com/ntjess/typst-drafting
+  set page(
+    margin: (right: 2in), paper: "a4"
+  )
+  set-page-properties()
 
   // Title page.
   // The page can contain a logo if you pass one with `logo: "logo.png"`.
@@ -78,7 +88,7 @@
 
   set page(numbering: "I", number-align: center)
   counter(page).update(1)
-
+  
 
   // Abstract page.
   v(1fr)
@@ -88,8 +98,8 @@
       numbering: none,
       text(0.85em, smallcaps[Abstract]),
     )
-    #include("abstract.typ")
   ]
+  par(justify: true, include("abstract.typ"))
   v(1.618fr)
   pagebreak()
 
@@ -99,6 +109,7 @@
   // Main body.
   set par(justify: true)
   set page(numbering: "1", number-align: center, header: counter(footnote).update(0))
+  
   counter(page).update(1)
 
   // Abbreviations
@@ -135,6 +146,14 @@
 }
 
 #let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
-#let todo-philipp(txt) = box(fill: silver, text(top-edge: "ascender", bottom-edge: "descender")[\u{1F534} #highlight(fill: orange, [TODO:]) #txt ])
-#let note(note, txt) = highlight(txt) + super(typographic: false, [(#note)])
+#let todo-philipp(txt) = inline-note(
+  stroke: orange,
+  rect: rect.with(inset: 1em, radius: 0.5em, fill: orange.lighten(90%)),
+  text[_Philipp_: #txt]
+)
+
+// box(fill: silver, text(top-edge: "ascender", bottom-edge: "descender")[\u{1F534} #highlight(fill: orange, [TODO:]) #txt ])
+#let note(note, txt) = margin-note(stroke: aqua, text(size: 0.7em, note)) + highlight(txt)
 #let suggestion(old, new) = highlight(fill: red, old) + highlight(fill: green, new)
+
+#let metric(name) = emph(name)

@@ -44,7 +44,7 @@ caption: [
 ) <into-example-1>
 
 
-From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by wrapping the argument into `Option` and returning it.
+From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by #suggestion[wrapping the argument into `Option`][applying the constructor `Some` to `arg`] and returning it.
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
 
 == Motivation
@@ -87,9 +87,9 @@ However, we expect term search to perform well in _exploration mode_.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
 == Research Objectives
-The main objective of this thesis is to implement tactics-based term search for a programming language Rust.
+The main objective of this thesis is to implement tactics-based term search for #suggestion[a][the] programming language Rust.
 The algorithm should:
-- only produce valid programs i.e. programs that compile
+- only produce valid programs#suggestion[][, ] i.e. programs that compile
 - finish fast enough to be use interactively while typing
 - produce suggestions for a wide variety of Rust programs
 - not crash or cause other issues on any Rust program
@@ -101,20 +101,23 @@ Other objectives include:
 
 == Contributions of the thesis
 In this thesis we make following contributions:
-- @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of Rust programming language that are relevant for the term search.
-- @design introduces term search to Rust by extending the official language server of the Rust programming language. 
+- @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of #suggestion[][the] Rust programming language that are relevant for the term search.
+- @design introduces term search to Rust by extending the official language server of the Rust programming language, `rust-analyzer`. 
   We discuss the implementation of the algorithm in detail as well as different use cases.
   In @tactics, we describe the capabilities of our tool.
 - @evaluation evaluates the performance of the tool. We compare it to mainstream tools, some machine learning based methods and term search tools in other programming languages.
 - @future-work describes future work that would improve our implementation. This includes technical challenges, but also describes possible extensions to the algorithm.
 
-We upstreamed our implementation to the official `rust-analyzer` on #link("https://github.com/rust-lang/rust-analyzer/pull/16092")[12th of February 2024].
-The archived version of the program can be found at #link("https://archive.softwareheritage.org/browse/origin/https://github.com/kilpkonn/rust-analyzer").
+We have upstreamed our implementation of term search to the `rust-analyzer` project.
+It is part of the official distribution since version #link("https://rust-analyzer.github.io/thisweek/2024/02/19/changelog-221.html")[`v0.3.1850`], released on February 19th 2024.
+An archived version can be found at #link("https://archive.softwareheritage.org/browse/revision/6b250a22c41b2899b0735c5bc607e50c3d774d74/?origin_url=https://github.com/kilpkonn/rust-analyzer&snapshot=25aaa3ceeca154121a5c2944f50ec7b17819a315")[`swh:1:rev:6b250a22c41b2899b0735c5bc607e50c3d774d74`].
+
+#todo("Show for links")
 
 = Background <background>
 In this chapter we will take a look at the type system of the Rust programming language to understand the context of our task.
-Next we will take a look at what the term search is, how is it used and how are the algorithms for it implemented in some of the tools we have chosen.
-In the end we will briefly cover how autocomplete is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
+Next we will take a look at what the term search is, how is it used and #note[Split sentence before.][how are the algorithms for it implemented] in some of the tools we have chosen.
+In the end we will briefly cover how #suggestion[autocomplete][autocompletion]#note[Maybe in _italics_ to highlight the first usage of this term][] is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
 
 == The Rust language
 Rust is a general-purpose systems programming language first released in 2015#footnote(link("https://blog.rust-lang.org/2015/05/15/Rust-1.0.html")).
@@ -124,7 +127,7 @@ It takes lots of inspiration from functional programming languages, namely, it s
 Rust has multiple different kinds of types.
 There are scalar types, references, compound data types, algebraic data types, function types, and more.
 In this section we will discuss types that are relavant for the term search implementation we are building.
-We will ignore some of the more complex data types such as function types as implementing term search for them is not in scope of this thesis.
+We will ignore some of the more complex data types such as function types as implementing term search for them is #suggestion[not in scope of][out of scope for] this thesis.
 
 Scalar types are the simplest data types in Rust.
 A scalar type represents a single value.
@@ -151,7 +154,7 @@ caption: [
   ],
 ) <rust-types>
 
-Rust has two kinds of algebraic types: _structures_ (also referred as `struct`-s) and _enumerations_ (also reffered as `enum`-s)
+Rust has two kinds of algebraic types: _structures_ (also referred as #note[This is good notation, but drop the "-"][`struct`-s]) and _enumerations_ (also referred as `enum`-s).
 Structures are product types and enumerations are sum types.
 Each of them come with their own type constructors.
 Structures have one type constructor that takes arguments for all of its fields.
@@ -183,11 +186,13 @@ caption: [
 
 To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
 For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
-Note that structuress and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
+Note that structures#suggestion[s][] and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
 For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of genric type `T` rather than some concrete type.
 One of the most used generic enums in Rust is the `Option` type which has two constructors.
 The `None` constructor takes no arguments and `Some(T)` constructor takes one term of generic type `T`.
 Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
+
+#todo-philipp[You could add a short explanation of how `Option` is used in practice: "Terms of type `Option<T>` are either..., or ..."]
 
 #figure(
 sourcecode()[```rs
@@ -215,18 +220,25 @@ caption: [
 
 === Type unification
 It is possible to check for either syntactic or semantic equality between two types.
-Syntactic equality is very conservative compared to semantic equality as it requires to items to be exactly the same.
+Syntactic equality is very conservative #note[Split this sentence, define syntactic equality first, then say that semantic equality is different][compared to] semantic equality as it requires to items to be exactly the same.
 This can sometimes be a problem as in Rust high-level intermediate representation (HIR), there are multiple ways to define a type.
-For example, in `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
-However, their types are semantically the same as `0` is inferred to have the type `i32`.
+#note[Move this sentence after the next, and then say that `i32` and the literal type of `0` unify][
+  For example, in `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
+  However, their types are semantically the same as `0` is inferred to have the type `i32`.
+]
 
 To check for semantic equality of types we see if two types can be unified.
 Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
-In Rust trait solver is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
+In Rust#suggestion[][,] #suggestion[trait solver][the _trait solver_] is responsible for checking unification of types#footnote(link("https://rustc-dev-guide.rust-lang.org/ty.html")).
 The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
-The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
-To check for unification of types, we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
+The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are #suggestion[horn][Horn]#note[Alfred Horn, a mathematician][] clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
+#note["Before unification, types are normalized to..."][To check for unification of types], we first have to normalize to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
 In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
+
+#todo-philipp[In the following, I suggest to replace "we" with passive voice:
+  The algorithm already exists, and you are describing what _is being done_ when unifying types.
+]
+
 #figure(
 sourcecode()[
 ```rs
@@ -241,9 +253,9 @@ caption: [
     Type projections in Rust
   ],
 ) <rust-type-projections>
-Normalization is done in the context of typing environment.
+Normalization is done in the context of #suggestion[][a/the] typing environment.
 First we register clauses provided by the typing environment to the trait solver.
-After that we register a new inference variable in, and then we solve for it.
+After that we register a new inference variable #suggestion[in][], and then we solve for it.
 A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
 #figure(
 sourcecode(numbering: none)[```txt
@@ -255,21 +267,21 @@ caption: [
   ],
 ) <rust-normalizing>
 Not all types can be fully normalized.
-For example, consider the function below.
+For example, consider #suggestion[][the type of] the function #suggestion[below.][]
 ```rs
 fn foo<T: IntoIterator>(...) { ... }
 ```
-In this example, there is now a way to know the exact type of `T`.
+In this example, there is #suggestion[now a way][no way] to know the #note[We only know that `T` has to implement `IntoIterator`][exact] type of `T`.
 In that case, we use placeholder types, and later there will be an extra obligation to solve that the placeholder type is equal to some actual type.
 This is also known as lazy normalization, as the normalization is only done on demand.
 
 To check if types `X` and `Y` unify, we register a new obligation `Eq(X = Y)`.
 To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
 Now we try to solve for it.
-Solving is done by the Prolog like engine, that tries to find solution based on the clauses we have registered.
+Solving is done by the Prolog#suggestion[][-]like engine, that tries to find solution based on the clauses we have registered.#note[Summarize the algorithm: "The engine tries to either derive a contradiction or to satisfy all clauses". Then continue your explanation.][]
 If contradiction is found between the goal and clauses registered from the typing environment then there is no solution.
 In other words this means that the types do not unify.
-On successful solution we are given a new set of subgoals that still need to be proven.
+On successful solution we are given a new set of #note[Are these subgoals? You call them _clauses_ earlier. Pick one and stick with it.][subgoals] that still need to be proven.
 If we manage to recursively prove all the subgoals, then we know that they unify.
 If some goals remain unsolved, but there is also no contradiction, then simply more information is needed to guarantee unification.
 How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
@@ -283,9 +295,11 @@ The main responsibilities for the borrow checker are to make sure that:
 - No immutable variable can be mutated
 - There can be only one mutable borrow
 
+#todo-philipp[Say what kind of bugs the borrow checker prevents: _use-after-free_, _double-free_, etc.]
+
 The borrow checker works at the Middle Intermediate Representation (MIR) level of abstraction.
 The currently used model for borrows is Non-Lexical Lifetimes (NLL).
-The borrow cheker first builds up a control flow graph to find all possible data accesses and moves.
+The borrow #suggestion[cheker][checker] first builds up a control flow graph to find all possible data accesses and moves.
 Then it builds up constraints between lifetimes.
 After that, regions for every lifetime are built up.
 A region for a lifetime is a set of program points at which the region is valid.
@@ -308,7 +322,7 @@ In an `unsafe` code block, the programmer has the sole responsibility to guarant
 
 
 == Term search <term-search>
-Term search is the process of generating terns that satisfy some type in a given context.
+Term search is the process of generating #suggestion[terns][terms] that satisfy some type in a given context.
 In automated theorem proving this is usually known as proof search.
 In Rust, we call it a term search as we don't usually think of programs as proofs.
 
@@ -340,7 +354,7 @@ caption: [
     Prove $0 + n = n$ in Idris
   ],
 ) <idirs-plus-reduces-z>
-The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to first definition of `add`
+The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to #suggestion[first][first clause in the] definition of `add`
 Based on that we can prove `add_zero` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type i.e. proposition.
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
@@ -350,7 +364,7 @@ Agda @dependently-typed-programming-in-agda is a dependently typed functional pr
 It is one of the first languages that has sufficiently good tools leveraging term search for inductive proofs.
 We will be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
 As there are many alternatives we have picked two that seem the most popular or relevant for our use case.
-We chose Agsy as this is the well known tool that comes with Agda and Mimer that attempts to improve on Agsy.
+We chose Agsy as this is the well known tool that #note[Is there a better expression? Maybe "is part of Agda itself" or "is integrated into Agda".][comes with Agda]#suggestion[][,] and Mimer that attempts to improve on Agsy.
 
 ==== Agsy <agsy>
 Agsy is the term search based proof assistant that comes with Agda.
@@ -358,7 +372,7 @@ It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda an
 
 We will be looking at the high level implementation of its algorithm for term search.
 In principle Agsy iteratively refines problems into more subproblems, until enough subproblems can be solved.
-It is done by iterative deepening.
+It #note[Maybe #emph["This process is called..."]][is done] by iterative deepening.
 This is necessary as a problem may in general be refined to infinite depth.
 
 The refinement of a problem can produce multiple branches with subproblems.
@@ -366,16 +380,33 @@ In some cases we need to solve all the subproblems but in other cases it is suff
 An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
+#todo-philipp[In this section, make sure to use "goal", "problem", etc. consistently.]
+
 #figure(
   image("fig/agsy_transformation_branches.svg", width: 60%),
   caption: [
-    Agsy transformation branches
+    Agsy transformation branches#note[Add here: _"Solving the top-level programs requires solving _at least one_ of the subproblems"_.][]
   ],
 ) <agsy_transformation_branches>
 
+#todo-philipp[
+  In @agsy_transformation_branches, perhaps you can use explicit types:
+  _Goal: `Foo`_, and branches
+  - _Find local: `some_foo : Foo`_,
+  - _Find function: `? → Foo`_,
+  - _Constructor: `mkFoo : Quux → Foo`_
+
+  In any case, make sure syntax and identifiers are consistent with @agsy_all_branches.
+]
+
 Some examples where we need to solve all the subproblems are using a type constructors or functions that take multiple arguments.
 In case of case splitting we also have to solve all the subproblems produced.
-For example shown in @agsy_all_branches we see that function `foo(a: A, b: B, c: C)` can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
+For example shown in @agsy_all_branches we see that function
+  #note[
+    Shouldn't this function should have a return type to solve for: `foo(a: A, b: B, c: C) -> Foo`?
+    In any case, decide which function syntax you want to use. Rust (`fn foo(a: A) -> B`) or Agda (`foo : (a : A) → B`).
+  ][`foo(a: A, b: B, c: C)`]
+can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
 
 #figure(
   image("fig/agsy_all_branches.svg", width: 60%),
@@ -400,10 +431,10 @@ The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-
 
 We model Problem collections as a list of subproblems together with a _refinement_ that produces those problems.
 A refinement is a recipe to transform the problem into zero or more subproblems.
-For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding `Bool` and finding `Int`.
+For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding #suggestion[][a term of type] `Bool` and #suggestion[finding][another of type] `Int`#note[_...and applying the tuple constructor `_,_`_][].
 In case we refine the problem without creating any new subproblems then we can call the problem solved.
 Otherwise, all the subproblems need to be solved for the solution to hold.
-The refinement is stored so that on a successful solution we would know how to construct the solution term from the solution collection.
+The refinement is stored so that on a successful solution we #suggestion[would know how to][can] construct the #note[This term should have a better name. Maybe _top-level solution_ or _term solving the top-level problem_?][solution term] from the solution collection.
 
 The `search` algorithm starts by refining the problem into new problem collections.
 Refining is done by tactics that are essentially just a way of organizing possible refinements.
@@ -456,6 +487,47 @@ caption: [
   ],
 ) <agsy-snippet>
 
+
+#figure(
+sourcecode()[```hs
+newtype ProbColl = (Refinement, [Problem])
+newtype SolColl  = (Refinement, [Solution])
+
+-- Find solutions to problem
+search :: Problem -> Maybe [Solution]
+search p =
+  case (createRefs p) of
+    -- ↓ No new problems, trivially solved
+    [] -> Just [TrivialSolution]
+    -- ↓ Refinement created at least one subproblem
+    subproblems ->
+      -- Recursively solve subproblems; discard solution
+      -- collections that are not fully solved.
+      case (dropUnsolved $ map searchColl subproblems) of
+        [] -> Nothing
+        sols -> Just $ map (substitute p) sols
+  where
+    dropUnsolved :: [Maybe [SolColl]] -> [SolColl]
+    dropUnsolved = flatten . catMaybes
+        
+-- Find solution to every problem in problem collection
+searchColl :: ProbColl -> Maybe [SolColl]
+searchColl = sequence $ fmap search
+
+-- Create refinements for problem
+createRefs :: Problem -> [ProbColl]
+createRefs p = flatten [tactic1 p, tactic2 p, tacticN p]
+
+-- Create solution to a problem from a refinement
+-- and solutions to subproblems.
+substitute :: Problem -> SolColl -> Solution
+substitute = {- elided -}
+```],
+caption: [
+    Agsy high level algorithm, Philipp's proposal.
+  ],
+) <agsy-snippet-philipp>
+
 An example of tactic can be seen in @agsy-example-tactic.
 #figure(
 sourcecode()[```hs
@@ -474,14 +546,14 @@ caption: [
 ) <agsy-example-tactic>
 
 As described above the algorithm is built around DFS.
-However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful it performs poorly on larger problems.
-They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not suffer from automatic memory management.
+However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful#suggestion[][,] it performs poorly on larger problems.
+They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not #note[Maybe there's a friendlier way to say this.][suffer] from automatic memory management.
 It is also noted that there seems to be many false subproblems that can never be solved, so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems potentially faster to reduce the search space.
 
 ==== Mimer
 Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#footnote(link("https://github.com/agda/agda/pull/6410")) and will be released as a replacement for Agsy.
-"Mimer is designed to handle many small synthesis problems rather than complex ones" @mimer.
+#note[Maybe: _According to its authors, it is "designed to ..."_]["Mimer is designed to handle many small synthesis problems rather than complex ones" @mimer.]
 Mimer is less powerful than Agsy as it doesn't perform case splits but on the other hand it is designed to be more robust.
 Other than not using case splits and the main algorithm follows the one used in Agsy and described in @agsy.
 
@@ -1506,7 +1578,7 @@ $
 $
 */
 
-==== Tactic "famous types"
+==== Tactic "famous types" <tactic-famous-types>
 "Famous types" is another rather trivial tactic.
 The idea of the tactic is to attempt values of well known types.
 Those types and values are:
@@ -1627,7 +1699,7 @@ impl Thingy for Example {
 }
 ```],
 caption: [
-    Impl block examples in rust
+    Examples of `impl` blocks, highlighted in yellow
   ],
 ) <rust-impl-method>
 
@@ -1753,14 +1825,15 @@ For resynthesis, we do the following:
 4. Compare generated results with what was there before
 5. Put back the original expression and repeat on rest of the expressions
 
-==== Chosen expressions
+==== #suggestion[Chosen expressions][Choice of expressions]
 We chose to perform the resynthesis only on the tail expressions of every block.
 Other options that we considered are let assignments and arguments of function calls.
 We chose tail expressions as we consider this the most common use case for our tool.
 Tail expression are the last expression in a block expression which value is returned as a value of the block.
 The most well known place for them is the tail expression in the function body.
 However since we consider all the block expressions the tail expressions in each of the branches of `if condition { ... } else { ... }` expression are also considered as well as the expressions in `match` arms or the plain block expressions used for scoping.
-To better understand what is considered the tail expression we have constructed hypothetical example of code in @rust-tail-expr and highlighted all the lines that have tail expressions on them.
+Intuitively we can think of them as the all the expressions that are on the last line of the block expression (`{ .. }`) and that do not end with a semicolon.
+For some examples, see @rust-tail-expr.
 #figure(
 sourcecode(highlighted: (4, 10, 13, 17, 21))[
 ```rs
@@ -1788,19 +1861,34 @@ fn foo(x: Option<i32>) -> Option<bool> {
 }
 ```],
 caption: [
-    Tail expression examples
+    Examples of tail expressions: in a scoping block (line 4), in branch arms (line 10, 13, 17) and the return position (line 21).
   ],
 ) <rust-tail-expr>
-Intuitively we can think of them as the all the expressions that are on the last line of the block expression (`{ .. }`) and that do not end with a semicolon.
 
 ==== Chosen metrics
 Here is a list of metrics we are interested in for resynthesis
-1. Holes filled - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
+
+#todo-philipp[
+  List of potential names for metrics:
+  - holes filled
+  - filled holes
+  - terms found
+  - expressions found
+  - #strike[expressions re-synthesized]
+  - #strike[_expression%_]
+  - #strike[expressions per hole]
+  - solved - original
+
+  Pairs: (holes - filled), (problems - solved), (expressions - found)
+]
+
+1. #suggestion[Holes filled][#metric[Holes filled]] - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
+   #todo("Solved is a fraction of holes where the algorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.")
 2. Holes filled (syntactic match) - This represents the percentage of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
    To make the metric slightly more robust we remove all the whitespace from the programs before comparing them.
 3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
-4. Suggestions per hole - This shows the average amount of options provided to the user.
+4. Suggestions per hole - This shows the average amount of options provided to the user. #todo("expressions/terms per hole")
 
 ==== Chosen crates
 Crate is a name for a Rust library.
@@ -1814,10 +1902,24 @@ Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "A
 
 ==== Results
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
-The relation between depth and all the metrics.
-From @term-search-depth-accuracy and @tbl-depth-hyper-param we can see that after the second iteration we are barely finding any new terms and very few of them are also the syntactic matches.
-From @tbl-depth-hyper-param we can see that the curve for holes filled is not entirely flat, but the improvements are very minor. for the amount of holes filled.
 
+We measured holes filled, and number of suggestions per hole for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
+For search depth 0, only trivial tactics (@tactic-trivial and @tactic-famous-types) are run.
+This reasults in 18.8% of the holes being filled, with #suggestion[][only?] 2% of holes having syntactic matches.
+Beyond the search depth of 2 we noticed barely any improvements in portion of holes filled.
+#todo("numbers here")
+More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after depth of 3.
+This is because we get more results for subterms and squash them to `Many`, or in other words replace them with a new hole.
+Terms that would result in syntactic matches get also squashed into `Many`, resulting in a decrease in syntactic matches.
+
+The number of suggestions per hole follows similar pattern to holes filled, but the curve is flatter.
+At depth 0 we have on average 15.1 suggestions per hole.
+At depths above 4, this number plateaus at around 23 suggestions per hole.
+Note that a bigger number of suggestions per hole is not always better: too many suggestions can be overwhelming.
+
+#todo("why so many suggestions for depth 0?")
+
+#todo("Reorder, 3rd color, indicate that syntactic matches is subset of holes filled")
 #figure(
   placement: auto,
   grid(
@@ -1827,27 +1929,40 @@ From @tbl-depth-hyper-param we can see that the curve for holes filled is not en
   ),
   caption: [
     Term search depth effect on holes filled, syntactic matches and number of suggestions per hole
+    #note[Legend: #box(fill:red)[x] Holes filled #box(fill:blue)[x] Holes filled (syntactic matches)][]
+    #note[To improve the caption: Describe what there is to see:
+      "The effect of search depth on the fraction of holes filled, and the average number of suggetions per hole. For depth >2, the number of holes filled plateaus. Syntactic matches do not improve at depth above 1."
+      For the second graph: Is this good, is this bad? Is this expected? Tell me how I should feel about this.
+    ][]
   ],
 ) <term-search-depth-accuracy>
 
-The amount of suggestions shown in @term-search-depth-time follows similar pattern to holes filled, but the curve is flatter.
-Note that for amount of suggestions, bigger number is not always better as too many suggestions is overwhelming.
 
 To more closely investigate the time complexity of the algorithm we ran the experiment up to depth of 20.
-In order to speed up the process we sampled only the top crate from all the categories as running the experiment on all 155 crates would take about half a month.
-From @term-search-depth-time we can see that search time of the algorithm seems to be in linear relation with the search depth.
-The standard deviation of the data is 8.1ms.
+Running the experiment on all 155 crates would take about half a month.
+In order to speed up the process we selected only the most popular crate for each category.
+This results in a 31 crates in total.
+We observe that the execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
+Increasing depth by one adds ...ms of execution time on average.
+
+#todo("Add slope")
+
+#todo("List these 31 crates in appendix")
+
+#todo("time -> average execution time per hole")
 #figure(
   placement: auto,
   image("fig/time.png", width: 90%),
   caption: [
-    Term search depth effect on average time
+    Execution time of the algorithm is linear in the search depth.
+    Slope = .., standard deviation =  ...
   ],
 ) <term-search-depth-time>
-
+#todo("Standard deviation -> rmse for line, add to caption. say red ")
+#todo("try to refactor to shorter sentences from here on..")
 We can see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic matches and holes filled are growing really slowly.
-In @term-search-depth-accuracy we can see the holes filled and syntactic matches all most stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
+In @term-search-depth-accuracy we can see the holes filled and syntactic matches almost stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
 
 #figure(
   placement: auto,
@@ -1865,14 +1980,12 @@ In @term-search-depth-accuracy we can see the holes filled and syntactic matches
   ),
   caption: [Depth hyperparameter effect on metrics]
 ) <tbl-depth-hyper-param>
-
-More interestingly we can see from the table that syntactic matches starts to decrease after depth of 2.
-This is because we get more results for subterms and squash them to _Many_ option, or in other words replace with new hole.
-Terms that would result in syntactic matches get also squashed into _Many_ resulting in a decrease in syntactic matches.
+#todo("what is going on with depth 4, holes filled")
 
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
 Average number of suggestions per hole is 18.6, and they are found in 35ms.
 However, the numbers vary a lot depending on the style of the program.
+#todo("recheck std dev, of what exactly?")
 Standard deviation for average number of suggestions is about 56 suggestions, and standard deviation average time is 167ms.
 Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
 
@@ -1884,6 +1997,7 @@ The third iteration also manages to produce 1.6 times more syntactic matches tha
 These results are achieved in a 1.2 times longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
 The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
 
+#todo("reorder")
 #figure(
   // placement: auto,
   table(
@@ -1899,6 +2013,8 @@ The first iteration is also obviously worse than others by running almost two or
   caption: [Comparioson of algorithm iterations]
 ) <tbl-versions-comparison>
 
+#todo("Maybe compare AST if possible.")
+
 In addition to average time of the algorithm we care that the latency for the response is sufficiently low.
 We choose 100ms as a latency threshold which is a reccommended latency threshold for web applications by @usability-engineering.
 According to @typing-latency, mean latency of writing digraphs while programming is around 170ms we believe that the latency of 100ms is also suffucient for IDE.
@@ -1909,6 +2025,8 @@ We believe that this is a sufficiently good result as most this shows that most 
 In 8 of the categories, all holes could be filled in 100ms.
 The main issues arose in categories "hardware-support" and "external-ffi-bindings" in which only 6% and 16% of the holes could be filled withing 100ms threshold.
 These categories were also problematic from the other aspects and we will discuss the issues in them in detail in @c-style-stuff.
+
+#todo("Try IMRAD")
 
 
 == Usability <usability>
@@ -1999,8 +2117,10 @@ This means that there is a fundamental limitation of our algorithm when writing 
 As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performance of term search in FFI crates.
 
 == Limitations of the methods
-In this section we highlight the main limitations of the evaluation methods we use.
-#todo("what to say here??")
+In this section we highlight #suggestion[the main limitations of the evaluation methods we use][some limitations of our evaluation].
+We point out that "holes filled" is too permissive metric and "syntactic matches" is too strict.
+#todo("Ideally we want something in between, but we don't have a way to measure it.")
+
 
 ==== Resynthesis
 Metric "holes filled" does not reflect the usability of the tool very well.
