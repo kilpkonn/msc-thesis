@@ -1828,56 +1828,41 @@ caption: [
 ==== Choice of metrics
 Here is a list of metrics we are interested in for resynthesis
 
-#todo-philipp[
-  List of potential names for metrics:
-  - holes filled
-  - filled holes
-  - terms found
-  - expressions found
-  - #strike[expressions re-synthesized]
-  - #strike[_expression%_]
-  - #strike[expressions per hole]
-  - solved - original
-
-  Pairs: (holes - filled), (problems - solved), (expressions - found)
-]
-
-1. #suggestion[Holes filled][#metric[Holes filled]] - This represents the percentage of tail expressions where the algorithm managed to find some term that satisfies the type system. The term may or may not be what was there before.
-   #todo("Solved is a fraction of holes where the algorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.")
-2. Holes filled (syntactic match) - This represents the percentage of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+1. #metric[Holes filled] represents the fraction of tail expressions where the aalgorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.
+2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
    To make the metric slightly more robust we remove all the whitespace from the programs before comparing them.
-3. Average time - This represents average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
+3. #metric[Average time] represents the average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
-4. Suggestions per hole - This shows the average amount of options provided to the user. #todo("expressions/terms per hole")
+4. #metric[Terms per hole] - This shows the average amount of options provided to the user.
 
-==== Chosen crates
+==== Choice of crates
 Crate is a name for a Rust library.
 We use crates.io#footnote(link("https://crates.io/")), the Rust community’s crate registry as a source of information of the most popular crates.
 Crates.io is _de facto_ standard crate registry, so we believe that it reflects the popularity of the crates in the Rust ecosystem very well.
 
-To choose crates that are representative also to what average rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io.
+To choose crates that are representative also to what average Rust code looks like we decided to pick top 5 crates by all time downloads of the most popular categories on crates.io.
 To filter reduce the sample size we decided to filter out categories that have fewer than 1000 crates in them.
-That left us with 31 categories with 155 crates in them.
+That left us with 31 categories with total of 155 crates in them.
 Full list of chosen crates can be seen in #ref(<appendix-crates>, supplement: "Appendix").
 
 ==== Results
 First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
 
-We measured holes filled, and number of suggestions per hole for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
+We measured #metric[holes filled], and number of #metric[terms per hole] for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
 For search depth 0, only trivial tactics (@tactic-trivial and @tactic-famous-types) are run.
-This reasults in 18.8% of the holes being filled, with #suggestion[][only?] 2% of holes having syntactic matches.
+This reasults in 18.8% of the holes being filled, with only 2% of holes having syntactic matches.
 Beyond the search depth of 2 we noticed barely any improvements in portion of holes filled.
 #todo("numbers here")
 More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after depth of 3.
 This is because we get more results for subterms and squash them to `Many`, or in other words replace them with a new hole.
 Terms that would result in syntactic matches get also squashed into `Many`, resulting in a decrease in syntactic matches.
 
-The number of suggestions per hole follows similar pattern to holes filled, but the curve is flatter.
-At depth 0 we have on average 15.1 suggestions per hole.
-At depths above 4, this number plateaus at around 23 suggestions per hole.
-Note that a bigger number of suggestions per hole is not always better: too many suggestions can be overwhelming.
+The number of terms per hole follows similar pattern to holes filled, but the curve is flatter.
+At depth 0 we have on average 15.1 terms per hole.
+At depths above 4, this number plateaus at around 23 terms per hole.
+Note that a bigger number of terms per hole is not always better: too many terms can be overwhelming.
 
-#todo("why so many suggestions for depth 0?")
+#todo("why so many terms for depth 0?")
 
 #todo("Reorder, 3rd color, indicate that syntactic matches is subset of holes filled")
 #figure(
@@ -1888,7 +1873,7 @@ Note that a bigger number of suggestions per hole is not always better: too many
 
   ),
   caption: [
-    Term search depth effect on holes filled, syntactic matches and number of suggestions per hole
+    Term search depth effect on holes filled, syntactic matches and number of terms per hole
     #note[Legend: #box(fill:red)[x] Holes filled #box(fill:blue)[x] Holes filled (syntactic matches)][]
     #note[To improve the caption: Describe what there is to see:
       "The effect of search depth on the fraction of holes filled, and the average number of suggetions per hole. For depth >2, the number of holes filled plateaus. Syntactic matches do not improve at depth above 1."
@@ -1921,7 +1906,7 @@ Increasing depth by one adds ...ms of execution time on average.
 #todo("Standard deviation -> rmse for line, add to caption. say red ")
 #todo("try to refactor to shorter sentences from here on..")
 We can see that increasing the search depth over two can actually have somewhat negative effects.
-The search will take longer and there will be more suggestions which can often mean more irrelevant suggestions as the syntactic matches and holes filled are growing really slowly.
+The search will take longer and there will be more terms which can often mean more irrelevant suggestions as the syntactic matches and holes filled are growing really slowly.
 In @term-search-depth-accuracy we can see the holes filled and syntactic matches almost stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
 
 #figure(
@@ -1930,7 +1915,7 @@ In @term-search-depth-accuracy we can see the holes filled and syntactic matches
     columns: 5,
     inset: 5pt,
     align: horizon,
-    table.header[*Depth*][*Holes filled*][*Syntactic matches*][*Suggestions per hole*][*Average time*],
+    table.header[*Depth*][*Holes filled*][*Syntactic matches*][*Terms per hole*][*Average time*],
 [0], [18.8%], [2.0%], [15.1], [23.4ms], 
 [1], [68.0%], [9.3%], [18.1], [33.0ms], 
 [2], [74.5%], [9.5%], [20.0], [72.4ms], 
@@ -1943,10 +1928,10 @@ In @term-search-depth-accuracy we can see the holes filled and syntactic matches
 #todo("what is going on with depth 4, holes filled")
 
 With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
-Average number of suggestions per hole is 18.6, and they are found in 35ms.
+Average number of terms per hole is 18.6, and they are found in 35ms.
 However, the numbers vary a lot depending on the style of the program.
 #todo("recheck std dev, of what exactly?")
-Standard deviation for average number of suggestions is about 56 suggestions, and standard deviation average time is 167ms.
+Standard deviation for average number of terms is about 56 terms, and standard deviation average time is 167ms.
 Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
 
 To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
@@ -1964,7 +1949,7 @@ The first iteration is also obviously worse than others by running almost two or
     columns: 5,
     align: (x, _) => if x == 4 { right } else { horizon },
     inset: 5pt,
-    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Suggestions per hole*][*Avg time*],
+    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Terms per hole*][*Avg time*],
 [v1, $"depth"=1$], [4%], [26%], [5.8], [4900ms], 
 [v2, $"depth"=3$], [6%], [46%], [17.2], [90ms], 
 [v3, $"depth"=2$], [10%], [75%], [20.0], [72ms], 
@@ -2077,10 +2062,10 @@ This means that there is a fundamental limitation of our algorithm when writing 
 As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performance of term search in FFI crates.
 
 == Limitations of the methods
-In this section we highlight #suggestion[the main limitations of the evaluation methods we use][some limitations of our evaluation].
+In this section we highlight some limitations of our evaluation.
 We point out that "holes filled" is too permissive metric and "syntactic matches" is too strict.
-#todo("Ideally we want something in between, but we don't have a way to measure it.")
-
+Ideally we want something in between, but we don't have a way to measure it.
+#todo("Something about usability? feels kind of duplication tho")
 
 ==== Resynthesis
 Metric "holes filled" does not reflect the usability of the tool very well.
