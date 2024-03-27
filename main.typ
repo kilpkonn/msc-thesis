@@ -242,10 +242,6 @@ The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are 
 Before unification, types are normalized to handle type projections #footnote(link("https://rust-lang.github.io/chalk/book/clauses/type_equality.html")).
 In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
 
-#todo-philipp[In the following, I suggest to replace "we" with passive voice:
-  The algorithm already exists, and you are describing what _is being done_ when unifying types.
-]
-
 #figure(
 sourcecode()[
 ```rs
@@ -334,7 +330,7 @@ In an `unsafe` code block, the programmer has the sole responsibility to guarant
 
 
 == Term search <term-search>
-Term search is the process of generating #suggestion[terns][terms] that satisfy some type in a given context.
+Term search is the process of generating terms that satisfy some type in a given context.
 In automated theorem proving this is usually known as proof search.
 In Rust, we call it a term search as we don't usually think of programs as proofs.
 
@@ -366,7 +362,7 @@ caption: [
     Prove $0 + n = n$ in Idris
   ],
 ) <idirs-plus-reduces-z>
-The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to #suggestion[first][first clause in the] definition of `add`
+The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to first clause in the definition of `add`
 Based on that we can prove `add_zero` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type i.e. proposition.
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
@@ -376,54 +372,39 @@ Agda @dependently-typed-programming-in-agda is a dependently typed functional pr
 It is one of the first languages that has sufficiently good tools leveraging term search for inductive proofs.
 We will be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
 As there are many alternatives we have picked two that seem the most popular or relevant for our use case.
-We chose Agsy as this is the well known tool that #note[Is there a better expression? Maybe "is part of Agda itself" or "is integrated into Agda".][comes with Agda]#suggestion[][,] and Mimer that attempts to improve on Agsy.
+We chose Agsy as this is the well known tool that is part of Agda project itself, and Mimer that attempts to improve on Agsy.
 
 ==== Agsy <agsy>
-Agsy is the term search based proof assistant that comes with Agda.
+Agsy is the official term search based proof assistant for Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#footnote(link("https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html")).
 
 We will be looking at the high level implementation of its algorithm for term search.
 In principle Agsy iteratively refines problems into more subproblems, until enough subproblems can be solved.
-It #note[Maybe #emph["This process is called..."]][is done] by iterative deepening.
+This process is called iterative deepening.
 This is necessary as a problem may in general be refined to infinite depth.
 
 The refinement of a problem can produce multiple branches with subproblems.
-In some cases we need to solve all the subproblems but in other cases it is sufficient to solve just one to solve the "top-level" problem.
+In some cases we need to solve all the subproblems.
+In other cases it is sufficient to solve just one of the subproblems to solve the "top-level" problem.
 An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
-
-#todo-philipp[In this section, make sure to use "goal", "problem", etc. consistently.]
 
 #figure(
   image("fig/agsy_transformation_branches.svg", width: 60%),
   caption: [
-    Agsy transformation branches#note[Add here: _"Solving the top-level programs requires solving _at least one_ of the subproblems"_.][]
+    Solving the top-level problem requires solving _at least one_ of the subproblems
   ],
 ) <agsy_transformation_branches>
 
-#todo-philipp[
-  In @agsy_transformation_branches, perhaps you can use explicit types:
-  _Goal: `Foo`_, and branches
-  - _Find local: `some_foo : Foo`_,
-  - _Find function: `? → Foo`_,
-  - _Constructor: `mkFoo : Quux → Foo`_
-
-  In any case, make sure syntax and identifiers are consistent with @agsy_all_branches.
-]
-
-Some examples where we need to solve all the subproblems are using a type constructors or functions that take multiple arguments.
-In case of case splitting we also have to solve all the subproblems produced.
-For example shown in @agsy_all_branches we see that function
-  #note[
-    Shouldn't this function should have a return type to solve for: `foo(a: A, b: B, c: C) -> Foo`?
-    In any case, decide which function syntax you want to use. Rust (`fn foo(a: A) -> B`) or Agda (`foo : (a : A) → B`).
-  ][`foo(a: A, b: B, c: C)`]
+In case we use type constructors or functions that take multiple arguments, we need to solve all the subproblems of finding terms for arguments.
+The same is true for case splitting: we have to solve subproblems for all of the cases.
+For example shown in @agsy_all_branches we see that function `foo : (A, B, C) -> Foo`
 can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
 
 #figure(
   image("fig/agsy_all_branches.svg", width: 60%),
   caption: [
-    Agsy branches for function call
+    Solving the top-level problem requires solving _all_ of the subproblems
   ],
 ) <agsy_all_branches>
 
@@ -432,9 +413,9 @@ Solution collections (`SolColl`) are used to keep track of solutions for particu
 A solution collection has a solution for each of the problems in a corresponding problem collection.
 
 The intuition for the tool is following:
-1. Given a problem we create set of possible subproblem collections out of which we need to solve one as show in @agsy_transformation_branches.
-2. We attempt to solve all the subproblem collections by recursively solving all the problems in collection
-3. If we manage to solve all the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
+1. Given a problem we create set of possible subproblem collections out of which we need to solve _at least one_ as show in @agsy_transformation_branches.
+2. We attempt to solve _all_ the subproblem collections by recursively solving all the problems in collection
+3. If we manage to solve _all_ the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
 
 The algorithm itself is based around depth first search (DFS) and consists of two subfunctions.
 Function `search: Problem -> Maybe [Solution]` is the main entry point that attempts to find a set of solutions for a problem.
@@ -443,62 +424,28 @@ The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-
 
 We model Problem collections as a list of subproblems together with a _refinement_ that produces those problems.
 A refinement is a recipe to transform the problem into zero or more subproblems.
-For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding #suggestion[][a term of type] `Bool` and #suggestion[finding][another of type] `Int`#note[_...and applying the tuple constructor `_,_`_][].
+For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding a term of type `Bool` and another of type `Int` and applying the tuple constructor `(_,_)`.
 In case we refine the problem without creating any new subproblems then we can call the problem solved.
 Otherwise, all the subproblems need to be solved for the solution to hold.
-The refinement is stored so that on a successful solution we #suggestion[would know how to][can] construct the #note[This term should have a better name. Maybe _top-level solution_ or _term solving the top-level problem_?][solution term] from the solution collection.
+The refinement is stored so that on a successful solution we can construct the term solving the top-level problem from the solution collection.
 
 The `search` algorithm starts by refining the problem into new problem collections.
-Refining is done by tactics that are essentially just a way of organizing possible refinements.
+Refining is done by tactics.
+Tactics are essentially just a way of organizing possible refinements.
 An example tactic that attempts to solve the problem by filling it with locals in scope can be seen in @agsy-example-tactic.
 
-In case refining does not create any new problem collections, base case is reached and the problem is trivally solved.
-When there are new problem collections, we try to solve any of them.
-In case we cannot solve any of the problem collections, then the problem is unsolvable and we give up by returning `Nothing`.
-Otherwise we return the solution.
-The code for all these cases can be seen on lines 12 - 15 in @agsy-snippet.
+In case refining does not create any new problem collections, base case is reached and the problem is trivally solved (line 9 in @agsy-snippet).
+When there are new problem collections, we try to solve _any_ of them.
+In case we cannot solve any of the problem collections, then the problem is unsolvable and we give up by returning `Nothing` (line 15).
+Otherwise we return the solutions we found.
 
 We solve problem collections by using the `searchColl` function.
 Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
-As we only care about cases where we can fully solve the problem we discard them by returning `Nothing`.
-On line 9 of @agsy-snippet we filter out unsuccessful solutions.
+We only care about cases where we can fully solve the problem so we discard them by returning `Nothing`.
+On line 14 of @agsy-snippet we filter out unsuccessful solutions.
 
 For the successful solution collections we substitute the refinements we took into the problem to get back solution.
 The solution is a well-formed term with no remaining subproblems which we can return to the callee.
-
-#todo("By describing the base case and other cases in the beginning this end seems little weird as rest of the description follows the code quite closele. Is it ok tho?")
-
-#figure(
-sourcecode()[```hs
-newtype ProbColl = (Refinment, [Problem])
-newtype SolColl  = (Refinment, [Solution])
-
--- Find solutions to problem
-search :: Problem -> Maybe [Solution]
-search p = 
-  let
-    probColls: [ProbColl] = createRefs p
-    solColls: [SolColl] = flatten $ catMaybes $ map searchColl probColls
-    sols: [Solution] = map (\sc -> substitute sc p) solColls 
-  in 
-    case (probColls, sols) of
-      ([],    _) -> Just TrivialSolution  -- No holes, trivially solved
-      ( _,   []) -> Nothing
-      ( _, sols) -> Just sols
-
--- Find solution to every problem in problem collection
-searchColl :: ProbColl -> Maybe [SolColl]
-searchColl = sequence $ fmap search
-
--- Create refinements for problem
-createRefs :: Problem -> [ProbColl]
-createRefs p = flatten [tactic1 p, tactic2 p, tacticN p]
-```],
-caption: [
-    Agsy high level algorithm
-  ],
-) <agsy-snippet>
-
 
 #figure(
 sourcecode()[```hs
@@ -536,9 +483,9 @@ substitute :: Problem -> SolColl -> Solution
 substitute = {- elided -}
 ```],
 caption: [
-    Agsy high level algorithm, Philipp's proposal.
+    High level overview of term search algorithm used in Agsy
   ],
-) <agsy-snippet-philipp>
+) <agsy-snippet>
 
 An example of tactic can be seen in @agsy-example-tactic.
 #figure(
@@ -553,20 +500,21 @@ tacticLocal p =
 ```
 ],
 caption: [
-    Agsy example tactic
+    Example tactic that attempts to solve problem by using locals in scope
   ],
 ) <agsy-example-tactic>
 
 As described above the algorithm is built around DFS.
-However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful#suggestion[][,] it performs poorly on larger problems.
-They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not #note[Maybe there's a friendlier way to say this.][suffer] from automatic memory management.
+However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful, it performs poorly on larger problems.
+They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not suffer from automatic memory management.
 It is also noted that there seems to be many false subproblems that can never be solved, so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems potentially faster to reduce the search space.
 
 ==== Mimer
 Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#footnote(link("https://github.com/agda/agda/pull/6410")) and will be released as a replacement for Agsy.
-#note[Maybe: _According to its authors, it is "designed to ..."_]["Mimer is designed to handle many small synthesis problems rather than complex ones" @mimer.]
-Mimer is less powerful than Agsy as it doesn't perform case splits but on the other hand it is designed to be more robust.
+According to its authors, it is designed to handle many small synthesis problems rather than complex ones.
+Mimer is less powerful than Agsy as it doesn't perform case splits.
+On the other hand, it is designed to be more robust.
 Other than not using case splits and the main algorithm follows the one used in Agsy and described in @agsy.
 
 The main differences to original Agsy implementation are:
@@ -1837,7 +1785,7 @@ For resynthesis, we do the following:
 4. Compare generated results with what was there before
 5. Put back the original expression and repeat on rest of the expressions
 
-==== #suggestion[Chosen expressions][Choice of expressions]
+==== Choice of expressions
 We chose to perform the resynthesis only on the tail expressions of every block.
 Other options that we considered are let assignments and arguments of function calls.
 We chose tail expressions as we consider this the most common use case for our tool.
@@ -1877,7 +1825,7 @@ caption: [
   ],
 ) <rust-tail-expr>
 
-==== Chosen metrics
+==== Choice of metrics
 Here is a list of metrics we are interested in for resynthesis
 
 #todo-philipp[

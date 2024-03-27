@@ -4,7 +4,7 @@ With on-par performance with C/C++, Rust attempts to challenge C/C++'s position 
 Rust type system is similar to many functional programming languages as it features a rich type system, including sum and product types.
 Developer experience is more similar to that of high level functional programming languages, rather than C/C++.
 However, Rust does not have a tool for term search -- automatic program synthesis based on types.
-Yet we believe it is a perfect candidate for one with it's expressive type system.
+Yet we believe it is a perfect candidate for one with its expressive type system.
 
 In this thesis we extend the official Rust language server `rust-analyzer` with term search tool.
 In addition to program synthesis, we experiment with using term search for autocompletion.
