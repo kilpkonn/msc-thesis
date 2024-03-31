@@ -1830,7 +1830,7 @@ Here is a list of metrics we are interested in for resynthesis
 
 1. #metric[Holes filled] represents the fraction of tail expressions where the aalgorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.
 2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
-   To make the metric slightly more robust we remove all the whitespace from the programs before comparing them.
+   To make the metric slightly more robust we compare the programs ASTs effectively removing all the formmating before comparing.
 3. #metric[Average time] represents the average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
 4. #metric[Terms per hole] - This shows the average amount of options provided to the user.
@@ -1862,7 +1862,7 @@ At depth 0 we have on average 15.1 terms per hole.
 At depths above 4, this number plateaus at around 23 terms per hole.
 Note that a bigger number of terms per hole is not always better: too many terms can be overwhelming.
 
-#todo("why so many terms for depth 0?")
+#todo("why so many terms for depth 0? add median value")
 
 #todo("Reorder, 3rd color, indicate that syntactic matches is subset of holes filled")
 #figure(
@@ -1873,12 +1873,11 @@ Note that a bigger number of terms per hole is not always better: too many terms
 
   ),
   caption: [
-    Term search depth effect on holes filled, syntactic matches and number of terms per hole
+    The effect of search depth on the fraction of holes filled, and the average number of terms per hole.
+    For depth >2, the number of holes filled plateaus.
+    Syntactic matches do not improve at depth above 1.
+    Number of terms per hole starts at high number of 15 and increases until depth of 4 reaching 22.
     #note[Legend: #box(fill:red)[x] Holes filled #box(fill:blue)[x] Holes filled (syntactic matches)][]
-    #note[To improve the caption: Describe what there is to see:
-      "The effect of search depth on the fraction of holes filled, and the average number of suggetions per hole. For depth >2, the number of holes filled plateaus. Syntactic matches do not improve at depth above 1."
-      For the second graph: Is this good, is this bad? Is this expected? Tell me how I should feel about this.
-    ][]
   ],
 ) <term-search-depth-accuracy>
 
@@ -1887,8 +1886,8 @@ To more closely investigate the time complexity of the algorithm we ran the expe
 Running the experiment on all 155 crates would take about half a month.
 In order to speed up the process we selected only the most popular crate for each category.
 This results in a 31 crates in total.
-We observe that the execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
-Increasing depth by one adds ...ms of execution time on average.
+We observe that the average execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
+Increasing depth by one adds about 10ms of execution time on average.
 
 #todo("Add slope")
 
@@ -1900,14 +1899,18 @@ Increasing depth by one adds ...ms of execution time on average.
   image("fig/time.png", width: 90%),
   caption: [
     Execution time of the algorithm is linear in the search depth.
-    Slope = .., standard deviation =  ...
+    Slope = 9.6, standard deviation =  8.8ms
   ],
 ) <term-search-depth-time>
 #todo("Standard deviation -> rmse for line, add to caption. say red ")
 #todo("try to refactor to shorter sentences from here on..")
 We can see that increasing the search depth over two can actually have somewhat negative effects.
-The search will take longer and there will be more terms which can often mean more irrelevant suggestions as the syntactic matches and holes filled are growing really slowly.
-In @term-search-depth-accuracy we can see the holes filled and syntactic matches almost stalling after 2nd iteration but time increasing linearly in @term-search-depth-time.
+The search will take longer and there will be more terms.
+This however, often means more irrelevant suggestions.
+By examining the fraction of holes filled and holes filled with syntactic match we see that both have reached a plateaus at depth 2.
+From that we conclude that we are mostly increasing the amount of irrelavant suggestions.
+
+In @term-search-depth-accuracy we can see that the fraction of holes filled has stalled after 2nd iteration, but time keeps increasing linearly in @term-search-depth-time.
 
 #figure(
   placement: auto,
@@ -1923,11 +1926,18 @@ In @term-search-depth-accuracy we can see the holes filled and syntactic matches
 [4], [76.0%], [9.6%], [22.1], [137.1ms], 
 [5], [76.2%], [9.5%], [22.3], [151.1ms],   
   ),
-  caption: [Depth hyperparameter effect on metrics]
+  caption: [
+    Depth hyperparameter effect on metrics.
+    Holes filled plateaus at 76% on depth 2.
+    Syntactic matches reaches 9.8% at depth 3 and starts decreasing.
+    Terms per hole starts at high high number of 15 per hole, plateaus at 4.
+    Average time increases about linearly.
+  ]
 ) <tbl-depth-hyper-param>
 #todo("what is going on with depth 4, holes filled")
 
-With the depth limit of 2 the program managed to generate a term with syntactic match in 10.7% of searches and find some term that satisfies the type in 74.0% of the searches.
+With the depth of 2 the program manageds to generate a term that satisfies the type in 74.0% of the serches.
+In 10.7% of searches the generated term syntactically matches the original term.
 Average number of terms per hole is 18.6, and they are found in 35ms.
 However, the numbers vary a lot depending on the style of the program.
 #todo("recheck std dev, of what exactly?")
@@ -1942,23 +1952,25 @@ The third iteration also manages to produce 1.6 times more syntactic matches tha
 These results are achieved in a 1.2 times longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
 The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
 
-#todo("reorder")
 #figure(
   // placement: auto,
   table(
     columns: 5,
     align: (x, _) => if x == 4 { right } else { horizon },
     inset: 5pt,
-    table.header[*Algorithm*][*Syntactic matches*][*Holes filled*][*Terms per hole*][*Avg time*],
-[v1, $"depth"=1$], [4%], [26%], [5.8], [4900ms], 
-[v2, $"depth"=3$], [6%], [46%], [17.2], [90ms], 
-[v3, $"depth"=2$], [10%], [75%], [20.0], [72ms], 
-[v3, $"depth"=3$], [10%], [76%], [21.5], [111ms],
+    table.header[*Algorithm*][*Holes filled*][*Syntactic matches*][*Terms per hole*][*Avg time*],
+[v1, $"depth"=1$], [26%], [4%], [5.8], [4900ms], 
+[v2, $"depth"=3$], [46%], [6%], [17.2], [90ms], 
+[v3, $"depth"=2$], [75%], [10%], [20.0], [72ms], 
+[v3, $"depth"=3$], [76%], [10%], [21.5], [111ms],
   ),
-  caption: [Comparioson of algorithm iterations]
+  caption: [
+    Comparioson of algorithm iterations.
+    V1 is performs the worst in every metric, especially execution time.
+    V2 is runs slightly faster than V3 at depth 3, but fills significatly less holes.
+    V3 with depth 2 outperforms V2 with depth 3 by filling more holes in less time.
+  ]
 ) <tbl-versions-comparison>
-
-#todo("Maybe compare AST if possible.")
 
 In addition to average time of the algorithm we care that the latency for the response is sufficiently low.
 We choose 100ms as a latency threshold which is a reccommended latency threshold for web applications by @usability-engineering.
@@ -2049,7 +2061,7 @@ There can always be options when the user wishes to mix both of the syntaxes whi
 ==== Foreign function interface crates <c-style-stuff>
 We found that for some types of crates the performance of the term search was significantly worse than for others.
 Category "external-ffi-bindings" has an average search time of 571ms that is a lot slower than average of 72ms.
-It also offers a lot more suggestions per term by suggesting 303 terms per hole which is about 15 times more than average of 20.
+It also offers a lot more terms per hole by suggesting 303 terms per hole which is about 15 times more than average of 20.
 Such a big number of suggestions is overwhelming to user as 300 suggestions do not even fit onto screen.
 
 Slow search times and high number of suggestions are caused by those crates using only few primitive types, mostly integers.
@@ -2058,6 +2070,7 @@ Yet C's application binary interface (ABI) is the only stable ABI Rust has.
 Foreign function interface (FFI) crates are wrappers around C ABI and therefore often use integer types for most operations.
 
 Searching for an integer however is not very useful as most functions in C return integers which all fit to the hole based on type.
+For example the amount of terms found per hole reaches 300 already at depth 0 as there are many integer constants that all fit most holes.
 This means that there is a fundamental limitation of our algorithm when writing C-like code in Rust and working with FFI crates.
 As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performance of term search in FFI crates.
 
