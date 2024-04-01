@@ -1369,7 +1369,7 @@ During every iteration we sequentially attempt different tactics.
 More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different ways to build new types from existing types (type constructors, functions, methods, etc.).
 The search space is expanded by adding new types to lookup table.
 Example for it can be seen in @term-search-state-expansion.
-In the end we filter out duplicates and solutions that do not take us closer to the goal.
+In the end we filter out solutions that do not take us closer to the goal.
 
 #figure(
 sourcecode()[```rs
@@ -1378,7 +1378,7 @@ pub fn term_search(ctx: &TermSearchCtx) -> Vec<Expr> {
     let mut lookup = LookupTable::new(ctx.many_threshold);
 
     // Try trivial tactic first, also populates lookup table
-    let mut solutions: Vec<Expr> = 
+    let mut solutions: HashSet<Expr> = 
         tactics::trivial(ctx, &defs, &mut lookup).collect();
 
     for _ in 0..ctx.config.depth {
@@ -1391,7 +1391,7 @@ pub fn term_search(ctx: &TermSearchCtx) -> Vec<Expr> {
         solutions.extend(tactics::impl_static_method(ctx, &defs, &mut lookup));
     }
 
-    solutions.into_iter().filter(|it| !it.is_many()).unique().collect()
+    solutions.into_iter().filter(|it| !it.is_many()).collect()
 }
 ```],
 caption: [
@@ -1406,14 +1406,14 @@ To better understand how the search space is expanded let's look at @term-search
 #figure(
   image("fig/state_expansion.svg", width: 60%),
   caption: [
-    Term search state expansion
+    Iterative term search state expansion
   ],
 ) <term-search-state-expansion>
 We start with variables `a` of type `A` and `b` of type `B`.
 In the first iteration we are able to use function $f: A -> C$ on `a` and get something of type `C`.
 The iteration after that we are able to use $g: C times B -> D$ and produce something of type `D`.
 
-Once we have reached the maximum depth we take all the elements that unify with the goal type and filter out the duplicates returning all the unique paths that take us to goal type.
+Once we have reached the maximum depth we take all the elements that unify with the goal type we return all paths that take us to goal type.
 
 ==== Lookup table <lookup-table>
 The main task for lookup table throughout the algorithm is to keep track of the state.
@@ -1502,7 +1502,10 @@ fn tactic_name(
 ) -> impl Iterator<Item = Expr>
 ```],
 caption: [
-    Term search tactic signature
+    Term search tactic signature.
+    Arguments `ctx` and `defs` give all the available context.
+    State is encapsulated in `lookup`.
+    All tactics return iterator that yields terms that unify with goal.
   ],
 ) <rust-tactic-signature>
 All the tactics take in the context of term search, definitions in scope and a lookup table and produce an iterator that yields expressions that unify with the goal type (provided by the context).
@@ -1699,7 +1702,7 @@ impl<T> Option<T> {
 }
 ```],
 caption: [
-    Receiver argument example in Rust
+    Reciver argument with type other than `Self`
   ],
 ) <rust-receiver-type>
 As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
@@ -1835,6 +1838,8 @@ Here is a list of metrics we are interested in for resynthesis
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
 4. #metric[Terms per hole] - This shows the average amount of options provided to the user.
 
+All experiments are conducted on a consumer-grade computer with an AMD Ryzen 7 CPU and 32GB RAM
+
 ==== Choice of crates
 Crate is a name for a Rust library.
 We use crates.io#footnote(link("https://crates.io/")), the Rust community’s crate registry as a source of information of the most popular crates.
@@ -1850,9 +1855,10 @@ First we are going to take a look at how the hyperparameter of search depth affe
 
 We measured #metric[holes filled], and number of #metric[terms per hole] for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
 For search depth 0, only trivial tactics (@tactic-trivial and @tactic-famous-types) are run.
-This reasults in 18.8% of the holes being filled, with only 2% of holes having syntactic matches.
+This reasults in 18.9% of the holes being filled, with only 2.5% of holes having syntactic matches.
 Beyond the search depth of 2 we noticed barely any improvements in portion of holes filled.
-#todo("numbers here")
+At depth 2 the algorithm fills 74.9% of holes.
+By doubling the depth the amount of holes filled increases only by 1.5%pt to 76.4%.
 More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after depth of 3.
 This is because we get more results for subterms and squash them to `Many`, or in other words replace them with a new hole.
 Terms that would result in syntactic matches get also squashed into `Many`, resulting in a decrease in syntactic matches.
@@ -1862,9 +1868,11 @@ At depth 0 we have on average 15.1 terms per hole.
 At depths above 4, this number plateaus at around 23 terms per hole.
 Note that a bigger number of terms per hole is not always better: too many terms can be overwhelming.
 
-#todo("why so many terms for depth 0? add median value")
+Over 15 terms per hole at depth 0 is more than we expect so we will more closely investigate the amount of terms per hole.
+By using median instead of mean we find that the number of terms per hole ranges from 0.5 to 5.5 for depth 0 to 5.
+This is about what we expect.
+We will discuss why some categories have many more terms per hole in @c-style-stuff.
 
-#todo("Reorder, 3rd color, indicate that syntactic matches is subset of holes filled")
 #figure(
   placement: auto,
   grid(
@@ -1877,7 +1885,6 @@ Note that a bigger number of terms per hole is not always better: too many terms
     For depth >2, the number of holes filled plateaus.
     Syntactic matches do not improve at depth above 1.
     Number of terms per hole starts at high number of 15 and increases until depth of 4 reaching 22.
-    #note[Legend: #box(fill:red)[x] Holes filled #box(fill:blue)[x] Holes filled (syntactic matches)][]
   ],
 ) <term-search-depth-accuracy>
 
@@ -1886,10 +1893,9 @@ To more closely investigate the time complexity of the algorithm we ran the expe
 Running the experiment on all 155 crates would take about half a month.
 In order to speed up the process we selected only the most popular crate for each category.
 This results in a 31 crates in total.
+
 We observe that the average execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
 Increasing depth by one adds about 10ms of execution time on average.
-
-#todo("Add slope")
 
 #todo("List these 31 crates in appendix")
 
@@ -1909,8 +1915,7 @@ The search will take longer and there will be more terms.
 This however, often means more irrelevant suggestions.
 By examining the fraction of holes filled and holes filled with syntactic match we see that both have reached a plateaus at depth 2.
 From that we conclude that we are mostly increasing the amount of irrelavant suggestions.
-
-In @term-search-depth-accuracy we can see that the fraction of holes filled has stalled after 2nd iteration, but time keeps increasing linearly in @term-search-depth-time.
+This can be also seen in @term-search-depth-accuracy where the fraction of holes filled has stalled after 2nd iteration, but time keeps increasing linearly in @term-search-depth-time.
 
 #figure(
   placement: auto,
@@ -1919,37 +1924,38 @@ In @term-search-depth-accuracy we can see that the fraction of holes filled has 
     inset: 5pt,
     align: horizon,
     table.header[*Depth*][*Holes filled*][*Syntactic matches*][*Terms per hole*][*Average time*],
-[0], [18.8%], [2.0%], [15.1], [23.4ms], 
-[1], [68.0%], [9.3%], [18.1], [33.0ms], 
-[2], [74.5%], [9.5%], [20.0], [72.4ms], 
-[3], [76.1%], [9.8%], [21.5], [111.8ms], 
-[4], [76.0%], [9.6%], [22.1], [137.1ms], 
-[5], [76.2%], [9.5%], [22.3], [151.1ms],   
+[0], [18.9%], [2.5%], [15.1], [0.5ms], 
+[1], [68.6%], [11.0%], [18.1], [7.1ms], 
+[2], [74.9%], [11.3%], [20.0], [49.5ms], 
+[3], [76.1%], [11.4%], [21.5], [79.5ms], 
+[4], [76.4%], [11.3%], [22.1], [93.9ms], 
+[5], [76.5%], [11.3%], [22.3], [110.1ms],    
   ),
   caption: [
     Depth hyperparameter effect on metrics.
     Holes filled plateaus at 76% on depth 2.
-    Syntactic matches reaches 9.8% at depth 3 and starts decreasing.
-    Terms per hole starts at high high number of 15 per hole, plateaus at 4.
+    Syntactic matches reaches 11.4% at depth 3 and starts decreasing.
+    Terms per hole starts at high high number of 15 per hole, plateaus at depth 4 around 22 terms per hole.
     Average time increases about linearly.
   ]
 ) <tbl-depth-hyper-param>
 #todo("what is going on with depth 4, holes filled")
 
-With the depth of 2 the program manageds to generate a term that satisfies the type in 74.0% of the serches.
-In 10.7% of searches the generated term syntactically matches the original term.
-Average number of terms per hole is 18.6, and they are found in 35ms.
+With the depth of 2 the program manageds to generate a term that satisfies the type in 74.9% of the serches.
+In 11.0% of searches the generated term syntactically matches the original term.
+Average number of terms per hole is 20, and they are found in 49ms.
 However, the numbers vary a lot depending on the style of the program.
-#todo("recheck std dev, of what exactly?")
-Standard deviation for average number of terms is about 56 terms, and standard deviation average time is 167ms.
-Standard deviation is pushed so high by some outliers which we discuss in @c-style-stuff.
+Standard deviation between categories for average number of terms is about 56 terms, and standard deviation of average time is 135ms.
+Both of these are greater than the average numbers themselves indicating large differences between categories.
+We discuss the categories that push standard deviation so high in @c-style-stuff.
 
 To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
 However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
 As some of the worst cases are eliminated the for iterations v1 and v2, the results in @tbl-versions-comparison are more optimistic for them than for the final iteration of the algorithm.
 Nevertheless we can see that the third iteration manages to fill 1.6 times more holes than second and 2.8 times more holes than first iteration of the algorithm.
 The third iteration also manages to produce 1.6 times more syntactic matches than second and 2.5 times more than first iteration of the algorithm.
-These results are achieved in a 1.2 times longer time for depth 3, however with depth 2 the final iteration outperforms the second iteration on all metrics.
+These results are achieved 12% faster with depth 3.
+With depth 2 the final iteration also outperforms the second iteration on all metrics with only about half the search time.
 The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
 
 #figure(
@@ -1961,23 +1967,24 @@ The first iteration is also obviously worse than others by running almost two or
     table.header[*Algorithm*][*Holes filled*][*Syntactic matches*][*Terms per hole*][*Avg time*],
 [v1, $"depth"=1$], [26%], [4%], [5.8], [4900ms], 
 [v2, $"depth"=3$], [46%], [6%], [17.2], [90ms], 
-[v3, $"depth"=2$], [75%], [10%], [20.0], [72ms], 
-[v3, $"depth"=3$], [76%], [10%], [21.5], [111ms],
+[v3, $"depth"=2$], [75%], [11%], [20.0], [49ms], 
+[v3, $"depth"=3$], [76%], [11%], [21.5], [79ms],
   ),
   caption: [
     Comparioson of algorithm iterations.
     V1 is performs the worst in every metric, especially execution time.
-    V2 is runs slightly faster than V3 at depth 3, but fills significatly less holes.
-    V3 with depth 2 outperforms V2 with depth 3 by filling more holes in less time.
+    V2 is runs slightly slower than V3 at depth 3, but fills significatly less holes.
+    V3 with depth 2 outperforms V2 with depth 3 by filling more holes in half the time.
   ]
 ) <tbl-versions-comparison>
 
 In addition to average time of the algorithm we care that the latency for the response is sufficiently low.
 We choose 100ms as a latency threshold which is a reccommended latency threshold for web applications by @usability-engineering.
-According to @typing-latency, mean latency of writing digraphs while programming is around 170ms we believe that the latency of 100ms is also suffucient for IDE.
+According to @typing-latency, mean latency of writing digraphs while programming is around 170ms.
+Becauses of that we believe that the latency of 100ms is also suffucient for IDE.
 We will use our algorithm with depth of 2 as this seems to be the optimal depth for autocompletion.
-We found that 88% holes can be filled faster than is 100ms.
 
+We found that 86% holes can be filled faster than is 100ms.
 We believe that this is a sufficiently good result as most this shows that most of the times the algorithm is fast enough.
 In 8 of the categories, all holes could be filled in 100ms.
 The main issues arose in categories "hardware-support" and "external-ffi-bindings" in which only 6% and 16% of the holes could be filled withing 100ms threshold.
@@ -2078,20 +2085,25 @@ As the point of FFI crates is to serve as a wrapper around C code so that other 
 In this section we highlight some limitations of our evaluation.
 We point out that "holes filled" is too permissive metric and "syntactic matches" is too strict.
 Ideally we want something in between, but we don't have a way to measure it.
-#todo("Something about usability? feels kind of duplication tho")
 
 ==== Resynthesis
 Metric "holes filled" does not reflect the usability of the tool very well.
-This would be useful metric if we would use it as a proof search as when searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
-In case of regular programs that also have side effects we only care about suggestions that are semantically correct.
-Other suggestions can be considered as a noise as they produce programs that no-one asked for.
+This would be useful metric if we would use it as a proof search.
+When searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
+This is not the case for regular programs with side effects.
+For them we only care about terms that are semantically correct e.g. do what the progeam is supposed to do.
+Other terms can be considered as a noise as they are programs that no-one asked for.
 
-Syntactic matches (equality) is a misleading metric as we really care about semantic equality of programs.
-The metric may depend more on the style of the program than the formatting than on the real capabilities of the tool.
+Syntactic matches (equality) is too strict  metric as we actually care about semantic equality of programs.
+The metric may depend more on the style of the program and the formatting than on the real capabilities of the tool.
 Syntactic matches also suffers from squashing multiple terms to `Many` option as the new holes produced by _Many_ are obviously not what was written by user.
 
-Instead of average time and amount of suggestions per term search we should measure the worst case performance.
+Average time and number of terms per hole are significantly affected by few categories that some may consider outliers.
+We have decided to not filter them out to also show that our tool is a poor fit for some types of programs.
+
+Average execution can also be critizised of being irrelavant.
 Having the IDE freeze for a second once in a while is not acceptable even if at other times the algorithm is very fast.
+To also consider the worst case performace we have decided to also measure latency.
 
 ==== Usability
 This sections is based on a personal experience of the author and may therefore not reflect the average user very well.
