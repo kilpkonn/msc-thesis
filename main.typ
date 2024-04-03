@@ -756,7 +756,7 @@ sourcecode()[```hs
 (mk_list_bar(bar), show_bar)
 ```],
 caption: [
-    DFS algorithm steps
+    BFS algorithm steps
   ],
 ) <standardml-bfs-steps>
 
@@ -1051,7 +1051,8 @@ The server can then process the updates and send new autocompletion suggestion /
 #figure(
   image("fig/lsp_data_flow.svg", width: 100%),
   caption: [
-    LSP communication
+    LSP client notifies the server from changes and user requests.
+    The server responds by providing different functionaliteis to the client.
   ],
 ) <lsp-data-flow>
 Important thing to note here is that the client starts the server the first time it requires data from it.
@@ -1091,7 +1092,8 @@ fn printer_json<W: std::io::Write>(&self, wtr: W) -> JSON<W> {
 }
 ```],
 caption: [
-    Builder pattern in Rust
+    Builder pattern in Rust.
+    Setter methods do not change the type of term.
   ],
 ) <rust-builder>
 As we can see from the changes of type added in comments the type of the term only changes on the first and last line of the function body.
@@ -1406,7 +1408,9 @@ To better understand how the search space is expanded let's look at @term-search
 #figure(
   image("fig/state_expansion.svg", width: 60%),
   caption: [
-    Iterative term search state expansion
+    Iterative term search state expansion.
+    We start with terms of types A and B.
+    With every iteration we keep the terms from previous iteration and add new terms if possible.
   ],
 ) <term-search-state-expansion>
 We start with variables `a` of type `A` and `b` of type `B`.
@@ -1892,27 +1896,22 @@ We will discuss why some categories have many more terms per hole in @c-style-st
 To more closely investigate the time complexity of the algorithm we ran the experiment up to depth of 20.
 Running the experiment on all 155 crates would take about half a month.
 In order to speed up the process we selected only the most popular crate for each category.
-This results in a 31 crates in total.
+This results in a 31 crates in total (#ref(<appendix-reduced-crates>, supplement: "Appendix")).
 
-We observe that the average execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
-Increasing depth by one adds about 10ms of execution time on average.
+We observe that in the average case, execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
+Increasing depth by one adds about 8ms of execution time on average.
 
-#todo("List these 31 crates in appendix")
-
-#todo("time -> average execution time per hole")
 #figure(
   placement: auto,
   image("fig/time.png", width: 90%),
   caption: [
     Execution time of the algorithm is linear in the search depth.
-    Slope = 9.6, standard deviation =  8.8ms
+    Slope = 7.6, standard deviation =  6.7ms
   ],
 ) <term-search-depth-time>
-#todo("Standard deviation -> rmse for line, add to caption. say red ")
-#todo("try to refactor to shorter sentences from here on..")
 We can see that increasing the search depth over two can actually have somewhat negative effects.
 The search will take longer and there will be more terms.
-This however, often means more irrelevant suggestions.
+More terms, often means more irrelevant suggestions.
 By examining the fraction of holes filled and holes filled with syntactic match we see that both have reached a plateaus at depth 2.
 From that we conclude that we are mostly increasing the amount of irrelavant suggestions.
 This can be also seen in @term-search-depth-accuracy where the fraction of holes filled has stalled after 2nd iteration, but time keeps increasing linearly in @term-search-depth-time.
@@ -1939,7 +1938,6 @@ This can be also seen in @term-search-depth-accuracy where the fraction of holes
     Average time increases about linearly.
   ]
 ) <tbl-depth-hyper-param>
-#todo("what is going on with depth 4, holes filled")
 
 With the depth of 2 the program manageds to generate a term that satisfies the type in 74.9% of the serches.
 In 11.0% of searches the generated term syntactically matches the original term.
@@ -1952,11 +1950,15 @@ We discuss the categories that push standard deviation so high in @c-style-stuff
 To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
 However both of the previous algorithms were so slow with some perticular crates that we couldn't run them on the whole set of benchmarks.
 As some of the worst cases are eliminated the for iterations v1 and v2, the results in @tbl-versions-comparison are more optimistic for them than for the final iteration of the algorithm.
-Nevertheless we can see that the third iteration manages to fill 1.6 times more holes than second and 2.8 times more holes than first iteration of the algorithm.
-The third iteration also manages to produce 1.6 times more syntactic matches than second and 2.5 times more than first iteration of the algorithm.
-These results are achieved 12% faster with depth 3.
-With depth 2 the final iteration also outperforms the second iteration on all metrics with only about half the search time.
-The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling less holes.
+Nevertheless the final iteration manages to outperform both of the previous iterations.
+
+The first iteration is also obviously worse than others by running almost two orders of magnitue slower than other iterations and still filling 2.8 times less holes than the final iteration of the algorithm.
+As the performace of the first iteration is much worse than the later iterations, we will not dive into details of it.
+
+Instead we more closely compare only the last two iterations.
+The final iteration manages to fill 1.6 times more holes than second iteration of the algorithm at depth 3.
+It also manages to fill times more holes with syntactic match.
+These results are achieved 12% faster than the second iteration.
 
 #figure(
   // placement: auto,
@@ -1967,14 +1969,14 @@ The first iteration is also obviously worse than others by running almost two or
     table.header[*Algorithm*][*Holes filled*][*Syntactic matches*][*Terms per hole*][*Avg time*],
 [v1, $"depth"=1$], [26%], [4%], [5.8], [4900ms], 
 [v2, $"depth"=3$], [46%], [6%], [17.2], [90ms], 
-[v3, $"depth"=2$], [75%], [11%], [20.0], [49ms], 
+//[v3, $"depth"=2$], [75%], [11%], [20.0], [49ms], 
 [v3, $"depth"=3$], [76%], [11%], [21.5], [79ms],
   ),
   caption: [
     Comparioson of algorithm iterations.
     V1 is performs the worst in every metric, especially execution time.
-    V2 is runs slightly slower than V3 at depth 3, but fills significatly less holes.
-    V3 with depth 2 outperforms V2 with depth 3 by filling more holes in half the time.
+    V2 is runs slightly slower than V3, but fills significatly less holes.
+    // V3 with depth 2 outperforms V2 with depth 3 by filling more holes in half the time.
   ]
 ) <tbl-versions-comparison>
 
@@ -1984,7 +1986,7 @@ According to @typing-latency, mean latency of writing digraphs while programming
 Becauses of that we believe that the latency of 100ms is also suffucient for IDE.
 We will use our algorithm with depth of 2 as this seems to be the optimal depth for autocompletion.
 
-We found that 86% holes can be filled faster than is 100ms.
+We found that 87% holes can be filled faster than is 100ms.
 We believe that this is a sufficiently good result as most this shows that most of the times the algorithm is fast enough.
 In 8 of the categories, all holes could be filled in 100ms.
 The main issues arose in categories "hardware-support" and "external-ffi-bindings" in which only 6% and 16% of the holes could be filled withing 100ms threshold.
@@ -2002,8 +2004,7 @@ In addition, of highlighting the programs we discuss why the algorithm behaves t
 Although we managed to make the algorithm work decently with low amount of generics some libraries make extensive use of generics which is problematic for our algorithm.
 
 Extensive usage of generics is very common among math related crates.
-As a result the average search time for category "mathematics" is about 10 times longer than the average over all categories. (784ms vs 72ms).
-
+As a result the average search time for category "mathematics" is about 15 times longer than the average over all categories. (767ms vs 50ms).
 One example of such library is `nalgebra`#footnote(link("https://crates.io/crates/nalgebra")).
 It uses generic parameters in all most all of its functions.
 A typical function from `nalgebra` can be seen in @eval-nalgebra.
