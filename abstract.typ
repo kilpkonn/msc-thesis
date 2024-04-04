@@ -21,3 +21,10 @@ We then let the algorithm re-synthesize the missing code,
 and measure how many holes the algorithm can fill and how often the algorithm suggest the original code.
 
 As an outcome of this thesis we also upstream our tool to the official `rust-analyzer`.
+
+
+The thesis is written in English and is #context counter(page).at(<end>).first() pages long,
+including #context counter(heading).at(<conclusion>).first() chapters,
+#context counter(figure.where(kind: image)).final().first() figures 
+#context counter(figure.where(kind: raw)).final().first() code listings and 
+#context counter(figure.where(kind: table)).final().first() tables.

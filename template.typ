@@ -8,6 +8,7 @@
   title: "",
   title_estonian: "",
   thesis_type: "",
+  thesis_type_estonian: "",
   authors: (),
   supervisors: (),
   date: none,
@@ -35,38 +36,38 @@
   set-page-properties()
 
   // Title page.
+  align(center, text(1.2em, weight: 50, "TALLINN UNIVERSITY OF TECHNOLOGY"))
+  align(center, text(1.2em, weight: 50, "School of Information Technologies"))
+
+  
   // The page can contain a logo if you pass one with `logo: "logo.png"`.
   v(0.6fr)
   if logo != none {
     align(right, image(logo, width: 26%))
   }
-  v(1.2fr)
-  
-  v(1.2em, weak: true)
-  align(center, text(2em, weight: 700, title))
-  v(1.2em, weak: true)
-  align(center, text(2em, weight: 500, title_estonian))
+  v(1fr)
 
-  v(2.4em, weak: true)
-  align(center, text(2em, weight: 300, smallcaps(thesis_type)))
-
-
-  // Author information.
+   // Author information.
   pad(
     top: 0.7em,
-    right: 10%,
-    align(right,
+    bottom: 2em,
+    align(center,
       grid(
         rows: authors.len(),
-        gutter: 1em,
+        gutter: 3em,
         ..authors.map(author => align(right, 
-          strong(author.name) +
-          linebreak() +
+          strong(author.name) + " " +
           author.student_code
         )),
       ),
     )
   )
+  
+  v(1.2em, weak: true)
+  align(center, text(2em, weight: 700, title))
+
+  v(2.4em, weak: true)
+  align(center, text(1.8em, weight: 200, smallcaps(thesis_type)))
 
   // Supervisors
   pad(
@@ -77,7 +78,63 @@
       grid(
         rows: supervisors.len(),
         gutter: 1em,
-        ..supervisors.map(supervisor => align(right, supervisor)),
+        ..supervisors.map(supervisor => align(right, supervisor.name + linebreak() + supervisor.degree)),
+      ),
+    )
+  )
+
+  v(2.4fr)
+
+  place(bottom+center)[
+    #location #datetime.today().year()
+  ]
+  
+  pagebreak()
+
+    // Title page.
+  align(center, text(1.2em, weight: 50, "TALLINNA TEHNIKAÜLIKOOL"))
+  align(center, text(1.2em, weight: 50, "Infotehnoloogia teaduskond"))
+
+  
+  // The page can contain a logo if you pass one with `logo: "logo.png"`.
+  v(0.6fr)
+  if logo != none {
+    align(right, image(logo, width: 26%))
+  }
+  v(1fr)
+
+   // Author information.
+  pad(
+    top: 0.7em,
+    bottom: 2em,
+    align(center,
+      grid(
+        rows: authors.len(),
+        gutter: 3em,
+        ..authors.map(author => align(right, 
+          strong(author.name) + " " +
+          author.student_code
+        )),
+      ),
+    )
+  )
+  
+  v(1.2em, weak: true)
+  align(center, text(2em, weight: 700, title_estonian))
+
+  v(2.4em, weak: true)
+  align(center, text(1.8em, weight: 200, smallcaps(thesis_type_estonian)))
+
+  // Supervisors
+  pad(
+    top: 0.7em,
+    right: 10%,
+    align(right,
+      strong("Juhendaja") +
+      grid(
+        rows: supervisors.len(),
+        gutter: 1em,
+        ..supervisors.map(supervisor => align(right, supervisor.name + linebreak() + supervisor.degree)),
       ),
     )
   )
@@ -92,6 +149,19 @@
 
   set page(numbering: "I", number-align: center)
   counter(page).update(1)
+
+  // Authors declaration
+  include "authors_declaration.typ"
+
+  v(2em)
+  text("Author: ")
+  authors.map(author => author.name).join(", ")
+
+  v(1em)
+  text("Date: ") + datetime.today().display("[day].[month].[year]")
+
+  pagebreak()
+
   
 
   // Abstract page.
@@ -100,10 +170,23 @@
     #heading(
       outlined: false,
       numbering: none,
-      text(0.85em, smallcaps[Abstract]),
+      text(1em, smallcaps[Abstract]),
     )
   ]
   par(justify: true, include("abstract.typ"))
+  v(1.618fr)
+  pagebreak()
+
+  // Annotation page.
+  v(1fr)
+  align(center)[
+    #heading(
+      outlined: false,
+      numbering: none,
+      text(1em, smallcaps[Annotatsioon]),
+    )
+  ]
+  par(justify: true, include("annotation.typ"))
   v(1.618fr)
   pagebreak()
 
@@ -135,7 +218,10 @@
   
   body
 
-  bibliography("references.bib")
+  bibliography("references.bib");
+
+  // Hack to insert end label for page count
+  text[#text(" ")<end>]
 
   set heading(numbering: "1.1", outlined: false)
   counter(heading).update(0)

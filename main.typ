@@ -3,7 +3,8 @@
 #show: project.with(
   title: "Term Search in Rust",
   title_estonian: "Avaldise otsing programmeerimiskeeles Rust",
-  thesis_type: "Master thesis",
+  thesis_type: "Master's thesis",
+  thesis_type_estonian: "Magistritöö",
   authors: (
     (
       name: "Tavo Annus",
@@ -11,7 +12,10 @@
     ),
   ),
   supervisors: (
-    "Philipp Joram",
+    (
+      name: "Philipp Joram",
+      degree: "MSc",
+    ),
   ),
   location: "Tallinn",
   date: "January 17, 2024",
@@ -2159,7 +2163,7 @@ It would allow us to incrementally present the user autocompletion suggestions m
 With the latency issue solved we believe that term search based autocompletion suggestions could be turned on by default.
 Currently the main reason for making them opt-in was that the autocompletion is already slow in `rust-analyzer` and term search makes in even slower.
 
-= Conclusion
+= Conclusion <conclusion>
 In this thesis our main objective was to implement term search for the Rust programming language.
 We achieved it by implementing it as an addition to `rust-analyzer`, the official LSP server for Rust.
 
