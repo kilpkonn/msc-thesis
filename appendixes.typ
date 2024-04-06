@@ -1,6 +1,6 @@
 #import "@preview/codelst:2.0.0": sourcecode
 
-= Appendix 1: List of crates <appendix-crates>
+= List of crates <appendix-crates>
 #table(
   columns: 2,
   inset: 5pt,
@@ -163,7 +163,7 @@
 [web-programming], [url-2.5.0],
 )
 
-= Appendix 2: Highly generic code example <appendix-generics>
+= Highly generic code example <appendix-generics>
 #figure(
 sourcecode()[
 ```rs
@@ -191,7 +191,7 @@ caption: [
   ],
 ) <eval-nalgebra>
 
-= Appendix 3: Per category results <appendix-per-category-results>
+= Per category results <appendix-per-category-results>
 #figure(
 table(
   columns: 5,
@@ -233,7 +233,7 @@ table(
 caption: [Per category results ($"depth"=2$)]
 ) <tbl-per-category-results>
 
-= Appendix 4: Reduced list of crates <appendix-reduced-crates>
+= Reduced list of crates <appendix-reduced-crates>
 #table(
   columns: 2,
   inset: 5pt,

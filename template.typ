@@ -229,7 +229,7 @@
     if (it.level == 1) {
       pagebreak()
     }
-    block(it.body)
+    block("Appendix " + counter(heading).display() + ": " + it.body)
   }
   
   include("appendixes.typ")

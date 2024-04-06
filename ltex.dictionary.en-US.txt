@@ -2,3 +2,6 @@ elaborator
 memoization
 motivativation
 resynthesis
+upstreamed
+recurse
+metaprogramming
