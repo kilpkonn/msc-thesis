@@ -12,7 +12,7 @@ We develop the algorithm for term search in three iterations.
 The first iteration is the simplest algorithm that follows one that is used in Agsy, a similar tool for Agda.
 The second iteration improves on the first by reversing the search direction, simplifying caching of intermediate results.
 The final iteration, we implement a bidirectional search.
-This algorithm can synthesize terms in many more situations than the previous iterations,
+This algorithm can synthesize terms in many more situation than the previous iterations,
 without significant decrease in performance.
 
 To evaluate the performance of our algorithm, we run it on 155 popular open source Rust libraries.

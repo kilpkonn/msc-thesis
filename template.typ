@@ -247,3 +247,5 @@
 #let suggestion(old, new) = highlight(fill: red, old) + highlight(fill: green, new)
 
 #let metric(name) = emph(name)
+
+#let cite-footnote(title, accessed, url) = footnote[#title, Accessed: #accessed, #smallcaps("url:") #link(url)]
