@@ -163,34 +163,6 @@
 [web-programming], [url-2.5.0],
 )
 
-= Highly generic code example <appendix-generics>
-#figure(
-sourcecode()[
-```rs
-impl<T, R: Dim, C: Dim, S> AbsDiffEq for Unit<Matrix<T, R, C, S>>
-where
-    T: Scalar + AbsDiffEq,
-    S: RawStorage<T, R, C>,
-    T::Epsilon: Clone,
-{
-    type Epsilon = T::Epsilon;
-
-    #[inline]
-    fn default_epsilon() -> Self::Epsilon {
-        T::default_epsilon()
-    }
-
-    #[inline]
-    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
-        self.as_ref().abs_diff_eq(other.as_ref(), epsilon)
-    }
-}
-```],
-caption: [
-    `nalgebra` code example
-  ],
-) <eval-nalgebra>
-
 = Per category results <appendix-per-category-results>
 #figure(
 table(
@@ -230,7 +202,7 @@ table(
 [wasm], [80.5%], [16.6%], [13.0], [103.0ms], 
 [web-programming], [77.5%], [11.6%], [4.0], [10.6ms],
 ),
-caption: [Per category results ($"depth"=2$)]
+caption: [Per category results with $"depth"=2$]
 ) <tbl-per-category-results>
 
 = Reduced list of crates <appendix-reduced-crates>
