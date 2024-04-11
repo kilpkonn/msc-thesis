@@ -22,8 +22,8 @@
 )
 
 = Introduction
-Rust#cite-footnote("Rust", "2024-04-06", "https://www.rust-lang.org/") is a programming language for developing reliable and efficient systems.
-The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://lkml.org/lkml/2022/10/16/359").
+Rust#cite-footnote("Rust", "2024-04-06", "https://web.archive.org/web/20240409193051/https://www.rust-lang.org/") is a programming language for developing reliable and efficient systems.
+The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://web.archive.org/web/20240408110623/https://lkml.org/lkml/2022/10/16/359").
 It differs from other popular systems programming languages such as C and C++ by focusing more on reliability and productivity of the programmer.
 Rust has an expressive type system that guarantees lack of undefined behavior at compile type.
 It is done with a novel ownership model and is enforced by a compiler tool called borrow checker.
@@ -57,7 +57,7 @@ By combining multiple type constructors as well as functions in scope or methods
 ]
 
 == Motivation
-Due to Rusts's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
+Due to Rusts's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
 #figure(
 sourcecode()[
 ```rs
@@ -128,7 +128,7 @@ Later we will study some implementations for term search to better understand ho
 In the end we will briefly cover how _autocompletion_ is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
 
 == The Rust language
-Rust is a general-purpose systems programming language first released in 2015#cite-footnote("Announcing Rust 1.0", "2024-04-06", "https://blog.rust-lang.org/2015/05/15/Rust-1.0.html").
+Rust is a general-purpose systems programming language first released in 2015#cite-footnote("Announcing Rust 1.0", "2024-04-06", "https://web.archive.org/web/20240406065426/https://blog.rust-lang.org/2015/05/15/Rust-1.0.html").
 It takes lots of inspiration from functional programming languages, namely, it supports algebraic data types, higher-order functions, and immutability.
 
 === Type system
@@ -245,7 +245,7 @@ This means that the types unify even though they are syntactically different.
 
 To check for semantic equality of types we see if two types can be unified.
 Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
-In Rust, the _trait solver_ is responsible for checking unification of types#cite-footnote("Rust Compiler Development Guide, The ty module: representing types", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/ty.html").
+In Rust, the _trait solver_ is responsible for checking unification of types#cite-footnote("Rust Compiler Development Guide, The ty module: representing types", "2024-04-06", "https://web.archive.org/web/20231205205735/https://rustc-dev-guide.rust-lang.org/ty.html").
 The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
 The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are Horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
 /*Before unification, types are normalized to handle type projections #cite-footnote("Chalk book, Type equality and unification", "2024-04-06", "https://rust-lang.github.io/chalk/book/clauses/type_equality.html").
@@ -329,7 +329,7 @@ caption: [
 ) <rust-type-unification>
 
 === Borrow checking
-Another crucial step for the Rust compiler is borrow checking#cite-footnote("Rust Compiler Development Guide, MIR borrow check", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/borrow_check.html").
+Another crucial step for the Rust compiler is borrow checking#cite-footnote("Rust Compiler Development Guide, MIR borrow check", "2024-04-06", "https://web.archive.org/web/20230324181544/https://rustc-dev-guide.rust-lang.org/borrow_check.html").
 The main responsibilities for the borrow checker are to make sure that:
 - All variables are initialized before being used
 - No value is moved twice or used after being dropped
@@ -410,7 +410,7 @@ We chose Agsy as this is the well known tool that is part of Agda project itself
 
 ==== Agsy <agsy>
 Agsy is the official term search based proof assistant for Agda.
-It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#cite-footnote("Agda, Automatic Proof Search (Auto)", "2024-04-06", "https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html").
+It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#cite-footnote("Agda, Automatic Proof Search (Auto)", "2024-04-06", "https://web.archive.org/web/20240410183801/https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html").
 
 We will be looking at the high level implementation of its algorithm for term search.
 In principle Agsy iteratively refines problems into more subproblems, until enough subproblems can be solved.
@@ -561,7 +561,7 @@ The rationale for that is that it is more likely that user wishes to use variabl
 However, they noted that the costs for the tactics need to be tweaked in future work as this was not their focus.
 
 === Term search in Standard ML <standardml>
-As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "2024-04-06", "https://redprl.org/") @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
+As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "2024-04-06", "https://web.archive.org/web/20240316102035/https://redprl.org/") @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
 
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
@@ -800,8 +800,8 @@ BFS is faster only if we manage to cut the proof before exhausting the search at
 In case the first goal we focus at cannot be filled DFS is faster as it doesn't do any work on filling other goals.
 
 === Term search in Haskell
-Wingman#cite-footnote("Hackage, Wingman plugin for Haskell Language Server", "2024-04-06", "https://hackage.haskell.org/package/hls-tactics-plugin-1.6.2.0") is a plugin for Haskell Language Server that provides term search.
-For term search Wingman uses library called Refinery#cite-footnote("Github Refinery repository", "2024-04-06", "https://github.com/TOTBWF/refinery") that is also based on @algebraic-foundations-of-proof-refinement similarly to the Standard ML tool we described in @standardml.
+Wingman#cite-footnote("Hackage, Wingman plugin for Haskell Language Server", "2024-04-06", "https://web.archive.org/web/20240313211704/https://hackage.haskell.org/package/hls-tactics-plugin") is a plugin for Haskell Language Server that provides term search.
+For term search Wingman uses library called Refinery#cite-footnote("Github Refinery repository", "2024-04-06", "https://web.archive.org/web/20230615122227/https://github.com/TOTBWF/refinery") that is also based on @algebraic-foundations-of-proof-refinement similarly to the Standard ML tool we described in @standardml.
 
 As we described the core ideas in @standardml we won't cover them here.
 However, we will take a look at some implementation details.
@@ -908,7 +908,7 @@ This means that it roughly follows the DFS approach described in @standardml.
 
 
 === Term search in Elm with Smyth
-Smyth#cite-footnote("Smyth", "2024-04-06", "https://uchicago-pl.github.io/smyth/") is a system for program sketching in a typed functional language, approximately Elm.
+Smyth#cite-footnote("Smyth", "2024-04-06", "https://web.archive.org/web/20231005015038/https://uchicago-pl.github.io/smyth/") is a system for program sketching in a typed functional language, approximately Elm.
 In @smyth, they describe that it uses evaluation of ordinary assertions that give rise to input-output examples, which are then used to guide the search to complete the holes.
 Symth uses type and example directed synthesis as opposed to other tools in Agda only using type guided search for terms.
 The general idea is to search for terms that satisfy the goal type as well as example outputs for the term given in assertions.
@@ -920,7 +920,7 @@ Smyth has many other optimizations, but they focus on using the information from
 == Program synthesis in Rust
 RusSol is a proof of concept tool to synthesize Rust programs from both function declarations and pre- and post-conditions.
 It is based on separation logic as described in @rust-program-synthesis, and it is the first synthesizer for Rust code from functional correctness specifications.
-Internally it uses SuSLik’s general-purpose proof search framework. #cite-footnote("Github, Synthetic Separation Logic (suslik) repository", "2024-04-06", "https://github.com/JonasAlaif/suslik").
+Internally it uses SuSLik’s general-purpose proof search framework. #cite-footnote("Github, Synthetic Separation Logic (suslik) repository", "2024-04-06", "https://web.archive.org/web/20240410184051/https://github.com/JonasAlaif/suslik").
 RusSol itself is implemented as an extension to `rustc`, the official rust compiler.
 It has separate command line tool, but internally it reuses many parts of the compiler.
 Although the main use case for RusSol is quite different from our use case it shared a lot of common ground.
@@ -1000,7 +1000,7 @@ Let's take a look at some of the popular autocompletion tools and their autocomp
 We will be mostly looking at what kind of semantic information the tools used to provide suggestions.
 
 ==== Clangd
-Clangd#cite-footnote("Clangd, what is clangd?", "2024-04-06", "https://clangd.llvm.org/") is one of the most used autocompletion tools for C/C++.
+Clangd#cite-footnote("Clangd, what is clangd?", "2024-04-06", "https://web.archive.org/web/20240324053051/https://clangd.llvm.org/") is one of the most used autocompletion tools for C/C++.
 It is an LSP server extension to clang compiler and therefore can be used in many editors.
 It suggests functions, methods, variables, etc. are available in the context, and it can handle some mistyping and abbreviations of some words.
 For example using snake case instead of camel case still yields suggestions.
@@ -1010,7 +1010,7 @@ However, it does not try to infer the expected type of the expression that is be
 All in all it serves as a great example of autocompletion tool that has semantic understanding of the program, but does not provide any functionality beyond basics.
 
 ==== Pyright
-Pyright#cite-footnote("GitHub pyright repository", "2024-04-06", "https://github.com/microsoft/pyright") is one of the most used autocompletion tools for Python.
+Pyright#cite-footnote("GitHub pyright repository", "2024-04-06", "https://web.archive.org/web/20240403213050/https://github.com/microsoft/pyright") is one of the most used autocompletion tools for Python.
 It is another LSP server to provide the functionality for multiple IDEs.
 It suggests all the item that are available in scope for autocompletion, and it also suggests the methods/fields that are on the receiver type.
 
@@ -1019,7 +1019,7 @@ There simply isn't that much information available before running the program.
 This seems to be a general limitation to all python autocompletion tools.
 
 ==== Intellij
-Intellij#cite-footnote("IntelliJ IDEA", "2024-04-06", "https://www.jetbrains.com/idea/") is an IDE by JetBrains for Java.
+Intellij#cite-footnote("IntelliJ IDEA", "2024-04-06", "https://web.archive.org/web/20240409180113/https://www.jetbrains.com/idea/") is an IDE by JetBrains for Java.
 Similarly to all other JetBrains products it does not use LSP but rather has all the tooling built into the product.
 It provides the completion of all the items in scope as well the methods/fields of receiver type.
 They call it the "basic completions".
@@ -1040,7 +1040,7 @@ More common usage of static dispatch in Rust means that we more often know the c
 In Java there is often not enough information to suggest longer chains as there are likely too many irrelevant suggestions.
 
 ==== Rust-analyzer <rust-analyzer>
-Rust-analyzer#cite-footnote("rust-analyzer", "2024-04-06", "https://rust-analyzer.github.io/") s an implementation of Language Server Protocol for the Rust programming language. 
+Rust-analyzer#cite-footnote("rust-analyzer", "2024-04-06", "https://web.archive.org/web/20240406183402/https://rust-analyzer.github.io/") s an implementation of Language Server Protocol for the Rust programming language. 
 It provides features like completion and goto definition/references, smart refactorings etc.
 This is also the tool we are extending with term search functionality.
 
@@ -1064,11 +1064,11 @@ To get machine code out of the intermediate representation there is also a uniqu
 
 Similar ideas can be also used in building language tooling.
 Language server protocol (LSP) has been invented to do exactly that.
-The Language Server Protocol#cite-footnote("Language Server Protocol", "2024-04-06", "https://microsoft.github.io/language-server-protocol/") (LSP) is an open, JSON-RPC-based#cite-footnote("JSON-RPC 2.0 Specification", "2024-04-06", "https://www.jsonrpc.org/specification") protocol for use between editors and servers that provide language specific tools for a programming language.
+The Language Server Protocol#cite-footnote("Language Server Protocol", "2024-04-06", "https://web.archive.org/web/20240406114122/https://microsoft.github.io/language-server-protocol/") (LSP) is an open, JSON-RPC-based#cite-footnote("JSON-RPC 2.0 Specification", "2024-04-06", "https://web.archive.org/web/20240409000305/https://www.jsonrpc.org/specification") protocol for use between editors and servers that provide language specific tools for a programming language.
 The protocol takes the position of intermediate representation, front ends are the LSP clients in IDEs and backends are LSP servers.
 We will refer to LSP client as just client and LSP server as just server.
 As the protocol is standardized every client knows how to work with any server.
-LSP was first introduced to public in 2016 and now most#cite-footnote("Language Server Protocol implementations: Tools supporting the LSP", "2024-04-06", "https://microsoft.github.io/language-server-protocol/implementors/tools/") modern IDEs support it.
+LSP was first introduced to public in 2016 and now most#cite-footnote("Language Server Protocol implementations: Tools supporting the LSP", "2024-04-06", "https://web.archive.org/web/20240226024547/https://microsoft.github.io/language-server-protocol/implementors/tools/") modern IDEs support it.
 
 Some of the most common functionalities LSP servers provide according to @editing-support-for-languages-lsp:
 - Go to definition / references
@@ -1112,7 +1112,7 @@ This is very different from ordering suggestions as the suggested code usually h
 This is also different from what we are doing with the term search.
 In the case of term search we only try to produce code that some contributes towards the parent term of correct type.
 However, language models can also generate code that do not contribute towards finding the goal type.
-Let's look at the example for the `ripgrep`#cite-footnote("GitHub ripgrep repository", "2024-04-06", "https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584") crate shown in @rust-builder.
+Let's look at the example for the `ripgrep`#cite-footnote("GitHub ripgrep repository", "2024-04-06", "https://web.archive.org/web/20240410184204/https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584") crate shown in @rust-builder.
 #figure(
 sourcecode()[```rs
 // Inside `printer_json` at `/crates/core/flags/hiargs.rs`
@@ -1562,7 +1562,7 @@ It only attempts items we have in scope and does not consider any functions / ty
 The items in scope contains:
 1. Constants
 2. Static items
-3. Generic parameters (constant generics#cite-footnote("The Rust Reference, Generic parameters", "2024-04-06", "https://doc.rust-lang.org/reference/items/generics.html"))
+3. Generic parameters (constant generics#cite-footnote("The Rust Reference, Generic parameters", "2024-04-06", "https://web.archive.org/web/20240324062312/https://doc.rust-lang.org/reference/items/generics.html"))
 4. Local items
 
 As this tactic only depends on the values in scope we don't have to call it every iteration.
@@ -1731,9 +1731,9 @@ caption: [
 ) <rust-blanket-impl>
 
 One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
-This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://doc.rust-lang.org/reference/items/associated-items.html#methods").
+This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://web.archive.org/web/20240324062328/https://doc.rust-lang.org/reference/items/associated-items.html#methods").
 These types include but are not limited to `Box<S>`, `Rc<S>`, `Arc<S>`, `Pin<S>`.
-For example there is a method signature for `Option<T>` type in standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
+For example there is a method signature for `Option<T>` type in standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://web.archive.org/web/20240317121015/https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
 
 #figure(
 sourcecode(numbering: none)[```rs
@@ -1883,7 +1883,7 @@ All experiments are conducted on a consumer-grade computer with an AMD Ryzen 7 C
 ==== Choice of reference implementations
 For our experiments, we select a number of open source Rust libraries.
 In Rust, #emph[crate] is the name for a library.
-We use _crates.io_#cite-footnote("The Rust community’s crate registry", "2024-04-06", "https://crates.io/"), the Rust community’s crate registry as a source of information of the most popular crates.
+We use _crates.io_#cite-footnote("The Rust community’s crate registry", "2024-04-06", "https://web.archive.org/web/20240409223247/https://crates.io/"), the Rust community’s crate registry as a source of information of the most popular crates.
 _Crates.io_ is _de facto_ standard crate registry, so we believe that it reflects the popularity of the crates in the Rust ecosystem very well.
 
 We select representative examples of different kinds of Rust programs by picking crates from popular categories on _crates.io_. 
@@ -2036,7 +2036,7 @@ We discuss the performance of our algorithm for different styles of programs, as
 ==== Generics
 Although we managed to make the algorithm work decently with a low amount of generics, extensive use of generics slows it down.
 Crates in the category "mathematics" are highly generic, and as a result the average search time in this category is about 15 times longer than the average over all categories (767ms vs 50ms, @tbl-per-category-results).
-One example is `nalgebra`#cite-footnote("Crates.io, nalgebra library", "2024-04-06", "https://crates.io/crates/nalgebra") crate,
+One example is `nalgebra`#cite-footnote("Crates.io, nalgebra library", "2024-04-06", "https://web.archive.org/web/20230928073209/https://crates.io/crates/nalgebra") crate,
 which uses generic parameters in almost all of its functions.
 The slowdown occurs because the wishlist of types grows very large, since there are many generic types with different trait bounds.
 

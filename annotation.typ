@@ -1,8 +1,9 @@
+#set text(lang: "ee")
 Rust on üldotstarbeline programmeerimiskeel nii süsteemi kui ka rakenduste tarkvara loomiseks.
-Erinevalt teistest programmeerimiskeeltest suudab Rust garanteerida turvalise mälu kasutuse kasutamata spetsiaalset mälu haldurit.
-Rust konkureerib programmeerimiskeeltega C ja C++ pakkudes arendajale paremaid tööriistu ja paremat arenduse kogemust ilma järele andmata programmi kiiruses.
+Erinevalt teistest programmeerimiskeeltest suudab Rust garanteerida turvalise mälu kasutuse kasutamata spetsiaalset mäluhaldurit.
+Rust konkureerib programmeerimiskeeltega C ja C++ pakkudes arendajale paremaid tööriistu ja paremat arenduse kogemust järele andmata programmi kiiruses.
 
-Rusti tüübi süsteem sarnaneb funktsionaalsete keelte tüübisüsteemidele sisaldades algebralisi andmetüüpe.
+Rusti tüübisüsteem sarnaneb funktsionaalsete keelte tüübisüsteemidele sisaldades algebralisi andmetüüpe.
 Arendaja kogemus Rustis sarnaneb seetõttu rohkem kogemusele kõrgematasemelistes funktsionaalsetes programmeerimiskeeltes kui kogemusele C/C++ arenduses.
 Samas Rustis puudub hetkel tööriist, mis suudaks automaatselt genereerida avaldisi, mis vastavad oodatud tüübile.
 Sellised tööriistad on tavalised funktsionaalsetes programmeerimiskeeltes ja me usume, et ka Rustil on taolisest tööriistast kasu.
