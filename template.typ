@@ -29,13 +29,11 @@
 
   // Set up notes in margin
   // https://github.com/ntjess/typst-drafting
-  /*
   set page(
     // Extra wide A4 to give extra room for notes
     margin: (left: 2.5cm, right: 6.5cm), paper: "a4", width: 25cm
   )
   set-page-properties()
-  */
 
   // Title page.
   align(center, text(1.2em, weight: 50, "TALLINN UNIVERSITY OF TECHNOLOGY"))

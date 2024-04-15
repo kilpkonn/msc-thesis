@@ -48,13 +48,8 @@ caption: [
 ) <into-example-1>
 
 
-From the types of values in scope and constructors of `Option`, we can produce the expected result for `todo!()` by applying the constructor `Some` to `arg` and returning it.
+From the types of values in scope and constructors of ```rust Option```, we can produce the expected result for ```rust todo!()``` by applying the constructor ```rust Some``` to ```rust arg``` and returning it.
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
-
-#todo-philipp[
-  Save web links to the #link("web.archive.org").
-  Think about turning links into proper items in the bibliography (keyword: `@online { ... }`).
-]
 
 == Motivation
 Due to Rusts's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
@@ -76,7 +71,7 @@ caption: [
   ],
 ) <motivation-example-1>
 
-We can see that converting the result `service_res` from the service to `FooResponse` and wrapping it in `Some(Json(...))` can be automatically generated just by making the types match.
+We can see that converting the result ```rust service_res``` from the service to ```rust FooResponse``` and wrapping it in ```rust Some(Json(...))``` can be automatically generated just by making the types match.
 This means that term search can be used to reduce the amount of code the programmer has to write.
 
 When investigating common usage patterns among programmers using large language models for code generation, @how-programmers-interact-with-code-generation-models[p. 19] found two patterns:
@@ -119,7 +114,7 @@ In this thesis we make following contributions:
 
 We have upstreamed our implementation of term search to the `rust-analyzer` project.
 It is part of the official distribution since version #link("https://rust-analyzer.github.io/thisweek/2024/02/19/changelog-221.html")[`v0.3.1850`], released on February 19th 2024.
-An archived version can be found at #link("https://archive.softwareheritage.org/browse/revision/6b250a22c41b2899b0735c5bc607e50c3d774d74/?origin_url=https://github.com/kilpkonn/rust-analyzer&snapshot=25aaa3ceeca154121a5c2944f50ec7b17819a315")[`swh:1:rev:6b250a22c41b2899b0735c5bc607e50c3d774d74`].
+An #note[An archived version can be found at the Software Heritage Archive `cite(blah)`][archived] version can be found at #link("https://archive.softwareheritage.org/browse/revision/6b250a22c41b2899b0735c5bc607e50c3d774d74/?origin_url=https://github.com/kilpkonn/rust-analyzer&snapshot=25aaa3ceeca154121a5c2944f50ec7b17819a315")[`swh:1:rev:6b250a22c41b2899b0735c5bc607e50c3d774d74`].
 
 = Background <background>
 In this chapter we will take a look at the type system of the Rust programming language to understand the context of our task.
@@ -197,10 +192,10 @@ caption: [
 To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
 For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
 Note that structures and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
-For example in @rust-type-constructor-generics we made the struct `Foo` be generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
-One of the most used generic enums in Rust is the `Option` type which is used to represent optional values.
-The `None` constructor takes no arguments and indicates that there is no value.
-Constructor `Some(T)` takes one term of type `T` and indicates that there is some value stored in `Option`.
+For example in @rust-type-constructor-generics we made the struct ```rust Foo``` be generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
+One of the most used generic enums in Rust is the ```rust Option``` type which is used to represent optional values.
+The ```rust None``` constructor takes no arguments and indicates that there is no value.
+Constructor ```rust Some(T)``` takes one term of type `T` and indicates that there is some value stored in `Option`.
 Initializing structs and enums with different types is shown in the `main` function at the end of @rust-type-constructor-generics.
 
 #figure(
@@ -238,8 +233,8 @@ Using syntactic equality to compare types can cause problems.
 Rust high-level intermediate representation (HIR) has multiple ways to define a type.
 This means that the same type can be defined in multiple ways that are not syntactically equal.
 
-For example, in program `let x: i32 = 0;` the type of `x` and the type of literal `0` are not syntactically equal.
-However, by inferring `0` to have type of `i32` we see that they are semantically equal.
+For example, in program ```rust let x: i32 = 0;``` the type of `x` and the type of literal ```rust 0``` are not syntactically equal.
+However, by inferring ```rust 0``` to have type of ```rust i32``` we see that they are semantically equal.
 This means that the types unify even though they are syntactically different.
 
 
@@ -347,20 +342,20 @@ After that, regions for every lifetime are built up.
 A region for a lifetime is a set of program points at which the region is valid.
 The regions are built up from constraints:
 - A liveness constraint arises when some variable whose type includes a region R is live at some point P. This simply means that the region R must include the point P.
-- Outlives constraint `'a: 'b` means that the region of `'a` has to also be a superset of the region of `'b`.
+- Outlives constraint ```rust 'a: 'b``` means that the region of ```rust 'a``` has to also be a superset of the region of ```rust 'b```.
 From the regions, the borrow checker can calculate all the borrows at every program point.
 An extra pass is made over all the variables, and errors are reported whenever aliasing rules are violated.
 
 Rust also has a concept of two-phased borrows that splits the borrow into two phases: reservation and activation.
-These are used to allow nested function calls like `vec.push(vec.len())`.
-These programs would otherwise be invalid, as in the example above `vec.len()` is immutably borrowed while `vec.push(...)` takes the mutable borrow.
+These are used to allow nested function calls like ```rust vec.push(vec.len())```.
+These programs would otherwise be invalid, as in the example above ```rust vec.len()``` is immutably borrowed while ```rust vec.push(...)``` takes the mutable borrow.
 The two-stage borrows are treated as follows:
 - It is checked that no mutable borrow is in conflict with the two-phase borrow at the reservation point (`vec.len()` for the example above).
 - Between the reservation and the activation point, the two-phase borrow acts as a shared borrow.
 - After the activation point, the two-phase borrow acts as a mutable borrow.
 
-There is also an option to escape the restrictions of borrow checker by using `unsafe` code blocks.
-In an `unsafe` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow checker.
+There is also an option to escape the restrictions of borrow checker by using ```rust unsafe``` code blocks.
+In an ```rust unsafe``` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow checker.
 
 
 == Term search <term-search>
@@ -396,7 +391,7 @@ caption: [
     Prove $0 + n = n$ in Idris
   ],
 ) <idirs-plus-reduces-z>
-The example above is quite trivial, as the compiler can figure out from the definition of `add` that `add Z m` is defined to be `m` according to first clause in the definition of `add`
+The example above is quite trivial, as the compiler can figure out from the definition of `add` that ```hs add Z m``` is defined to be `m` according to first clause in the definition of `add`
 Based on that we can prove `add_zero` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type i.e. proposition.
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
@@ -432,7 +427,7 @@ For example, we can either use some local variable, function or type constructor
 
 In case we use type constructors or functions that take multiple arguments, we need to solve all the subproblems of finding terms for arguments.
 The same is true for case splitting: we have to solve subproblems for all the cases.
-For example shown in @agsy_all_branches we see that function `foo : (A, B, C) -> Foo`
+For example shown in @agsy_all_branches we see that function ```hs foo : (A, B, C) -> Foo```
 can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
 
 #figure(
@@ -442,8 +437,8 @@ can only be used if we manage to solve the subproblems of finding terms of corre
   ],
 ) <agsy_all_branches>
 
-Agsy uses problem collections (`PrbColl`) to model the subproblems that need to be all solved individually for the "top-level" problem to be solved.
-Solution collections (`SolColl`) are used to keep track of solutions for particular problem collection.
+Agsy uses problem collections (```hs PrbColl```) to model the subproblems that need to be all solved individually for the "top-level" problem to be solved.
+Solution collections (```hs SolColl```) are used to keep track of solutions for particular problem collection.
 A solution collection has a solution for each of the problems in a corresponding problem collection.
 
 The intuition for the tool is following:
@@ -452,13 +447,13 @@ The intuition for the tool is following:
 3. If we manage to solve _all_ the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
 
 The algorithm itself is based around depth first search (DFS) and consists of two subfunctions.
-Function `search: Problem -> Maybe [Solution]` is the main entry point that attempts to find a set of solutions for a problem.
-The function internally makes use of another function `searchColl: PrbColl -> Maybe [SolColl]` that attempts to find set of solution collections for a problem collection.
+Function ```hs search: Problem -> Maybe [Solution]``` is the main entry point that attempts to find a set of solutions for a problem.
+The function internally makes use of another function ```hs searchColl: PrbColl -> Maybe [SolColl]``` that attempts to find set of solution collections for a problem collection.
 The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-snippet.
 
 We model Problem collections as a list of subproblems together with a _refinement_ that produces those problems.
 A refinement is a recipe to transform the problem into zero or more subproblems.
-For example, finding a pair `(Bool, Int)` can be refined to two subproblems of finding a term of type `Bool` and another of type `Int` and applying the tuple constructor `(_,_)`.
+For example, finding a pair ```hs (Bool, Int)``` can be refined to two subproblems of finding a term of type ```hs Bool``` and another of type ```hs Int``` and applying the tuple constructor ```hs (_,_)```.
 In case we refine the problem without creating any new subproblems then we can call the problem solved.
 Otherwise, all the subproblems need to be solved for the solution to hold.
 The refinement is stored so that on a successful solution we can construct the term solving the top-level problem from the solution collection.
@@ -470,12 +465,12 @@ An example tactic that attempts to solve the problem by filling it with locals i
 
 In case refining does not create any new problem collections, base case is reached, and the problem is trivially solved (line 9 in @agsy-snippet).
 When there are new problem collections, we try to solve _any_ of them.
-In case we cannot solve any of the problem collections, then the problem is unsolvable, and we give up by returning `Nothing` (line 15).
+In case we cannot solve any of the problem collections, then the problem is unsolvable, and we give up by returning ```hs Nothing``` (line 15).
 Otherwise, we return the solutions we found.
 
 We solve problem collections by using the `searchColl` function.
 Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
-We only care about cases where we can fully solve the problem, so we discard them by returning `Nothing`.
+We only care about cases where we can fully solve the problem, so we discard them by returning ```hs Nothing```.
 On line 14 of @agsy-snippet we filter out unsuccessful solutions.
 
 For the successful solution collections we substitute the refinements we took into the problem to get back solution.
@@ -566,7 +561,7 @@ As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "20
 The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
 The telescope is required to work on type systems with dependent types.
-In contrast, typesystems without dependent types can use ordinary `List` data structure as there are no relations between subproblems.
+In contrast, typesystems without dependent types can use ordinary ```hs List``` data structure as there are no relations between subproblems.
 
 To more effectively propagate substitutions to subproblems in telescope @algebraic-foundations-of-proof-refinement suggests to use BFS instead of DFS.
 The idea is to run all the tactics once on each subproblem, repeatedly.
@@ -616,9 +611,9 @@ The status is either
  - *AllSolved* for problem collections that do not have any unresolved subproblems in them and are ready to be converted into solutions.
  - *NoSolution* for problem collections that have remaining unresolved subproblems that we are unable to make any progress on.
  - *RemainingProblems* for all the problem collections that we can make progress on by incrementally stepping the problem further.
- In case of `AllSolved` we return the solution as we are done with the search.
- In case of `NoSolution` we discard the problem from the queue.
- Otherwise, (in case of `RemainingProblems`) we step the problem collection at the head of the queue and push the results back to the back of the queue.
+ In case of ```hs AllSolved``` we return the solution as we are done with the search.
+ In case of ```hs NoSolution``` we discard the problem from the queue.
+ Otherwise, (in case of ```hs RemainingProblems```) we step the problem collection at the head of the queue and push the results back to the back of the queue.
  Now we are ready to keep iterate the loop again with the new problem collection at the head of the queue.
 
  Stepping the problem collection steps (or adds atomic refinements) to all problems in the problem collection and propagates the constraints to rest of the subproblems if refinements produce any new constraints.
@@ -669,11 +664,11 @@ caption: [
   ],
 ) <standardml-bfs-code>
 
-Consider the example where we are searching for a goal `?goal :: ([a], a -> String)` that is a pair of a list of some type and a function of that type to `String`.
+Consider the example where we are searching for a goal ```hs ?goal :: ([a], a -> String)``` that is a pair of a list of some type and a function of that type to `String`.
 Similar goals in real word could arise from finding a list together with a function that can map the elements to string to print them (`show` function).
 
 Note that in this example we want the first member of pair to be list, but we do not care of the types inside the list.
-The only requirement is that the second member of pair can map the same type to `String`.
+The only requirement is that the second member of pair can map the same type to ```hs String```.
 We have the following items in scope:
 ```hs
 bar : Bar
@@ -683,10 +678,10 @@ mk_list_bar : Bar -> [Bar]
 show_bar  : Bar -> String
 ```
 
-To simplify the notation we will name the goals as `?<number>`, for example `?1` for goal 1.
+To simplify the notation we will name the goals as ```hs ?<number>```, for example ```hs ?1``` for goal 1.
 
-First we can split the goal of finding a pair to two subgoals `[?1 : [a], ?2 : a -> String]`.
-This is the same step for BFS and DFS as there is not much else to do with `?goal` as there are now functions
+First we can split the goal of finding a pair to two subgoals ```hs [?1 : [a], ?2 : a -> String]```.
+This is the same step for BFS and DFS as there is not much else to do with ```hs ?goal``` as there are now functions
 that take us to a pair of any types except using pair constructor.
 At this point we have two subgoals to solve
 ```hs
@@ -695,26 +690,26 @@ At this point we have two subgoals to solve
 
 Now we are at where the differences between DFS and BFS start playing out.
 First let's look at how the DFS would handle the goals.
-First we focus on `?1`.
-We can use `mk_list_foo` to transform the goal to finding of something of type `Foo`.
+First we focus on ```hs ?1```.
+We can use `mk_list_foo` to transform the goal to finding of something of type ```hs Foo```.
 Now we have the following solution and goals.
 
 ```hs
 (mk_list_foo(?3 : Foo), ?2 : a -> String)
 ```
 
-Note that although the `a` in `?s2` has to be of type `Foo` we do not propagate this knowledge there yet as we are focusing on `?3`.
+Note that although the `a` in ```hs ?s2``` has to be of type ```hs Foo``` we do not propagate this knowledge there yet as we are focusing on ```hs ?3```.
 We only propagate the constraints when we discard the hole as filled.
-We use `mk_foo` to create new goal `?4 : Bar` which we solve by providing `bar`.
-Now we propagate the constraints to the remaining subgoals, `?2` in this example.
-This means that the second subgoal becomes `?2 : Foo -> String` as shown below.
+We use `mk_foo` to create new goal ```hs ?4 : Bar``` which we solve by providing `bar`.
+Now we propagate the constraints to the remaining subgoals, ```hs ?2``` in this example.
+This means that the second subgoal becomes ```hs ?2 : Foo -> String``` as shown below.
 
 ```hs
 (mk_list_foo(mk_foo(?4 : Bar), ?2 : a -> String)
 (mk_list_foo(mk_foo(bar)), ?2 : Foo -> String)
 ```
-However, we cannot find anything of type `Foo -> String` so we have to revert all the way to `?1`.
-This time we use `mk_list_bar` to fill `?1` meaning that the remaining subgoal becomes `?2 : Bar -> String`.
+However, we cannot find anything of type ```hs Foo -> String``` so we have to revert all the way to ```hs ?1```.
+This time we use `mk_list_bar` to fill ```hs ?1``` meaning that the remaining subgoal becomes ```hs ?2 : Bar -> String```.
 We can fill it by providing `show_bar`.
 As there are no more subgoals remaining the problem is solved with the steps shown below.
 
@@ -748,9 +743,9 @@ The first iteration is the same as described above after which we have two subgo
 queue = [[?1, ?2]]
 ```
 
-As we are always working on the head element of the queue we are still working on `?1`.
-Once again we use `mk_list_foo` to transform the first subgoal to `?3 : Foo` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
-We also propagate the information to other subgoals so that we constrain `?2` to either `Foo -> String` or `Bar -> String`.
+As we are always working on the head element of the queue we are still working on ```hs ?1```.
+Once again we use `mk_list_foo` to transform the first subgoal to ```hs ?3 : Foo``` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
+We also propagate the information to other subgoals so that we constrain ```hs ?2``` to either ```hs Foo -> String``` or ```hs Bar -> String```.
 ```hs
 (mk_list_foo(?3 : Foo), ?2 : Foo -> String)
 (mk_list_bar(?4 : Bar), ?2 : Bar -> String)
@@ -758,10 +753,10 @@ We also propagate the information to other subgoals so that we constrain `?2` to
 queue = [[?3, ?2], [?4, ?2]]
 ```
 
-In the next step we search for something of type `Foo` for `?3` and a function of type `Foo -> String` in `?2`.
+In the next step we search for something of type ```hs Foo``` for ```hs ?3``` and a function of type ```hs Foo -> String``` in ```hs ?2```.
 We find `bar` for the first goal, but not anything for the second goal.
 This means we discard the branch as we are not able to solve the problem collection.
-Note that at this point we still have `?4` pending, meaning we have not yet exhausted the search in current "branch".
+Note that at this point we still have ```hs ?4``` pending, meaning we have not yet exhausted the search in current "branch".
 Reverting now means that we save some work that was guaranteed to have no effect on the overall outcome.
 The search space becomes
 ```hs
@@ -860,7 +855,7 @@ Constants, c ::= Type (type universes)
     | str (string literal)
 ```],
 caption: [
-    $"TT"_"dev"$ syntax by @idris2-design-and-implementation / © Cambridge University Press 2013
+    $"TT"_"dev"$ syntax, following @idris2-design-and-implementation[Fig. 1 & Fig. 6] / © Cambridge University Press 2013
   ],
 ) <idris-tt-syntax>
 
@@ -920,12 +915,12 @@ Smyth has many other optimizations, but they focus on using the information from
 == Program synthesis in Rust
 RusSol is a proof of concept tool to synthesize Rust programs from both function declarations and pre- and post-conditions.
 It is based on separation logic as described in @rust-program-synthesis, and it is the first synthesizer for Rust code from functional correctness specifications.
-Internally it uses SuSLik’s general-purpose proof search framework. #cite-footnote("Github, Synthetic Separation Logic (suslik) repository", "2024-04-06", "https://web.archive.org/web/20240410184051/https://github.com/JonasAlaif/suslik").
+Internally it uses SuSLik’s @suslik general-purpose proof search framework.
 RusSol itself is implemented as an extension to `rustc`, the official rust compiler.
 It has separate command line tool, but internally it reuses many parts of the compiler.
 Although the main use case for RusSol is quite different from our use case it shared a lot of common ground.
 
-The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the `todo!()` macro on line 5 in @russol-input.
+The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the ```rust todo!()``` macro on line 5 in @russol-input.
 
 #figure(
 sourcecode(highlighted: (5,))[```rs
@@ -953,7 +948,7 @@ caption: [
     RusSol output for `todo!()` macro
   ],
 ) <russol-output>
-It can also insert `unreachable!()` macros to places that are never reached during the program execution.
+It can also insert ```rust unreachable!()``` macros to places that are never reached during the program execution.
 
 RusSol works on the HIR level of abstraction.
 It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
@@ -980,7 +975,7 @@ The authors of RusSol pointed out the main limitations of the tool are:
 1. It does not support traits
 2. It does not support conditionals as it lacks branch abduction
 3. It does not synthesize arithmetic expressions
-4. It does not support `unsafe` code
+4. It does not support ```rust unsafe``` code
 
 They also noted that first three of them can be solved with some extra engineering effort, but the last one requires more fundamental changes to the tool.
 
@@ -1000,8 +995,8 @@ Let's take a look at some of the popular autocompletion tools and their autocomp
 We will be mostly looking at what kind of semantic information the tools used to provide suggestions.
 
 ==== Clangd
-Clangd#cite-footnote("Clangd, what is clangd?", "2024-04-06", "https://web.archive.org/web/20240324053051/https://clangd.llvm.org/") is one of the most used autocompletion tools for C/C++.
-It is an LSP server extension to clang compiler and therefore can be used in many editors.
+Clangd#cite-footnote("Clangd, what is clangd?", "2024-04-06", "https://web.archive.org/web/20240324053051/https://clangd.llvm.org/") is a popular autocompletion tool for C/C++.
+It is a language server extension to clang compiler and therefore can be used in many editors.
 It suggests functions, methods, variables, etc. are available in the context, and it can handle some mistyping and abbreviations of some words.
 For example using snake case instead of camel case still yields suggestions.
 
@@ -1010,8 +1005,7 @@ However, it does not try to infer the expected type of the expression that is be
 All in all it serves as a great example of autocompletion tool that has semantic understanding of the program, but does not provide any functionality beyond basics.
 
 ==== Pyright
-Pyright#cite-footnote("GitHub pyright repository", "2024-04-06", "https://web.archive.org/web/20240403213050/https://github.com/microsoft/pyright") is one of the most used autocompletion tools for Python.
-It is another LSP server to provide the functionality for multiple IDEs.
+Pyright#cite-footnote("GitHub pyright repository", "2024-04-06", "https://web.archive.org/web/20240403213050/https://github.com/microsoft/pyright") is a popular language server for Python.
 It suggests all the item that are available in scope for autocompletion, and it also suggests the methods/fields that are on the receiver type.
 
 Whilst it tries to provide more advanced features than `clangd` it does not get much further due to python being dynamically typed language.
@@ -1021,7 +1015,7 @@ This seems to be a general limitation to all python autocompletion tools.
 ==== Intellij
 Intellij#cite-footnote("IntelliJ IDEA", "2024-04-06", "https://web.archive.org/web/20240409180113/https://www.jetbrains.com/idea/") is an IDE by JetBrains for Java.
 Similarly to all other JetBrains products it does not use LSP but rather has all the tooling built into the product.
-It provides the completion of all the items in scope as well the methods/fields of receiver type.
+It provides the completion of all the items in scope as well the methods and fields of receiver type.
 They call it the "basic completions".
 The tool has also understanding of expected type, so it attempts to order the suggestions based on their types.
 This means that suggestions with expected type appear first in the list.
@@ -1057,10 +1051,28 @@ However, it only suggests trivial ways of filling holes, so we are looking to im
 === Language Server Protocol <lsp-protocol>
 Implementing autocompletion for every language and for every IDE results in a $O(N * M)$ complexity where N is the number of languages supported and M is the number of IDEs supported.
 In other words one would have to write a tool for every language-IDE pair.
-This problem is very similar to problem in compilers design with N languages and M target architectures.
-As they describe in @compiler-design the $O(N*M)$ can be reduced to $O(N+M)$ by separating the compiler to front and back end.
+This problem is very similar to problem in compiler design with N languages and M target architectures.
+The problem can be reduced from $O(N*M)$ to $O(N+M)$ by separating the compiler to front and back end @compiler-design[Section 1.3].
 The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
 To get machine code out of the intermediate representation there is also a unique back end for every target architecture.
+
+#todo("Most -> Many")
+#todo("Say first, then citation")
+
+#todo-philipp[
+  Check sentences for occurence of "... in `@<ref>`".
+  Rephrase the sentences so that the reference can be put at the end (or similar).
+  I.e. that the sentence makes sense even with out it.
+]
+
+#todo-philipp[
+  Replace all occurences of `foo()` with ```rust foo()```.
+]
+
+#todo-philipp[
+  Check for missing or extra definite/indefinite articles (the/a etc.)
+]
+
 
 Similar ideas can be also used in building language tooling.
 Language server protocol (LSP) has been invented to do exactly that.
@@ -1070,6 +1082,14 @@ We will refer to LSP client as just client and LSP server as just server.
 As the protocol is standardized every client knows how to work with any server.
 LSP was first introduced to public in 2016 and now most#cite-footnote("Language Server Protocol implementations: Tools supporting the LSP", "2024-04-06", "https://web.archive.org/web/20240226024547/https://microsoft.github.io/language-server-protocol/implementors/tools/") modern IDEs support it.
 
+#todo-philipp[
+  Some footnote reference#footnote[
+    The Language Server Protocol,
+    #link("https://microsoft.github.io/language-server-protocol/implementors/tools")
+    (Accessed: #link("https://web.archive.org/web/20240226024547/https://microsoft.github.io/language-server-protocol/implementors/tools/")[2024-04-06])
+  ]
+]
+
 Some of the most common functionalities LSP servers provide according to @editing-support-for-languages-lsp:
 - Go to definition / references
 - Hover
@@ -1078,6 +1098,8 @@ Some of the most common functionalities LSP servers provide according to @editin
 - Formatting
 - Refactoring routines (extract function, etc.)
 - Semantic syntax highlighting
+
+#todo("Say somewhere that capabilities are optional")
 
 The high level communication of client and server is show in @lsp-data-flow.
 The idea is that when the programmer works in the IDE the client sends all text edits to server.
@@ -1105,13 +1127,12 @@ In @code-prediction-trees-transformers they state that one of the most obvious u
 They state that the using a model for ordering the suggestions is especially useful in dynamically typed languages as it is otherwise rather hard to order suggestions.
 Although the Rust language has strong type system we still suffer from prioritizing different terms that have the same type.
 
-In addition to ordering the analytically created suggestions machine learning models can be used to generate code itself.
-For example in @pre-trained-llm-code-gen they introduce a model that can generate code for up to 23 different programming languages.
-The general flow is that when the user has written the function signature and maybe some human-readable documentation for the function they can prompt the model to generate the body for the function.
-This is very different from ordering suggestions as the suggested code usually has many tokens in whilst the classical approach is usually limited to on or sometimes very few tokens.
-This is also different from what we are doing with the term search.
-In the case of term search we only try to produce code that some contributes towards the parent term of correct type.
-However, language models can also generate code that do not contribute towards finding the goal type.
+In addition to ordering the analytically created suggestions, machine learning models can be used to generate code itself.
+Such models generate code for many different programming languages @pre-trained-llm-code-gen.
+The general flow is that first the user writes the function signature and maybe some human-readable documentation, and then prompts the model to generate the body of the function.
+This is very different from ordering suggestions as the suggested code usually has many tokens in whilst the classical approach is usually limited to one or sometimes very few tokens.
+This is also different from what we are doing with the term search: we only try to produce code that contributes towards the parent term of correct type.
+However, language models can also generate code where term search fails.
 Let's look at the example for the `ripgrep`#cite-footnote("GitHub ripgrep repository", "2024-04-06", "https://web.archive.org/web/20240410184204/https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584") crate shown in @rust-builder.
 #figure(
 sourcecode()[```rs
@@ -1127,12 +1148,12 @@ fn printer_json<W: std::io::Write>(&self, wtr: W) -> JSON<W> {
 ```],
 caption: [
     Builder pattern in Rust.
-    Setter methods do not change the type of term.
+    Setter methods return a value of the receiver type.
   ],
 ) <rust-builder>
-As we can see from the changes of type added in comments the type of the term only changes on the first and last line of the function body.
+The type of the term only changes on the first and last line of the function body.
 As the lines in the middle do not affect the type of the builder in any way there is also no way for the term search to generate them.
-Machine learning models however are not affected by this as it may be possible to derive those lines from the function docstring, name or rest of the context.
+Machine learning models however are not affected by this as it may be possible to derive those lines from the function documentation, name or rest of the context.
 
 Although the machine learning models are able to generate more complex code they have also downside of having lots of uncertainty in them.
 It is very hard to impossible for any human to understand what are the outputs for any given input.
@@ -1150,7 +1171,7 @@ We will first take a look at using it for filling "holes" in the program and lat
 Filling holes is a common use case for term search as we have found in @term-search.
 Timing constrains for it are not as strict as for autocompletion, yet the user certainly doesn't want to wait for a considerable amount of time.
 
-One of the most known examples of holes in Rust programs is the `todo!()` macro.
+One of the most known examples of holes in Rust programs is the ```rust todo!()``` macro.
 It is a "hole" as it denotes that there should be a program in the future, but there isn't now.
 These holes can be filled using term search to search for programs that fit in the hole.
 All the programs generated by term search are valid programs meaning that they compile.
@@ -1170,8 +1191,8 @@ caption: [
 ) <rust-filling-todo>
 
 In addition to `todo!()` macro holes `rust-analyzer` has a concept of typed holes as we described in @rust-analyzer.
-From term search perspective they work in the same way as `todo!()` macros - term search needs to come up with a term of some type to fill them.
-The same example with typed holed instead of `todo!()` macros can be found in @rust-filling-typed-hole.
+From term search perspective they work in the same way as ```rust todo!()``` macros - term search needs to come up with a term of some type to fill them.
+The same example with typed holed instead of ```rust todo!()``` macros can be found in @rust-filling-typed-hole.
 #figure(
 sourcecode()[```rs
 fn main() {
@@ -1202,8 +1223,8 @@ That however is out of scope of this thesis.
 
 In addition to technical limitations, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
 In @usability-of-ownership they found that it is very common that the programmer has to restructure the program to satisfy the borrow checker.
-The simplest case for it is to either move some lines around in function or to add `.clone()` to avoid moving the value.
-For example consider @rust-autocompletion with the cursor at `|`:
+The simplest case for it is to either move some lines around in function or to add ```rust .clone()``` to avoid moving the value.
+For example consider @rust-autocompletion with the cursor at "```rust |```":
 #figure(
 sourcecode(highlighted: (10,))[```rs
 /// A function that takes an argument by value
@@ -1222,12 +1243,12 @@ caption: [
     Autocompletion of moved values
   ],
 ) <rust-autocompletion>
-The user wants to also pass `my_string` to `bar(...)` but this does not satisfy the borrow checking rules as the value was moved to `foo(...)` on the previous line.
-The simplest fix for it is to change the previous line to `foo(my_string.clone())` so that the value is not moved.
+The user wants to also pass `my_string` to ```rust bar(...)``` but this does not satisfy the borrow checking rules as the value was moved to ```rust foo(...)``` on the previous line.
+The simplest fix for it is to change the previous line to ```rust foo(my_string.clone())``` so that the value is not moved.
 This however can only be done by the programmer as there are other ways to solve it, for example making the functions take the reference instead of value.
 As also described in @usability-of-ownership the most common way to handle borrow checker errors is to write the code first and then fix the errors as they come up.
 Inspired by this we believe that is better to suggest items that make the program do not borrow check than not suggest them at all.
-If we only suggest items that borrow check the `bar(my_string)` function call would be ruled out as there is no way to call it without modifying the rest of the program.
+If we only suggest items that borrow check the ```rust bar(my_string)``` function call would be ruled out as there is no way to call it without modifying the rest of the program.
 
 
 == Implementation
@@ -1242,7 +1263,7 @@ This includes but is not limited to functions, traits, modules, ADTs, etc.
 Lowering to HIR is done lazily.
 For example most function bodies are usually not lowered at this stage.
 One limitation of the `rust-analyzer` as of now is that it doesn't properly handle lifetimes.
-Explicit lifetimes are all mapped to `'static` lifetimes and implicit lifetime bounds are ignored.
+Explicit lifetimes are all mapped to ```rust 'static``` lifetimes and implicit lifetime bounds are ignored.
 This also limits our possibilities to do borrow checking as there simply isn't enough data available in the `rust-analyzer` yet.
 With the symbols table built up, `rust-analyzer` is ready to accept client requests.
 
@@ -1277,12 +1298,12 @@ The performance can be improved by caching some of the found terms but doing it 
 Caching the result means that once we have managed to produce a term of type `T` we want to store it in a lookup table so that we wouldn't have to search for it again.
 Storing the type first time we find it is rather trivial, but it's not very efficient.
 The issue arises from that there are no guarantees that the first term we come up with is the simplest.
-Consider the example of producing something of type `Option<i32>`.
-We as human know that easiest way to produce a term of that type is to use the `None` constructor that takes no arguments.
-The algorithm however might first take the branch of using `Some(...)` constructor.
-Now we have to also recurse to find something of type `i32`, and potentially iterate again and again if we do not have anything suitable in scope.
-Even worse, we might end up not finding anything suitable after fully traversing the tree we got from using the `Some(...)` constructor.
-Now we have to also check the `None` subtree which means that we only benefit from the cache if we want to search for `Option<i32>` again.
+Consider the example of producing something of type ```rust Option<i32>```.
+We as human know that easiest way to produce a term of that type is to use the ```rust None``` constructor that takes no arguments.
+The algorithm however might first take the branch of using ```rust Some(...)``` constructor.
+Now we have to also recurse to find something of type ```rust i32```, and potentially iterate again and again if we do not have anything suitable in scope.
+Even worse, we might end up not finding anything suitable after fully traversing the tree we got from using the ```rust Some(...)``` constructor.
+Now we have to also check the ```rust None``` subtree which means that we only benefit from the cache if we want to search for ```rust Option<i32>``` again.
 
 This is not a problem if we want to retrieve all possible term for the target type, however that is not always what we want to do.
 We found that for bigger terms it is better to produce a term with new holes in it, even when we have solutions for them, just to keep amount of suggestions low.
@@ -1326,7 +1347,7 @@ However, it differs from it by doing the search in the opposite direction.
 
 To not confuse the directions we use _forward_ when we are constructing term from what we have (working towards the goal) and _backward_ when we work backwards from the goal.
 Forward is also what we as humen generally use when writing programs.
-For example, we usually write `x.foo().bar()` left to right (forwards from arguments to goal) instead of right to left (backwards from goal to arguments)
+For example, we usually write ```rust x.foo().bar()``` left to right (forwards from arguments to goal) instead of right to left (backwards from goal to arguments)
 
 The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backwards from it towards what we already have.
 For example if we have function in scope that takes us to the goal we create new goals for all the arguments of the function, therefore move backwards from the return type towards the arguments.
@@ -1377,15 +1398,15 @@ caption: [
 ) <rust-alternative-exprs>
 The idea is that if there are only a few terms of given type we keep them all so that we can provide the full term to the user.
 However, if there are too many of them to keep track of we just remember that we can come up with a term for given type, but we won't store the terms themselves.
-The cases of `Many` later become the holes in the generated term.
+The cases of ```rust Many``` later become the holes in the generated term.
 
 In addition to decreasing memory complexity this reduces also time complexity a lot.
 Now we do not have to construct the terms if we know that there are already many of the type.
 This can be achieved quite elegantly by using iterators in Rust.
 Iterators in Rust are lazy meaning that they only do work if we consume them.
-In our case consuming the iterator is extending the `AlternativeExprs` in the Cache.
+In our case consuming the iterator is extending the ```rust AlternativeExprs``` in the Cache.
 However, if we are already in the many cases we can throw away the iterator without performing any computation.
-This speeds up the algorithm a lot, so now we can rise the depth of search to 10+ with it still outperforming the previous algorithms on timescale.
+This speeds up the algorithm a lot, so now we can raise the depth of search to 10+ with it still outperforming the previous algorithms on timescale.
 
 The algorithm itself is quite simple, the pseudocode for it can be seen in @rust-bfs-pseudocode.
 We start by gathering all the items in scope to `defs`.
@@ -1399,12 +1420,12 @@ Essentially it attempts to fulfill the goal by trying variables we have in scope
 More information about the `trivial` tactic can be found in @tactic-trivial.
 All the terms it produces get added to lookup table and can be later used in other tactics.
 After that we iteratively expand the search space by attempting different tactics until we have exceeded the preconfigured search depth.
-We keep iterating after finding the first match as there may be many possible options.
-For example otherwise we would never get suggestions for `Option::Some(..)` as `Option::None` usually comes first as it has fewer arguments.
 During every iteration we sequentially attempt different tactics.
-More on the tactics can be found in @tactics, but all of them attempt to expand the search space by trying different ways to build new types from existing types (type constructors, functions, methods, etc.).
+All tactics build new types from existing types (type constructors, functions, methods, etc.), and are described in @tactics.
 The search space is expanded by adding new types to lookup table.
 Example for it can be seen in @term-search-state-expansion.
+We keep iterating after finding the first match as there may be many terms of the given type.
+Otherwise, we would never get suggestions for ```rust Option::Some(..)```, as ```rust Option::None``` usually comes first as it has fewer arguments.
 In the end we filter out solutions that do not take us closer to the goal.
 
 #figure(
@@ -1436,8 +1457,8 @@ caption: [
 ) <rust-bfs-pseudocode>
 
 As we can see from the @rust-bfs-pseudocode we start from what we have (locals, constants, statics) and work towards the target type.
-This is opposite direction compared to what is used in all the other tools we have looked at.
-To better understand how the search space is expanded let's look at @term-search-state-expansion.
+This is the opposite direction compared to tools we have looked at previously.
+To better understand how the search space is expanded let us look at @term-search-state-expansion.
 
 #figure(
   image("fig/state_expansion.svg", width: 60%),
@@ -1456,14 +1477,17 @@ Once we have reached the maximum depth we take all the elements that unify with 
 ==== Lookup table <lookup-table>
 The main task for lookup table throughout the algorithm is to keep track of the state.
 The state consists of following components:
-1. Terms reached (grouped by types)
-2. New types reached (since last iteration)
-3. Definitions used / exhausted (for example functions applied)
-4. Types wishlist (Types that have been queried, but not reached)
+1. _Terms reached_ (grouped by types)
+2. _New types reached_ (since last iteration)
+3. _Definitions used_ and _definitions exhausted_ (for example functions applied)
+4. _Types wishlist_ (Types that have been queried, but not reached)
 
-Terms reached serves the most obvious purpose of them.
-It keeps track of the search space we have already covered (visited types) and allows quering terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
-Important thing to note here that it also performs transformation of taking a reference if we query for reference type.
+#todo-philipp[
+  _Emphasize_ all occurence of 1.-4. later in the text.
+]
+
+_Terms reached_ keeps track of the search space we have already covered (visited types) and allows quering terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
+It is important to note that it also performs transformation of taking a reference if we query for reference type.
 This is only to keep the implementation simple and memory footprint low.
 Otherwise, having separate tactic for taking a reference of the type would be preferred.
 
@@ -1502,7 +1526,7 @@ The third iteration of our algorithm is a small, yet powerful improvement on the
 This iteration differs from the previous one by improving the handling of generics.
 We note that the handling of generics is a lot smaller problem if going in the backwards direction as other term search tools do.
 This is because we can only construct the types that actually contribute towards reaching the goal.
-However, if we only go in the backwards direction we can still end up with terms such as `Some(Some(...)).is_some()` that do contribute towards the goal but not in a very meaningful way.
+However, if we only go in the backwards direction we can still end up with terms such as ```rust Some(Some(...)).is_some()``` that do contribute towards the goal but not in a very meaningful way.
 BFS copes with these kinds of terms quite well as the easiest paths are taken first.
 However, with multiple iteration many not so useful types get added to the lookup table nonetheless.
 Note that the trick with lazy evaluation of iterators does not work here as the terms have types not yet in the lookup meaning we cannot discard them.
@@ -1517,10 +1541,10 @@ All the tactics that work backwards do so to better handle generics.
 Going backwards is achieved by using the types wishlist component of the lookup table.
 We first seed the wishlist with the target type.
 During every iteration the tactics working backwards from the target type only work with concrete types we have in wishlist.
-For example if there is `Option<Foo>` in the wishlist, and we work with the `Option<T>` type we know to substitute the generic type parameter `T` with `Foo`.
+For example if there is ```rust Option<Foo>``` in the wishlist, and we work with the ```rust Option<T>``` type we know to substitute the generic type parameter `T` with ```rust Foo```.
 This way we avoid polluting the lookup table with many types that most likely do not contribute towards the goal.
 All the tactics add types to the wishlist, so forward tactics can benefit from the backwards tactics (and vice versa) before meeting in the middle.
-With some tactics such as using methods on type only working in the forward direction we can conveniently avoid adding complex types to wishlist if we only need them to get something simple such as `bool` in the `Some(Some(...)).is_some()` example.
+With some tactics such as using methods on type only working in the forward direction we can conveniently avoid adding complex types to wishlist if we only need them to get something simple such as ```rust bool``` in the ```rust Some(Some(...)).is_some()``` example.
 
 
 == Tactics <tactics>
@@ -1583,14 +1607,14 @@ $
 "Famous types" is another rather trivial tactic.
 The idea of the tactic is to attempt values of well known types.
 Those types and values are:
-1. `true` and `false` of type `bool`
-2. `()` of unit type `()`
+1. ```rust true``` and ```rust false``` of type ```rust bool```
+2. ```rust ()``` of unit type ```rust ()```
 Whilst we usually try to avoid creating values out of the blue we make an exception here.
 The rationale of making types we generate depend on types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
 Suggesting something else can be considered distracting.
 However, we find these values to be common enough to be usually a good suggestion.
 Another reason is that we experienced our algorithm "cheating" around depending on values anyway.
-It constructed expressions like `None.is_none()`, `None.is_some()` for `true`/`false` which are valid but all most never what the user wants.
+It constructed expressions like ```rust None.is_none()```, ```rust None.is_some()``` for ```rust true```/```rust false``` which are valid but all most never what the user wants.
 For unit types it can use any function that has "no return type" meaning it returns unit type.
 There is all most always at least one that kind of function in scope but suggesting it is unexpected more often than suggesting `()`.
 Moreover, suggesting a random function with `()` return type can often be wrong as the functions can have side effects.
@@ -1604,9 +1628,6 @@ $
 */
 
 ==== Tactic "type constructor"
-
-
-
 
 "Type constructor" is first of our tactics that takes us from some types to another types.
 The idea is to attempt to apply type constructors we have in scope.
@@ -1624,12 +1645,12 @@ By doing that we know that we only produce types that somehow contribute towards
 
 The tactic avoids types that have unstable generic parameters that do not have default values.
 Unstable generics with default values are allowed as many of the well known types have unstable generic parameters that have default values.
-For example the definition for `Vec` type in Rust is following:
+For example the definition for ```rust Vec``` type in Rust is following:
 ```rs 
 struct Vec<T, #[unstable] A: Allocator = Global>
 ```
 As the users normally avoid providing generics arguments that have default values we also decided to avoid filling them.
-This means that for the `Vec` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
+This means that for the ```rust Vec``` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
 /*
 #todo("How to indicate arbitary number of fields / variants?")
 #todo("Should we indicate that we actually need type constructor, arguments and type is not enough or is it implementation detail?")
@@ -1652,7 +1673,7 @@ $
 
 ==== Tactic "free function"
 This tactic attempts to apply free functions we have in scope.
-It only tries functions that are not part of any `impl` block (associated with type or trait) and therefore considered "free".
+It only tries functions that are not part of any ```rust impl``` block (associated with type or trait) and therefore considered "free".
 
 A function can be successfully applied if we have terms in the lookup table for all the arguments that the function takes.
 If we are missing terms for some arguments we cannot use the function, and we try again the next iteration when we hopefully have more terms in the lookup table.
@@ -1672,11 +1693,11 @@ $
 */
 
 ==== Tactic "impl method"
-This tactic attempts functions that take `self` parameter.
+This tactic attempts functions that take ```rust self``` parameter.
 This includes both trait methods and methods implemented directly on type.
 Examples for both of these cases are shown in @rust-impl-method.
-Both of the impl blocks are highlighted and each of them has a single method that takes `self` parameter.
-These methods can be called as `example.get_number()` and `example.do_thingy()`.
+Both of the impl blocks are highlighted and each of them has a single method that takes ```rust self``` parameter.
+These methods can be called as ```rust example.get_number()``` and ```rust example.do_thingy()```.
 
 #figure(
 sourcecode(highlighted: (5,6,7,8,9, 15,16,17,18,19))[```rs
@@ -1701,21 +1722,21 @@ impl Thingy for Example {
 }
 ```],
 caption: [
-    Examples of `impl` blocks, highlighted in yellow
+    Examples of ```rust impl``` blocks, highlighted in yellow
   ],
 ) <rust-impl-method>
 
 Similarly to "free function" tactic it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
-However, generics defined on the `impl` block pose no issues as they are associated with the target type, and we can provide concrete values for them.
+However, generics defined on the ```rust impl``` block pose no issues as they are associated with the target type, and we can provide concrete values for them.
 
-A performance tweak for this tactic is to only search the `impl` blocks for types that are new to us meaning that they were not present in the last iteration.
+A performance tweak for this tactic is to only search the ```rust impl``` blocks for types that are new to us meaning that they were not present in the last iteration.
 This implies we run this tactic only in the forward direction i.e. we need to have term for the receiver type before using this tactic.
-This is a heuristic that speeds up the algorithm quite a bit as searching for all `impl` blocks is a costly operation.
+This is a heuristic that speeds up the algorithm quite a bit as searching for all ```rust impl``` blocks is a costly operation.
 However, this optimization does suffer from the phase ordering problem.
-For example, it may happen that we can use some method from the `impl` block later when we have reached more types and covered a type that we need for an argument of the function.
+For example, it may happen that we can use some method from the ```rust impl``` block later when we have reached more types and covered a type that we need for an argument of the function.
 
 We considered also running this tactic in the reverse direction, but it turned out to be very hard to do efficiently.
-The main issue is that there are many `impl` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
+The main issue is that there are many ```rust impl``` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
 One example of this is shown in @rust-blanket-impl.
 
 #figure(
@@ -1725,15 +1746,15 @@ impl<T: fmt::Display + ?Sized> ToString for T {
 }
 ```],
 caption: [
-    Blanket `impl` block for `ToString` trait in the standard library.
-    All the types that implement `fmt::Display` also implement `ToString`.
+    Blanket ```rust impl``` block for ```rust ToString``` trait in the standard library.
+    All the types that implement ```rust fmt::Display``` also implement ```rust ToString```.
   ],
 ) <rust-blanket-impl>
 
-One interesting aspect of Rust to note here is that even though we can query the `impl` blocks for type we still have to check that the receiver argument is of the same type.
-This is because Rust allows also some other types that dereference to type of `Self` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://web.archive.org/web/20240324062328/https://doc.rust-lang.org/reference/items/associated-items.html#methods").
-These types include but are not limited to `Box<S>`, `Rc<S>`, `Arc<S>`, `Pin<S>`.
-For example there is a method signature for `Option<T>` type in standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://web.archive.org/web/20240317121015/https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
+One interesting aspect of Rust to note here is that even though we can query the ```rust impl``` blocks for type we still have to check that the receiver argument is of the same type.
+This is because Rust allows also some other types that dereference to type of ```rust Self``` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://web.archive.org/web/20240324062328/https://doc.rust-lang.org/reference/items/associated-items.html#methods").
+These types include but are not limited to ```rust Box<S>```, ```rust Rc<S>```, ```rust Arc<S>```, ```rust Pin<S>```.
+For example there is a method signature for ```rust Option<T>``` type in standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://web.archive.org/web/20240317121015/https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
 
 #figure(
 sourcecode(numbering: none)[```rs
@@ -1742,15 +1763,15 @@ impl<T> Option<T> {
 }
 ```],
 caption: [
-    Reciver argument with type other than `Self`
+    Reciver argument with type other than ```rust Self```
   ],
 ) <rust-receiver-type>
-As we can see from the snippet above the Type of `Self` in `impl` block is `Option<T>`.
-However, the type of `self` parameter in the method is `Pin<&Self>` which means that to call the `as_pin_ref` method we actually need to have expression of type `Pin<&Self>`.
+As we can see from the snippet above the Type of ```rust Self``` in ```rust impl``` block is ```rust Option<T>```.
+However, the type of ```rust self``` parameter in the method is ```rust Pin<&Self>``` which means that to call the `as_pin_ref` method we actually need to have expression of type ```rust Pin<&Self>```.
 
-We have also decided to ignore all the methods that return the same type as the type of `self` parameter.
+We have also decided to ignore all the methods that return the same type as the type of ```rust self``` parameter.
 This is because they do not take us any closer to goal type, and we have considered it unhelpful to show user all the possible options.
-If we allowed them then we would also receive expressions such as `some_i32.reverse_bits().reverse_bits().reverse_bits()` which is valid Rust code but unlikely something the user wished for.
+If we allowed them then we would also receive expressions such as ```rust some_i32.reverse_bits().reverse_bits().reverse_bits()``` which is valid Rust code but unlikely something the user wished for.
 Similar issues often arise when using the builder pattern as shown in @rust-builder
 /*
 #todo("same as free function as the self is not really that special")
@@ -1782,12 +1803,12 @@ $
 */
 
 ==== Tactic "static method" <tactic-static-method>
-"Static method" tactic attempts static methods of `impl` blocks, that is methods that are associated with either type or trait, but do not take `self` parameter.
-One of the most common examples of static methods are `Vec::new()` and `Default::default()`.
+"Static method" tactic attempts static methods of ```rust impl``` blocks, that is methods that are associated with either type or trait, but do not take ```rust self``` parameter.
+One of the most common examples of static methods are ```rust Vec::new()``` and ```rust Default::default()```.
 
-As a performance optimization we query the `impl` block for types that we have a wishlist meaning we only go in the backwards direction.
+As a performance optimization we query the ```rust impl``` block for types that we have a wishlist meaning we only go in the backwards direction.
 This is because we figured that the most common use case for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
-Querying `impl` blocks is a costly operation, so we only do it for types that are contributing towards the goal meaning they are in wishlist.
+Querying ```rust impl``` blocks is a costly operation, so we only do it for types that are contributing towards the goal meaning they are in wishlist.
 
 Similarly to "Impl method" tactic we ignore all the methods that have generic parameters defined on the method level for the same reasoning.
 /*
@@ -1833,7 +1854,7 @@ We chose to perform resynthesis only on the #emph[tail expressions] of blocks, a
 // Other options that we considered are let assignments and arguments of function calls.
 A block expression is a sequence of statements followed by an optional tail expression, enclosed in braces (`{...}`).
 For example, the body of a function is a block expression, and the function evaluates to the value of its tail expression.
-Block expressions also appear as the branches of `if` expressions and `match`-arms.
+Block expressions also appear as the branches of ```rust if``` expressions and ```rust match```-arms.
 For some examples, see @rust-tail-expr.
 #figure(
 sourcecode(highlighted: (4, 10, 13, 17, 21))[
@@ -1870,7 +1891,7 @@ caption: [
 For resynthesis, we are interested in the following metrics:
 
 1. #metric[Holes filled] represents the fraction of tail expressions where the algorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.
-2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example `Vec::new()` and `Vec::default()` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
+2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example ```rust Vec::new()``` and ```rust Vec::default()``` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
    To make the metric slightly more robust we compare the programs ASTs effectively removing all the formatting before comparing.
 3. #metric[Average time] represents the average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
@@ -1901,7 +1922,7 @@ Beyond the search depth of 2 we noticed barely any improvements in portion of ho
 At depth 2 the algorithm fills 74.9% of holes.
 By doubling the depth the amount of holes filled increases only by 1.5%pt to 76.4%.
 More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after depth of 3.
-This is because we get more results for subterms and squash them into `Many`, i.e. replace them with a new hole.
+This is because we get more results for subterms and squash them into ```rust Many```, i.e. replace them with a new hole.
 Terms that would result in syntactic matches get also squashed, resulting in a decrease in syntactic matches.
 
 The number of terms per hole follows a similar pattern to holes filled, but the curve is flatter.
@@ -2077,17 +2098,17 @@ Without these suggestions, the user may even not know that a builder exists for 
 
 ==== Procedural Macros
 An interesting observation was that filling holes in the implementation of procedural macros is less useful than usually and can even cause compile errors.
-The decrease in usability is caused by procedural macros mapping `TokenStream` to `TokenStream` (Rust syntax to Rust syntax) meaning we do not have useful type information available.
+The decrease in usability is caused by procedural macros mapping ```rust TokenStream``` to ```rust TokenStream``` (Rust syntax to Rust syntax) meaning we do not have useful type information available.
 This is very similar to builder pattern so the decrease in usefulness originates from the same reasons.
 However, procedural macros are somewhat special in Rust, and they can also rise compile time errors.
-For example one can assert that the input `TokenStream` contains a non-empty `struct` definition.
-As the term search has no way of knowing that the `TokenStream` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
+For example one can assert that the input ```rust TokenStream``` contains a non-empty `struct` definition.
+As the term search has no way of knowing that the ```rust TokenStream``` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
 
 ==== Formatting
 We found that formatting of the expressions can cause significant impact on the usability of the term search in case of autocompletion.
 This is because is common for the LSP Clients to filter out suggestions that do not look similar to what the user is typing.
 Similarity is measured at the level of text with no semantic information available.
-This means that even though `x.foo()` (method syntax) and `Foo::foo(x)` (universal function call syntax) are the same the second option is filtered out if the user has typed `x.f` as text wise they do not look similar.
+This means that even though ```rust x.foo()``` (method syntax) and ```rust Foo::foo(x)``` (universal function call syntax) are the same the second option is filtered out if the user has typed ```rust x.f``` as text wise they do not look similar.
 This causes some problems for our algorithm as we decided to use universal function call syntax whenever possible as this avoids ambiguity.
 However, users usually prefer method syntax as it is less verbose and easier to understand for humans.
 
@@ -2152,7 +2173,7 @@ Other terms can be considered as a noise as they are programs that no-one asked 
 
 Syntactic matches (equality) is too strict metric as we actually care about semantic equality of programs.
 The metric may depend more on the style of the program and the formatting than on the real capabilities of the tool.
-Syntactic matches also suffers from squashing multiple terms to `Many` option as the new holes produced by _Many_ are obviously not what was written by user.
+Syntactic matches also suffers from squashing multiple terms to ```rust Many``` option as the new holes produced by _Many_ are obviously not what was written by user.
 
 Average time and number of terms per hole are significantly affected by few categories that some may consider outliers.
 We have decided to not filter them out to also show that our tool is a poor fit for some types of programs.
@@ -2187,7 +2208,7 @@ One of the main reasons for it is that we fully normalize all types before worki
 In case of types and functions that have generic parameters this means substituting in the generic parameters.
 However, that is always not required.
 Some methods on types with generic parameters do not require knowing exact generic parameters and therefore can be used without substituting in the generic types.
-Some examples of it are `Option::is_some` and `Option::is_none`.
+Some examples of it are ```rust Option::is_some``` and ```rust Option::is_none```.
 Others only use some of the generic parameters of the type.
 In case not all generic parameters are used we could avoid substituting in the generic types that are not needed as long as we know that we have some options available for them.
 
