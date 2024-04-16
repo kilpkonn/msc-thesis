@@ -13,6 +13,7 @@
   supervisors: (),
   date: none,
   location: "",
+  dev: false,
   logo: none,
   body,
 ) = {
@@ -31,7 +32,7 @@
   // https://github.com/ntjess/typst-drafting
   set page(
     // Extra wide A4 to give extra room for notes
-    margin: (left: 2.5cm, right: 6.5cm), paper: "a4", width: 25cm
+    margin: (left: 2.5cm, right: if dev { 6.5cm } else { 2.5cm}), paper: "a4", width: if dev {25cm} else {21cm}
   )
   set-page-properties()
 
@@ -241,11 +242,8 @@
   rect: rect.with(inset: 1em, radius: 0.5em, fill: orange.lighten(90%)),
   text[_Philipp_: #txt]
 )
-
-// box(fill: silver, text(top-edge: "ascender", bottom-edge: "descender")[\u{1F534} #highlight(fill: orange, [TODO:]) #txt ])
 #let note(note, txt) = margin-note(stroke: aqua, text(size: 0.7em, note)) + highlight(txt)
 #let suggestion(old, new) = highlight(fill: red, old) + highlight(fill: green, new)
 
 #let metric(name) = emph(name)
-
-#let cite-footnote(title, accessed, url) = footnote[#title, Accessed: #accessed, #smallcaps("url:") #link(url)]
+#let cite-footnote(title, accessed, url, archivedurl) = footnote[#title, Accessed: #accessed, #smallcaps("url:") #link(url)]
