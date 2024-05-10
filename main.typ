@@ -24,9 +24,9 @@
 
 = Introduction
 Rust#cite-footnote("Rust", "2024-04-06","https://www.rust-lang.org/" ,"https://web.archive.org/web/20240409193051/https://www.rust-lang.org/") is a programming language for developing reliable and efficient systems.
-The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://lkml.org/lkml/2022/10/16/359", "https://web.archive.org/web/20240408110623/https://lkml.org/lkml/2022/10/16/359").
-It differs from other popular systems programming languages such as C and C++ by focusing more on reliability and productivity of the programmer.
-Rust has an expressive type system that guarantees lack of undefined behavior at compile type.
+The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox, but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://lkml.org/lkml/2022/10/16/359", "https://web.archive.org/web/20240408110623/https://lkml.org/lkml/2022/10/16/359").
+It differs from other popular systems programming languages such as C and C++ by focusing more on the reliability and productivity of the programmer.
+Rust has an expressive type system that guarantees a lack of undefined behavior at compile type.
 It is done with a novel ownership model and is enforced by a compiler tool called borrow checker.
 The borrow checker rejects all programs that may contain illegal memory accesses or data races.
 
@@ -80,9 +80,9 @@ When investigating common usage patterns among programmers using large language 
   They call it the _acceleration mode_.
 2. Language models are used to exploring possible ways to complete incomplete programs.
   This is commonly used when a programmer is using new libraries and is unsure how to continue.
-  They call this usage pattern as _exploration mode_.
+  They call this usage pattern _exploration mode_.
 
-We argue that the same patterns can be found among programmer using term search.
+We argue that the same patterns can be found among programmers using term search.
 
 In acceleration mode, term search is not as powerful as language models, but it can be more predictable as it has well-defined tactics that it uses rather than deep neural networks.
 There is not so much "wow" effect - it just produces code that one could write by trying different programs that type-check.
@@ -95,7 +95,7 @@ As term search only produces valid programs based on well-defined tactics, it is
 The main objective of this thesis is to implement tactics-based term search for the programming language Rust.
 The algorithm should:
 - only produce valid programs, i.e. programs that compile
-- finish fast enough to be use interactively while typing
+- finish fast enough to be used interactively while typing
 - produce suggestions for a wide variety of Rust programs
 - not crash or cause other issues on any Rust program
 
@@ -118,10 +118,10 @@ It is part of the official distribution since version `v0.3.1850`#cite-footnote(
 An archived version can be found at the Software Heritage Archive #link("https://archive.softwareheritage.org/browse/revision/6b250a22c41b2899b0735c5bc607e50c3d774d74/?origin_url=https://github.com/kilpkonn/rust-analyzer&snapshot=25aaa3ceeca154121a5c2944f50ec7b17819a315")[`swh:1:rev:6b250a22c41b2899b0735c5bc607e50c3d774d74`].
 
 = Background <background>
-In this chapter we will take a look at the type system of the Rust programming language to understand the context of our task.
-Next we will take a look at what the term search is and how it is commonly used.
-Later we will study some implementations for term search to better understand how the algorithms for it work.
-In the end we will briefly cover how _autocompletion_ is implemented in modern tools to give some context of the framework we are working in and tools what we are improving on.
+In this chapter, we will take a look at the type system of the Rust programming language to understand the context of our task.
+Next, we will take a look at what the term search is and how it is commonly used.
+Later, we will study some implementations for term search to better understand how the algorithms for it work.
+In the end, we will briefly cover how _autocompletion_ is implemented in modern tools to give some context of the framework we are working in and tools that we are improving on.
 
 == The Rust language
 Rust is a general-purpose systems programming language first released in 2015#cite-footnote("Announcing Rust 1.0", "2024-04-06", "https://blog.rust-lang.org/2015/05/15/Rust-1.0.html", "https://web.archive.org/web/20240406065426/https://blog.rust-lang.org/2015/05/15/Rust-1.0.html").
@@ -139,12 +139,12 @@ Rust has four primary scalar types: integers, floating-point numbers, booleans, 
 
 Compound types can group multiple values into one type.
 Rust has two primitive compound types: arrays and tuples.
-Array is a type that can store fixed amount of elements of same type.
-Tuple however, is a type that groups together values of different types.
+An array is a type that can store a fixed amount of elements of the same type.
+Tuple, however, is a type that groups together values of different types.
 Examples for both array and tuple types can be seen in @rust-types on lines 2 and 3.
 
 Reference types are types that contain no other data than a reference to some other type.
-An example of reference type can be seen in @rust-types on line 4.
+An example of a reference type can be seen in @rust-types on line 4.
 
 #figure(
 sourcecode()[```rs
@@ -159,7 +159,7 @@ caption: [
 ) <rust-types>
 
 Rust has two kinds of algebraic types: _structures_ (also referred as `struct`s) and _enumerations_ (also referred as `enum`s).
-Structures are product types and enumerations are sum types.
+Structures are product types, and enumerations are sum types.
 Each of them come with their own type constructors.
 Structures have one type constructor that takes arguments for all of its fields.
 Enumerations have one type constructor for each of their variants.
@@ -190,10 +190,10 @@ caption: [
   ],
 ) <rust-type-constructor>
 
-To initialize a `struct`, we have to provide terms for each of the fields it has a shown on line 12.
+To initialize a `struct`, we have to provide terms for each of the fields it has, as shown on line 12.
 For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
 Note that structures and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
-For example in @rust-type-constructor-generics we made the struct ```rust Foo``` be generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
+For example, in @rust-type-constructor-generics, we made the struct ```rust Foo``` be generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
 A common generic enum in Rust is the ```rust Option``` type which is used to represent optional values.
 The ```rust None``` constructor takes no arguments and indicates that there is no value.
 Constructor ```rust Some(T)``` takes one term of type `T` and indicates that there is some value stored in `Option`.
@@ -227,21 +227,21 @@ caption: [
 It is possible to check for either syntactic or semantic equality between two types.
 Two types are syntactically equal if they have exactly the same syntax.
 Syntactic equality is very restrictive way to compare types.
-Much more permissive way to compare types is semantic equality.
+A much more permissive way to compare types is semantic equality.
 Semantic equality of types means that two types contain the same information and can be used interchangeably.
 
 Using syntactic equality to compare types can cause problems.
 Rust high-level intermediate representation (HIR) has multiple ways to define a type.
 This means that the same type can be defined in multiple ways that are not syntactically equal.
 
-For example, in program ```rust let x: i32 = 0;``` the type of `x` and the type of literal ```rust 0``` are not syntactically equal.
-However, by inferring ```rust 0``` to have type of ```rust i32``` we see that they are semantically equal.
+For example, in the program ```rust type Foo = i32```, the type ```rust Foo``` and the type ```rust i32``` are not syntactically equal.
+However, they are semantically equal, as ```rust Foo``` is an alias for ```rust i32```.
 This means that the types unify even though they are syntactically different.
 
 
 To check for semantic equality of types we see if two types can be unified.
 Rust's type system is based on a Hindley-Milner type system @affine-type-system-with-hindley-milner, therefore the types are compared in a typing environment.
-In Rust, the _trait solver_ is responsible for checking unification of types#cite-footnote("Rust Compiler Development Guide, The ty module: representing types", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/ty.html", "https://web.archive.org/web/20231205205735/https://rustc-dev-guide.rust-lang.org/ty.html").
+In Rust, the _trait solver_ is responsible for checking the unification of types#cite-footnote("Rust Compiler Development Guide, The ty module: representing types", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/ty.html", "https://web.archive.org/web/20231205205735/https://rustc-dev-guide.rust-lang.org/ty.html").
 The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
 The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are Horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
 /*Before unification, types are normalized to handle type projections #cite-footnote("Chalk book, Type equality and unification", "2024-04-06", "https://rust-lang.github.io/chalk/book/clauses/type_equality.html").
@@ -288,13 +288,13 @@ This is also known as lazy normalization, as the normalization is only done on d
 
 Unification of types `X` and `Y` is done by registering a new clause `Unify(X, Y)` (the #emph[goal]) and solving for it.
 // To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
-Solving is done by a Prolog-like engine, which tries to satisfy all clauses registered from the typing environment. 
+Solving is done by a Prolog-like engine, which tries to satisfy all clauses registered in the typing environment. 
 If a contradiction is found between the goal and the clauses, there is no solution, and the types `X` and `Y` do not unify.
 If a solution is found, it contains a set of subgoals that still need to be proven.
 If we manage to recursively prove all the subgoals, then we know that `X` and `Y` unify.
-If some goals remain unsolved, but there is also no contradiction, then simply more information is needed to guarantee unification.
+If some goals remain unsolved but there is also no contradiction, then simply more information is needed to guarantee unification.
 How we treat the last case depends on the use case, but in this thesis, for simplicity, we assume that the types do not unify.
-An example for unification can be seen in @rust-type-unification.
+An example of unification can be seen in @rust-type-unification.
 
 #figure(
 sourcecode(highlighted: (14,))[
@@ -355,18 +355,18 @@ The two-stage borrows are treated as follows:
 - Between the reservation and the activation point, the two-phase borrow acts as a shared borrow.
 - After the activation point, the two-phase borrow acts as a mutable borrow.
 
-There is also an option to escape the restrictions of borrow checker by using ```rust unsafe``` code blocks.
+There is also an option to escape the restrictions of the borrow checker by using ```rust unsafe``` code blocks.
 In an ```rust unsafe``` code block, the programmer has the sole responsibility to guarantee the validity of aliasing rules with no help from the borrow checker.
 
 
 == Term search <term-search>
 Term search is the process of generating terms that satisfy some type in a given context.
-In automated theorem proving this is usually known as proof search.
-In Rust, we call it a term search as we don't usually think of programs as proofs.
+In automated theorem proving, this is usually known as proof search.
+In Rust, we call it a term search, as we don't usually think of programs as proofs.
 
 The Curry-Howard correspondence is a direct correspondence between computer programs and mathematical proofs.
 The correspondence is used in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
-The idea is to state a proposition as a type and then to prove it by producing a value of the given type as explained in @propositions-as-types.
+The idea is to state a proposition as a type and then prove it by producing a value of the given type, as explained in @propositions-as-types.
 
 For example, if we have addition on natural numbers defined in Idris as shown in @idirs-add-nat.
 #figure(
@@ -392,26 +392,26 @@ caption: [
     Prove $0 + n = n$ in Idris
   ],
 ) <idirs-plus-reduces-z>
-The example above is quite trivial, as the compiler can figure out from the definition of `add` that ```hs add Z m``` is defined to be `m` according to first clause in the definition of `add`
+The example above is quite trivial, as the compiler can figure out from the definition of `add` that ```hs add Z m``` is defined to be `m` according to the first clause in the definition of `add`
 Based on that we can prove `add_zero` by reflexivity.
 However, if there are more steps required, writing proofs manually gets cumbersome, so we use tools to automatically search for terms that inhabit a type i.e. proposition.
 For example, Agda has a tool called Agsy that is used for term search, and Idris has this built into its compiler.
 
 === Term search in Agda
 Agda @dependently-typed-programming-in-agda is a dependently typed functional programming language and proof assistant.
-It is one of the first languages that has sufficiently good tools leveraging term search for inductive proofs.
-We will be more interested in the proof assistant part of Agda as it is the one leveraging the term search to help the programmer with coming up with proofs. 
-As there are many alternatives we have picked two that seem the most popular or relevant for our use case.
-We chose Agsy as this is the well known tool that is part of Agda project itself, and Mimer that attempts to improve on Agsy.
+It is one of the first languages that has sufficiently good tools for leveraging term search for inductive proofs.
+We will be more interested in the proof assistant part of Agda, as it is the one leveraging the term search to help the programmer with come with proofs. 
+As there are multiple options, we picked two that seem the most popular or relevant for our use case.
+We chose Agsy as this is the well-known tool that is part of the Agda project itself, and Mimer, which attempts to improve on Agsy.
 
 ==== Agsy <agsy>
 Agsy is the official term search based proof assistant for Agda.
 It was first published in 2006 in @tool-for-automated-theorem-proving-in-agda and integrated into Agda in 2009#cite-footnote("Agda, Automatic Proof Search (Auto)", "2024-04-06", "https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html", "https://web.archive.org/web/20240410183801/https://agda.readthedocs.io/en/v2.6.4.1/tools/auto.html").
 
-We will be looking at the high level implementation of its algorithm for term search.
-In principle Agsy iteratively refines problems into more subproblems, until enough subproblems can be solved.
+We will be looking at the high-level implementation of its algorithm for term search.
+In principle, Agsy iteratively refines problems into more subproblems until enough subproblems can be solved.
 This process is called iterative deepening.
-This is necessary as a problem may in general be refined to infinite depth.
+This is necessary as a problem may, in general, be refined to infinite depth.
 
 The refinement of a problem can produce multiple branches with subproblems.
 In some cases we need to solve all the subproblems.
@@ -442,40 +442,40 @@ Agsy uses problem collections (```hs PrbColl```) to model the subproblems that n
 Solution collections (```hs SolColl```) are used to keep track of solutions for particular problem collection.
 A solution collection has a solution for each of the problems in a corresponding problem collection.
 
-The intuition for the tool is following:
-1. Given a problem we create set of possible subproblem collections out of which we need to solve _at least one_ as show in @agsy_transformation_branches.
-2. We attempt to solve _all_ the subproblem collections by recursively solving all the problems in collection
-3. If we manage to solve _all_ the problems in collection we use it as a possible solution, otherwise we discard it as a dead end.
+The intuition for the tool is the following:
+1. Given a problem, we create a set of possible subproblem collections out of which we need to solve _at least one_, as show in @agsy_transformation_branches.
+2. We attempt to solve _all_ the subproblem collections by recursively solving all the problems in the collection
+3. If we manage to solve _all_ the problems in collection, we use it as a possible solution, otherwise, we discard it as a dead end.
 
 The algorithm itself is based around depth first search (DFS) and consists of two subfunctions.
 Function ```hs search: Problem -> Maybe [Solution]``` is the main entry point that attempts to find a set of solutions for a problem.
-The function internally makes use of another function ```hs searchColl: PrbColl -> Maybe [SolColl]``` that attempts to find set of solution collections for a problem collection.
+The function internally makes use of another function ```hs searchColl: PrbColl -> Maybe [SolColl]``` that attempts to find a set of solution collections for a problem collection.
 The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-snippet.
 
 We model Problem collections as a list of subproblems together with a _refinement_ that produces those problems.
 A refinement is a recipe to transform the problem into zero or more subproblems.
-For example, finding a pair ```hs (Bool, Int)``` can be refined to two subproblems of finding a term of type ```hs Bool``` and another of type ```hs Int``` and applying the tuple constructor ```hs (_,_)```.
-In case we refine the problem without creating any new subproblems then we can call the problem solved.
+For example, finding a pair ```hs (Bool, Int)``` can be refined to two subproblems: finding a term of type ```hs Bool``` and another of type ```hs Int``` and applying the tuple constructor ```hs (_,_)```.
+If we refine the problem without creating any new subproblems, then we can call the problem solved.
 Otherwise, all the subproblems need to be solved for the solution to hold.
-The refinement is stored so that on a successful solution we can construct the term solving the top-level problem from the solution collection.
+The refinement is stored so that, on a successful solution, we can construct the term solving the top-level problem from the solution collection.
 
 The `search` algorithm starts by refining the problem into new problem collections.
 Refining is done by tactics.
 Tactics are essentially just a way of organizing possible refinements.
 An example tactic that attempts to solve the problem by filling it with locals in scope can be seen in @agsy-example-tactic.
 
-In case refining does not create any new problem collections, base case is reached, and the problem is trivially solved (line 9 in @agsy-snippet).
+In case refining does not create any new problem collections, the base case is reached, and the problem is trivially solved (line 9 in @agsy-snippet).
 When there are new problem collections, we try to solve _any_ of them.
 In case we cannot solve any of the problem collections, then the problem is unsolvable, and we give up by returning ```hs Nothing``` (line 15).
 Otherwise, we return the solutions we found.
 
 We solve problem collections by using the `searchColl` function.
-Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build well-formed term with problems remaining in it.
+Problem collections where we can't solve all the problems cannot be turned into solution collections as there is no way to build a well-formed term with problems remaining in it.
 We only care about cases where we can fully solve the problem, so we discard them by returning ```hs Nothing```.
 On line 14 of @agsy-snippet we filter out unsuccessful solutions.
 
-For the successful solution collections we substitute the refinements we took into the problem to get back solution.
-The solution is a well-formed term with no remaining subproblems which we can return to the callee.
+For successful solution collections, we substitute the refinements we took into the problem to get back the solution.
+The solution is a well-formed term with no remaining subproblems, which we can return to the callee.
 
 #figure(
 sourcecode()[```hs
@@ -534,27 +534,27 @@ caption: [
   ],
 ) <agsy-example-tactic>
 
-As described above the algorithm is built around DFS.
+As described above, the algorithm is built around DFS.
 However, the authors of @tool-for-automated-theorem-proving-in-agda note that while the performance of the tool is good enough to be useful, it performs poorly on larger problems.
-They suggest that more advanced search space reduction techniques can be used as well as writing it in a language that does not suffer from automatic memory management.
-It is also noted that there seems to be many false subproblems that can never be solved, so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems potentially faster to reduce the search space.
+They suggest that more advanced search space reduction techniques can be used, as well as writing it in a language that does not suffer from automatic memory management.
+It is also noted that there seem to be many false subproblems that can never be solved, so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems and reduce the search space.
 
 ==== Mimer
-Mimer @mimer is another proof assistant tool for Agda that attempts to adresss some of the shortcomings in Agsy.
+Mimer @mimer is another proof-assistant tool for Agda that attempts to address some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#cite-footnote("Agda GitHub pull request, Mimer: a drop-in replacement for Agsy", "2024-04-06", "https://github.com/agda/agda/pull/6410", "https://web.archive.org/web/20240410183837/https://github.com/agda/agda/pull/6410") and will be released as a replacement for Agsy.
 According to its authors, it is designed to handle many small synthesis problems rather than complex ones.
 Mimer is less powerful than Agsy as it doesn't perform case splits.
 On the other hand, it is designed to be more robust.
-Other than not using case splits and the main algorithm follows the one used in Agsy and described in @agsy.
+Other than not using case splits, the main algorithm follows the one used in Agsy and described in @agsy.
 
-The main differences to original Agsy implementation are:
-1. Mimer uses memoization to avoid searching for same term multiple times.
-2. Mimer guides the search with branch costs
+The main differences from the original Agsy implementation are:
+1. Mimer uses memoization to avoid searching for the same term multiple times.
+2. Mimer guides the search with branch costs.
 
-Branch costs is a heuristic to hopefully guide the search to an answer faster that randomly picking branches.
-Mimer gives lower cost to branches that contain more local variables and less external definitions.
-The rationale for that is that it is more likely that user wishes to use variables from local scope than from outside of it.
-However, they noted that the costs for the tactics need to be tweaked in future work as this was not their focus.
+Branch costs are a heuristic to hopefully guide the search to an answer faster than randomly picking branches.
+Mimer gives lower costs to branches that contain more local variables and fewer external definitions.
+The rationale for that is that it is more likely that the user wishes to use variables from the local scope than from outside of it.
+However, they noted that the costs of the tactics need to be tweaked in future work, as this was not their focus.
 
 === Term search in Standard ML <standardml>
 As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "2024-04-06", "https://redprl.org/", "https://web.archive.org/web/20240316102035/https://redprl.org/") @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
@@ -1056,17 +1056,6 @@ This problem is very similar to problem in compiler design with N languages and 
 The problem can be reduced from $O(N*M)$ to $O(N+M)$ by separating the compiler to front and back end @compiler-design[Section 1.3].
 The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
 To get machine code out of the intermediate representation there is also a unique back end for every target architecture.
-
-#todo-philipp[
-  Check sentences for occurence of "... in `@<ref>`".
-  Rephrase the sentences so that the reference can be put at the end (or similar).
-  I.e. that the sentence makes sense even with out it.
-]
-
-#todo-philipp[
-  Check for missing or extra definite/indefinite articles (the/a etc.)
-]
-
 
 Similar ideas can be also used in building language tooling.
 Language server protocol (LSP) has been invented to do exactly that.
