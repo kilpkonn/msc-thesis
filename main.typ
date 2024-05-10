@@ -53,7 +53,7 @@ From the types of values in scope and constructors of ```rust Option```, we can 
 By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
 
 == Motivation
-Due to Rusts's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://actix.rs/", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
+Due to Rust's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://actix.rs/", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
 #figure(
 sourcecode()[
 ```rs
@@ -1101,7 +1101,7 @@ After that the server runs as daemon process usually until the editor is closed 
 As it doesn't get restarted very often it can keep the state in memory which allows responding to client events faster.
 It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed.
 Caching the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompletion nor for other operations servers provide.
-In @editing-support-for-languages-lsp they describe that caching the abstract syntax tree is a common performance optimization strategy for servers.
+Caching the abstract syntax tree is a common performance optimization strategy for servers @editing-support-for-languages-lsp.
 
 == Machine learning based autocompletions <machine-learning>
 In this chapter we will take a look at machine learning based autocompletion tools.
@@ -1207,7 +1207,7 @@ This means that borrow checking is not really possible without big modifications
 That however is out of scope of this thesis.
 
 In addition to technical limitations, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
-In @usability-of-ownership they found that it is very common that the programmer has to restructure the program to satisfy the borrow checker.
+It is very common that the programmer has to restructure the program to satisfy the borrow checker @usability-of-ownership.
 The simplest case for it is to either move some lines around in function or to add ```rust .clone()``` to avoid moving the value.
 For example consider @rust-autocompletion with the cursor at "```rust |```":
 #figure(
@@ -1237,7 +1237,7 @@ If we only suggest items that borrow check the ```rust bar(my_string)``` functio
 
 
 == Implementation
-We have implemented term search as an addition to `rust-analyzer`, the official LSP client for the Rust language.
+We have implemented term search as an addition to `rust-analyzer`, the official LSP server for the Rust language.
 To have better understanding of the context we are working in we will first describe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
 When the LSP server is started, `rust-analyzer` first indexes whole project, including its dependencies as well as standard library.
@@ -1254,10 +1254,10 @@ With the symbols table built up, `rust-analyzer` is ready to accept client reque
 
 Now autocompletion request can be sent.
 Upon receiving a request that contains the cursor location in source code `rust-analyzer` finds the corresponding syntax node.
-In case it is in function body that has not yet been lowered the lowering is done now.
+In case it is in function body that has not yet been lowered the lowering is done.
 Note that the lowering is always cached so that subsequent calls can be looked up from the table.
 With all the lowering done, `rust-analyzer` builds up context of the autocompletion.
-The context contains location in abstract syntax tree, all the items in scope, package configuration (is nightly enabled) etc.
+The context contains location in abstract syntax tree, all the items in scope, package configuration (e.g. is nightly enabled) etc.
 If expected type of the item under completion can be inferred it is also available in the context.
 From the context different completion providers (functions) suggest possible completions that are all accumulated to a list.
 To add the term search based autocompletion we introduce a new provider that takes in a context and produces a list of completion suggestions.
@@ -1467,20 +1467,16 @@ The state consists of following components:
 3. _Definitions used_ and _definitions exhausted_ (for example functions applied)
 4. _Types wishlist_ (Types that have been queried, but not reached)
 
-#todo-philipp[
-  _Emphasize_ all occurence of 1.-4. later in the text.
-]
-
 _Terms reached_ keeps track of the search space we have already covered (visited types) and allows quering terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
 It is important to note that it also performs transformation of taking a reference if we query for reference type.
 This is only to keep the implementation simple and memory footprint low.
 Otherwise, having separate tactic for taking a reference of the type would be preferred.
 
-New types reached keeps track of new types added to terms reached so that we can iterate only over them in some tactics to speed up the execution.
+_New types reached_ keeps track of new types added to _terms reached_ so that we can iterate only over them in some tactics to speed up the execution.
 
-Definitions used serves also only purpose for speeding up the algorithm by avoiding definitions that have already been used.
+_Definitions used_ serves also only purpose for speeding up the algorithm by avoiding definitions that have already been used.
 
-Types wishlist keeps track of all the types we have tried to look up from terms reached but not found.
+_Types wishlist_ keeps track of all the types we have tried to look up from terms reached but not found.
 They are used in static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
 This is another optimization for speed described in @tactic-static-method.
 
@@ -1668,7 +1664,7 @@ This is because `rust-analyzer` does not have proper checking for the function t
 This is an issue if the generic parameters that the function takes are not present in the return type.
 
 As we ignore all the functions that have non-default generic parameters we can run this tactic in only forward direction.
-As described in @tactics the tactic avoids functions that return types that contain references.
+The tactic avoids functions that return types that contain references (@tactics).
 However, we do allow function arguments to take items by shared references as this is a common practice to pass by reference rather than value.
 /*
 $
