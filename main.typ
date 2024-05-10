@@ -24,7 +24,7 @@
 
 = Introduction
 Rust#cite-footnote("Rust", "2024-04-06","https://www.rust-lang.org/" ,"https://web.archive.org/web/20240409193051/https://www.rust-lang.org/") is a programming language for developing reliable and efficient systems.
-The language was originally created by Graydon Hoare, later developed at Mozilla for Firefox, but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://lkml.org/lkml/2022/10/16/359", "https://web.archive.org/web/20240408110623/https://lkml.org/lkml/2022/10/16/359").
+The language was created by Graydon Hoare, later developed at Mozilla for Firefox, but is now gaining popularity and has found its way to the Linux kernel#cite-footnote("Linux 6.1-rc1", "2024-04-06", "https://lkml.org/lkml/2022/10/16/359", "https://web.archive.org/web/20240408110623/https://lkml.org/lkml/2022/10/16/359").
 It differs from other popular systems programming languages such as C and C++ by focusing more on the reliability and productivity of the programmer.
 Rust has an expressive type system that guarantees a lack of undefined behavior at compile type.
 It is done with a novel ownership model and is enforced by a compiler tool called borrow checker.
@@ -78,7 +78,7 @@ This means that term search can be used to reduce the amount of code the program
 When investigating common usage patterns among programmers using large language models for code generation, @how-programmers-interact-with-code-generation-models[p. 19] found two patterns:
 1. Language models are used to reduce the amount of code the programmer has to write therefore making them faster.
   They call it the _acceleration mode_.
-2. Language models are used to exploring possible ways to complete incomplete programs.
+2. Language models are used to explore possible ways to complete incomplete programs.
   This is commonly used when a programmer is using new libraries and is unsure how to continue.
   They call this usage pattern _exploration mode_.
 
@@ -92,7 +92,7 @@ However, we expect term search to perform well in _exploration mode_.
 As term search only produces valid programs based on well-defined tactics, it is a lot easier to trust it than code generation based on language models that have some uncertainty in them.
 
 == Research Objectives
-The main objective of this thesis is to implement tactics-based term search for the programming language Rust.
+The main objective of this thesis is to implement a tactics-based term search for the programming language Rust.
 The algorithm should:
 - only produce valid programs, i.e. programs that compile
 - finish fast enough to be used interactively while typing
@@ -101,11 +101,11 @@ The algorithm should:
 
 Other objectives include:
 - Evaluating the fitness of tactics on existing large codebases
-- Investigating term search usability for autocompletion
+- Investigating term search usability for auto-completion
 
 
 == Contributions of the thesis
-In this thesis we make following contributions:
+In this thesis, we make the following contributions:
 - @background gives an overview of term search algorithms used in other languages and autocompletion tools used in Rust and mainstream programming languages. We also introduce some aspects of the Rust programming language that are relevant for the term search.
 - @design introduces term search to Rust by extending the official language server of the Rust programming language, `rust-analyzer`. 
   We discuss the implementation of the algorithm in detail as well as different use cases.
@@ -140,7 +140,7 @@ Rust has four primary scalar types: integers, floating-point numbers, booleans, 
 Compound types can group multiple values into one type.
 Rust has two primitive compound types: arrays and tuples.
 An array is a type that can store a fixed amount of elements of the same type.
-Tuple, however, is a type that groups together values of different types.
+Tuple, however, is a type that groups values of different types.
 Examples for both array and tuple types can be seen in @rust-types on lines 2 and 3.
 
 Reference types are types that contain no other data than a reference to some other type.
@@ -160,7 +160,7 @@ caption: [
 
 Rust has two kinds of algebraic types: _structures_ (also referred as `struct`s) and _enumerations_ (also referred as `enum`s).
 Structures are product types, and enumerations are sum types.
-Each of them come with their own type constructors.
+Each of them comes with their own type constructors.
 Structures have one type constructor that takes arguments for all of its fields.
 Enumerations have one type constructor for each of their variants.
 
@@ -192,8 +192,8 @@ caption: [
 
 To initialize a `struct`, we have to provide terms for each of the fields it has, as shown on line 12.
 For `enum`, we choose one of the variants we wish to construct and only need to provide terms for that variant.
-Note that structures and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard coded to the type signature.
-For example, in @rust-type-constructor-generics, we made the struct ```rust Foo``` be generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
+Note that structures and enumeration types may both depend on generic types, i.e. types that are specified at the call site rather than being hard-coded to the type signature.
+For example, in @rust-type-constructor-generics, we made the struct ```rust Foo``` generic over `T` by making the field `x` be of generic type `T` rather than some concrete type.
 A common generic enum in Rust is the ```rust Option``` type which is used to represent optional values.
 The ```rust None``` constructor takes no arguments and indicates that there is no value.
 Constructor ```rust Some(T)``` takes one term of type `T` and indicates that there is some value stored in `Option`.
@@ -224,9 +224,9 @@ caption: [
 ) <rust-type-constructor-generics>
 
 === Type unification
-It is possible to check for either syntactic or semantic equality between two types.
-Two types are syntactically equal if they have exactly the same syntax.
-Syntactic equality is very restrictive way to compare types.
+It is possible to check for either syntactic or semantic equality between the two types.
+Two types are syntactically equal if they have the same syntax.
+Syntactic equality is a very restrictive way to compare types.
 A much more permissive way to compare types is semantic equality.
 Semantic equality of types means that two types contain the same information and can be used interchangeably.
 
@@ -244,50 +244,8 @@ Rust's type system is based on a Hindley-Milner type system @affine-type-system-
 In Rust, the _trait solver_ is responsible for checking the unification of types#cite-footnote("Rust Compiler Development Guide, The ty module: representing types", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/ty.html", "https://web.archive.org/web/20231205205735/https://rustc-dev-guide.rust-lang.org/ty.html").
 The trait solver works at the HIR level of abstraction, and it is heavily inspired by Prolog engines.
 The trait solver uses "first-order hereditary harrop" (FOHH) clauses, which are Horn clauses that are allowed to have quantifiers in the body @proof-procedure-for-the-logic-of-hereditary-harrop-formulas.
-/*Before unification, types are normalized to handle type projections #cite-footnote("Chalk book, Type equality and unification", "2024-04-06", "https://rust-lang.github.io/chalk/book/clauses/type_equality.html").
-In @rust-type-projections, all `Foo`, `Bar` and `Baz` are different projections to the type `u8`.
-
-#figure(
-sourcecode()[
-```rs
-type Foo = u8; // Type alias
-
-impl SomeTrait for u8 {
-  type Bar = u8;   // Associated type
-  type Baz = Self; // Associated type with extra level of indirection
-}
-```],
-caption: [
-    Type projections in Rust
-  ],
-) <rust-type-projections>
-
-Normalization is done in the context of a typing environment.
-First clauses provided by the typing environment are registered to the trait solver.
-After that a new inference variable is registered, and then it is solved for the registered inference variable.
-A small example of normalizing the `Foo` type alias from the program above can be seen in @rust-normalizing.
-#figure(
-sourcecode(numbering: none)[```txt
-AliasEq(Foo = u8)
-Projection(Foo, ?normalized_var)  <- normalized_var is constrained to u8 after solving
-```],
-caption: [
-    Normalizing types in Rust
-  ],
-) <rust-normalizing>
-Not all types can be fully normalized.
-For example, consider the type of the function
-```rs
-fn bar<T: SomeTrait>(x: T) -> SomeTrait::Bar { /* ... */ }
-```
-We only know thattion<T>: IntoIterato `T` has to implement `SomeTrait`, not the exact type of `T`.
-To cope with that, placeholder types are used.
-Instead of fully normalizing the type, an extra obligation of implementing `SomeTrait` is added to `T`.
-The obligation is later used once the placeholder type is related to some actual type.
-This is also known as lazy normalization, as the normalization is only done on demand.*/
 
 Unification of types `X` and `Y` is done by registering a new clause `Unify(X, Y)` (the #emph[goal]) and solving for it.
-// To continue the example above and check if `Foo` unifies with `u8`, we register `Eq(Foo = u8)`.
 Solving is done by a Prolog-like engine, which tries to satisfy all clauses registered in the typing environment. 
 If a contradiction is found between the goal and the clauses, there is no solution, and the types `X` and `Y` do not unify.
 If a solution is found, it contains a set of subgoals that still need to be proven.
@@ -320,13 +278,13 @@ caption: [
     A unification problem for the return type of `life.get_answer()`.
     The goal is#linebreak()`Unify(<Life as HasAnswer>::Answer, u8)`.
     In context is `Implemented(Life: HasAnswer)` and `AliasEq(<Life as HasAnswer>::Answer = u8)`.
-    From these clauses we can solve the problem.
+    From these clauses, we can solve the problem.
   ],
 ) <rust-type-unification>
 
 === Borrow checking
 Another crucial step for the Rust compiler is borrow checking#cite-footnote("Rust Compiler Development Guide, MIR borrow check", "2024-04-06", "https://rustc-dev-guide.rust-lang.org/borrow_check.html", "https://web.archive.org/web/20230324181544/https://rustc-dev-guide.rust-lang.org/borrow_check.html").
-The main responsibilities for the borrow checker are to make sure that:
+The main responsibilities of the borrow checker are to make sure that:
 - All variables are initialized before being used
 - No value is moved twice or used after being dropped
 - No value is moved while borrowed
@@ -351,7 +309,7 @@ Rust also has a concept of two-phased borrows that splits the borrow into two ph
 These are used to allow nested function calls like ```rust vec.push(vec.len())```.
 These programs would otherwise be invalid, as in the example above ```rust vec.len()``` is immutably borrowed while ```rust vec.push(...)``` takes the mutable borrow.
 The two-stage borrows are treated as follows:
-- It is checked that no mutable borrow is in conflict with the two-phase borrow at the reservation point (`vec.len()` for the example above).
+- It is checked that no mutable borrow conflicts with the two-phase borrow at the reservation point (`vec.len()` for the example above).
 - Between the reservation and the activation point, the two-phase borrow acts as a shared borrow.
 - After the activation point, the two-phase borrow acts as a mutable borrow.
 
@@ -368,7 +326,7 @@ The Curry-Howard correspondence is a direct correspondence between computer prog
 The correspondence is used in proof assistants such as Coq and Isabelle and also in dependently typed languages such as Agda and Idris.
 The idea is to state a proposition as a type and then prove it by producing a value of the given type, as explained in @propositions-as-types.
 
-For example, if we have addition on natural numbers defined in Idris as shown in @idirs-add-nat.
+For example, if we have an addition on natural numbers defined in Idris as shown in @idirs-add-nat.
 #figure(
 sourcecode()[
 ```hs
@@ -400,7 +358,7 @@ For example, Agda has a tool called Agsy that is used for term search, and Idris
 === Term search in Agda
 Agda @dependently-typed-programming-in-agda is a dependently typed functional programming language and proof assistant.
 It is one of the first languages that has sufficiently good tools for leveraging term search for inductive proofs.
-We will be more interested in the proof assistant part of Agda, as it is the one leveraging the term search to help the programmer with come with proofs. 
+We will be more interested in the proof assistant part of Agda, as it is the one leveraging the term search to help the programmer come up with proofs. 
 As there are multiple options, we picked two that seem the most popular or relevant for our use case.
 We chose Agsy as this is the well-known tool that is part of the Agda project itself, and Mimer, which attempts to improve on Agsy.
 
@@ -414,8 +372,8 @@ This process is called iterative deepening.
 This is necessary as a problem may, in general, be refined to infinite depth.
 
 The refinement of a problem can produce multiple branches with subproblems.
-In some cases we need to solve all the subproblems.
-In other cases it is sufficient to solve just one of the subproblems to solve the "top-level" problem.
+In some cases, we need to solve all the subproblems.
+In other cases, it is sufficient to solve just one of the subproblems to solve the "top-level" problem.
 An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
 For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
 
@@ -428,8 +386,8 @@ For example, we can either use some local variable, function or type constructor
 
 In case we use type constructors or functions that take multiple arguments, we need to solve all the subproblems of finding terms for arguments.
 The same is true for case splitting: we have to solve subproblems for all the cases.
-For example shown in @agsy_all_branches we see that function ```hs foo : (A, B, C) -> Foo```
-can only be used if we manage to solve the subproblems of finding terms of correct type for all the arguments.
+For example, shown in @agsy_all_branches we see that function ```hs foo : (A, B, C) -> Foo```
+can only be used if we manage to solve the subproblems of finding terms of the correct type for all the arguments.
 
 #figure(
   image("fig/agsy_all_branches.svg", width: 60%),
@@ -439,15 +397,15 @@ can only be used if we manage to solve the subproblems of finding terms of corre
 ) <agsy_all_branches>
 
 Agsy uses problem collections (```hs PrbColl```) to model the subproblems that need to be all solved individually for the "top-level" problem to be solved.
-Solution collections (```hs SolColl```) are used to keep track of solutions for particular problem collection.
+Solution collections (```hs SolColl```) are used to keep track of solutions for a particular problem collection.
 A solution collection has a solution for each of the problems in a corresponding problem collection.
 
 The intuition for the tool is the following:
-1. Given a problem, we create a set of possible subproblem collections out of which we need to solve _at least one_, as show in @agsy_transformation_branches.
+1. Given a problem, we create a set of possible subproblem collections out of which we need to solve _at least one_, as shown in @agsy_transformation_branches.
 2. We attempt to solve _all_ the subproblem collections by recursively solving all the problems in the collection
-3. If we manage to solve _all_ the problems in collection, we use it as a possible solution, otherwise, we discard it as a dead end.
+3. If we manage to solve _all_ the problems in the collection, we use it as a possible solution, otherwise, we discard it as a dead end.
 
-The algorithm itself is based around depth first search (DFS) and consists of two subfunctions.
+The algorithm itself is based on depth-first search (DFS) and consists of two subfunctions.
 Function ```hs search: Problem -> Maybe [Solution]``` is the main entry point that attempts to find a set of solutions for a problem.
 The function internally makes use of another function ```hs searchColl: PrbColl -> Maybe [SolColl]``` that attempts to find a set of solution collections for a problem collection.
 The pseudocode for the `search` and `searchColl` functions can be seen in @agsy-snippet.
@@ -482,7 +440,7 @@ sourcecode()[```hs
 newtype ProbColl = (Refinement, [Problem])
 newtype SolColl  = (Refinement, [Solution])
 
--- Find solutions to problem
+-- Find solutions to a problem
 search :: Problem -> Maybe [Solution]
 search p =
   case (createRefs p) of
@@ -499,7 +457,7 @@ search p =
     dropUnsolved :: [Maybe [SolColl]] -> [SolColl]
     dropUnsolved = flatten . catMaybes
         
--- Find solution to every problem in problem collection
+-- Find a solution to every problem in problem collection
 searchColl :: ProbColl -> Maybe [SolColl]
 searchColl = sequence $ fmap search
 
@@ -507,17 +465,17 @@ searchColl = sequence $ fmap search
 createRefs :: Problem -> [ProbColl]
 createRefs p = flatten [tactic1 p, tactic2 p, tacticN p]
 
--- Create solution to a problem from a refinement
+-- Create a solution to a problem from a refinement
 -- and solutions to subproblems.
 substitute :: Problem -> SolColl -> Solution
 substitute = {- elided -}
 ```],
 caption: [
-    High level overview of term search algorithm used in Agsy
+    A high-level overview of the term search algorithm used in Agsy
   ],
 ) <agsy-snippet>
 
-An example of tactic can be seen in @agsy-example-tactic.
+An example of a tactic can be seen in @agsy-example-tactic.
 #figure(
 sourcecode()[```hs
 -- Suggest locals for solving any problem
@@ -525,12 +483,12 @@ tacticLocal :: Problem -> [ProbColl]
 tacticLocal p = 
   let locals = localsInScope p
   in
-    map (\l -> (Refinment::SubstituteLocal p l, [])) $
+    map (\l -> (Refinement::SubstituteLocal p l, [])) $
     filter (\l -> couldUnify p l) locals
 ```
 ],
 caption: [
-    Example tactic that attempts to solve problem by using locals in scope
+    An example tactic that attempts to solve the problem by using locals in scope
   ],
 ) <agsy-example-tactic>
 
@@ -627,7 +585,7 @@ sourcecode()[```hs
 solve :: Problem -> Maybe Solution
 solve problem = 
   let 
-    pcs: [ProblemCollection] = toSingeltonCollection problem
+    pcs: [ProblemCollection] = toSingletonCollection problem
   in
     fmap combineToSolution (solveBFS pcs) -- Find first solution
 
@@ -1348,7 +1306,7 @@ Since in practice we also care about terms that unify with the type we get the c
 This is still a lot faster than traversing the tree as iterating the entries in the map is quite cheap operation.
 With this kind of graph we managed to increase the search depth to 3-4 depending on the size of the project.
 
-In the DFS approach without chache the main limitation was time complexity, but now the limitation is the memory complexity.
+In the DFS approach without cache the main limitation was time complexity, but now the limitation is the memory complexity.
 The issue is producing too many terms for a type.
 In @first-iter-dfs we discussed that there are often too many terms to present for the user.
 However now we find that there are also too many terms to keep in memory due to exponential growth of them as the depth increases.
@@ -1456,7 +1414,7 @@ The state consists of following components:
 3. _Definitions used_ and _definitions exhausted_ (for example functions applied)
 4. _Types wishlist_ (Types that have been queried, but not reached)
 
-_Terms reached_ keeps track of the search space we have already covered (visited types) and allows quering terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
+_Terms reached_ keeps track of the search space we have already covered (visited types) and allows querying terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
 It is important to note that it also performs transformation of taking a reference if we query for reference type.
 This is only to keep the implementation simple and memory footprint low.
 Otherwise, having separate tactic for taking a reference of the type would be preferred.
