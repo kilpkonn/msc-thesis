@@ -18,7 +18,7 @@
     ),
   ),
   location: "Tallinn",
-  date: "January 17, 2024",
+  date: "May 12, 2024",
   dev: true,
 )
 
@@ -521,20 +521,21 @@ The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps trac
 This sequence is also called a telescope @telescopic-mappings-typed-lamda-calc.
 The telescope is required to work on type systems with dependent types.
 In contrast, typesystems without dependent types can use ordinary ```hs List``` data structure as there are no relations between subproblems.
+This is also the case for Rust, so we will later resort to using `list` for its simplicity.
 
-To more effectively propagate substitutions to subproblems in telescope @algebraic-foundations-of-proof-refinement suggests to use BFS instead of DFS.
+To more effectively propagate substitutions to subproblems in the telescope @algebraic-foundations-of-proof-refinement suggests using BFS instead of DFS.
 The idea is to run all the tactics once on each subproblem, repeatedly.
-This way substitutions propagate along the telescope of subproblems after every iteration.
-In the case of DFS we would propagate the constraints only after exhausting the search on the first subproblem in the sequence.
-To better understand the difference between the BFS approach suggested and DFS approach lets see how each of them work.
+This way, substitutions propagate along the telescope of subproblems after every iteration.
+In the case of DFS, we would propagate the constraints only after exhausting the search on the first subproblem in the sequence.
+To better understand the difference between the BFS approach suggested and the DFS approach, let's see how each of them works.
 
-First let's consider the DFS approach as a baseline.
-The high level algorithm for DFS is to first generate possible ways of how to refine the problem into new subproblems and then solving each of the subproblems fully before continuing to next subproblem. 
-In the snippet below tactics create problem collections that are options we can take to refine the problem into new subproblems.
-After that we attempt to solve each set of subproblems to find the first problem collection where we manage to solve all the subproblems.
+First, let's consider the DFS approach as a baseline.
+The high-level algorithm for DFS is to first generate possible ways to refine the problem into new subproblems and then solve each of the subproblems fully before continuing to the next subproblem. 
+In the snippet below, tactics create problem collections that are options we can take to refine the problem into new subproblems.
+After that, we attempt to solve each set of subproblems to find the first problem collection where we manage to solve all the subproblems.
 That problem collection effectively becomes our solution.
-In @standardml-dfs-code we can see that the DFS fits functional style very well as for all the subproblems we can just recursively call the same `solve` function again.
-Note that in the listing the constraints are propagated to remaining problems only after problem is fully solved.
+In @standardml-dfs-code we can see that the DFS fits functional style very well, as for all the subproblems, we can just recursively call the same `solve` function again.
+Note that in the listing, the constraints are propagated to remaining problems only after the problem is fully solved.
 #figure(
 sourcecode()[```hs
 solve :: Problem -> Maybe Solution
@@ -557,28 +558,28 @@ caption: [
   ],
 ) <standardml-dfs-code>
 
-Now lets look at how the BFS algorithm suggested in @algebraic-foundations-of-proof-refinement works.
-The high level algorithm for BFS is to generate possible ways to refine the problem into new subproblems and then incrementally solve all the subproblems in parallel.
+Now let's look at how the BFS algorithm suggested in @algebraic-foundations-of-proof-refinement works.
+The high-level algorithm for BFS is to generate possible ways to refine the problem into new subproblems and then incrementally solve all the subproblems in parallel.
 The pseudocode for it can be seen in @standardml-bfs-code.
 
-The algorithm starts by converting the given problem to singleton problem collection.
-Now the produced collection is fed into `solveBFS` function that starts incrementally solving the problem collections.
-In the example we are using queue to keep track of the problem collections we are solving.
-Internally the `solveBFS` function loops over the elements of the queue until either a solution is found or the queue becomes empty.
-In the snippet we check the status of the problem collection with a `status` function that tells us the status of the problem collection.
-The status is either
+The algorithm starts by converting the given problem to a singleton problem collection.
+Now the produced collection is fed into `solveBFS` function, which starts incrementally solving the problem collections.
+In this example, we are using a queue to keep track of the problem collections we are solving.
+Internally, the `solveBFS` function loops over the elements of the queue until either a solution is found or the queue becomes empty.
+In the snippet, we check the status of the problem collection with a `status` function that tells us the status of the problem collection.
+The status is either:
  - *AllSolved* for problem collections that do not have any unresolved subproblems in them and are ready to be converted into solutions.
  - *NoSolution* for problem collections that have remaining unresolved subproblems that we are unable to make any progress on.
  - *RemainingProblems* for all the problem collections that we can make progress on by incrementally stepping the problem further.
  In case of ```hs AllSolved``` we return the solution as we are done with the search.
  In case of ```hs NoSolution``` we discard the problem from the queue.
- Otherwise, (in case of ```hs RemainingProblems```) we step the problem collection at the head of the queue and push the results back to the back of the queue.
- Now we are ready to keep iterate the loop again with the new problem collection at the head of the queue.
+ Otherwise, (in the case of ```hs RemainingProblems```) we step the problem collection at the head of the queue and push the results back to the back of the queue.
+ Now we are ready to keep iterating the loop again with the new problem collection at the head of the queue.
 
  Stepping the problem collection steps (or adds atomic refinements) to all problems in the problem collection and propagates the constraints to rest of the subproblems if refinements produce any new constraints.
- As the problem can generally be refined in multiple ways the function returns a list of problem collections that are all possible successors of the input problem collection.
- Propagating the constraints is done in `propagateConstraints` function.
- The function adds new constraints arising form the head element refinements to all subproblems in the problem collection.
+ As the problem can generally be refined in multiple ways, the function returns a list of problem collections that are all possible successors to the input problem collection.
+ Propagating the constraints is done in the `propagateConstraints` function.
+ The function adds new constraints arising from the head element refinements to all subproblems in the problem collection.
 
 #figure(
 sourcecode()[```hs
@@ -624,10 +625,10 @@ caption: [
 ) <standardml-bfs-code>
 
 Consider the example where we are searching for a goal ```hs ?goal :: ([a], a -> String)``` that is a pair of a list of some type and a function of that type to `String`.
-Similar goals in real word could arise from finding a list together with a function that can map the elements to string to print them (`show` function).
+Similar goals in everyday life could arise from finding a list together with a function that can map the elements to strings to print them (`show` function).
 
-Note that in this example we want the first member of pair to be list, but we do not care of the types inside the list.
-The only requirement is that the second member of pair can map the same type to ```hs String```.
+Note that in this example, we want the first member of the pair to be list, but we do not care of the types inside the list.
+The only requirement is that the second member of the pair can map the same type to ```hs String```.
 We have the following items in scope:
 ```hs
 bar : Bar
@@ -637,29 +638,29 @@ mk_list_bar : Bar -> [Bar]
 show_bar  : Bar -> String
 ```
 
-To simplify the notation we will name the goals as ```hs ?<number>```, for example ```hs ?1``` for goal 1.
+To simplify the notation, we name the goals as ```hs ?<number>```, for example, ```hs ?1``` for goal 1.
 
-First we can split the goal of finding a pair to two subgoals ```hs [?1 : [a], ?2 : a -> String]```.
-This is the same step for BFS and DFS as there is not much else to do with ```hs ?goal``` as there are now functions
-that take us to a pair of any types except using pair constructor.
-At this point we have two subgoals to solve
+First, we can split the goal of finding a pair into two subgoals: ```hs [?1 : [a], ?2 : a -> String]```.
+This is the same step for BFS and DFS, as there is not much else to do with ```hs ?goal``` as there are now functions
+that take us to a pair of any types except using the pair constructor.
+At this point, we have two subgoals to solve
 ```hs
 (?1 : [a], ?2 : a -> String)
 ```
 
-Now we are at where the differences between DFS and BFS start playing out.
-First let's look at how the DFS would handle the goals.
-First we focus on ```hs ?1```.
-We can use `mk_list_foo` to transform the goal to finding of something of type ```hs Foo```.
-Now we have the following solution and goals.
+Now we are at the point where the differences between DFS and BFS start playing out.
+First, let's look at how the DFS would handle the goals.
+We start by focusing on ```hs ?1```.
+We can use `mk_list_foo` to transform the goal into finding something of the type ```hs Foo```.
+Now we have the following solution and goals:
 
 ```hs
 (mk_list_foo(?3 : Foo), ?2 : a -> String)
 ```
 
-Note that although the `a` in ```hs ?s2``` has to be of type ```hs Foo``` we do not propagate this knowledge there yet as we are focusing on ```hs ?3```.
+Note that although the `a` in ```hs ?s2``` has to be of type ```hs Foo```, we have not propagated this knowledge there yet as we are focusing on ```hs ?3```.
 We only propagate the constraints when we discard the hole as filled.
-We use `mk_foo` to create new goal ```hs ?4 : Bar``` which we solve by providing `bar`.
+We use `mk_foo` to create a new goal ```hs ?4 : Bar``` which we solve by providing `bar`.
 Now we propagate the constraints to the remaining subgoals, ```hs ?2``` in this example.
 This means that the second subgoal becomes ```hs ?2 : Foo -> String``` as shown below.
 
@@ -695,15 +696,15 @@ caption: [
   ],
 ) <standardml-dfs-steps>
 
-Now let's take a look at the algorithm that uses BFS for to handle the goals.
-The first iteration is the same as described above after which we have two subgoals to fill.
+Now let's take a look at the algorithm that uses BFS to handle the goals.
+The first iteration is the same as described above, after which we have two subgoals to fill.
 ```hs
 (?1 : [a], ?2 : a -> String)
 queue = [[?1, ?2]]
 ```
 
-As we are always working on the head element of the queue we are still working on ```hs ?1```.
-Once again we use `mk_list_foo` to transform the first subgoal to ```hs ?3 : Foo``` but this time we also insert another problem collection to the queue where we use `mk_list_bar` instead.
+As we are always working on the head element of the queue, we are still working on ```hs ?1```.
+Once again, we use `mk_list_foo` to transform the first subgoal to ```hs ?3 : Foo```, but this time we also insert another problem collection into the queue, where we use `mk_list_bar` instead.
 We also propagate the information to other subgoals so that we constrain ```hs ?2``` to either ```hs Foo -> String``` or ```hs Bar -> String```.
 ```hs
 (mk_list_foo(?3 : Foo), ?2 : Foo -> String)
@@ -712,10 +713,10 @@ We also propagate the information to other subgoals so that we constrain ```hs ?
 queue = [[?3, ?2], [?4, ?2]]
 ```
 
-In the next step we search for something of type ```hs Foo``` for ```hs ?3``` and a function of type ```hs Foo -> String``` in ```hs ?2```.
+In the next step, we search for something of type ```hs Foo``` for ```hs ?3``` and a function of type ```hs Foo -> String``` in ```hs ?2```.
 We find `bar` for the first goal, but not anything for the second goal.
 This means we discard the branch as we are not able to solve the problem collection.
-Note that at this point we still have ```hs ?4``` pending, meaning we have not yet exhausted the search in current "branch".
+Note that at this point we still have ```hs ?4``` pending, meaning we have not yet exhausted the search in the current "branch".
 Reverting now means that we save some work that was guaranteed to have no effect on the overall outcome.
 The search space becomes
 ```hs
@@ -725,15 +726,15 @@ The search space becomes
 queue = [[?4, ?2]]
 ```
 Now we focus on the other problem collection.
-In this iteration we find solutions for both of the goals as following.
-As all the problems in the problem collection get solved we can turn it into solution and return it.
+In this iteration, we find solutions for both of the goals.
+As all the problems in the problem collection get solved, we can turn the problem collection into a solution and return it.
 ```hs
 (mk_list_bar(?5 : Bar), ?2 : Bar -> String)
 (mk_list_bar(bar), show_bar)
 ```
 
 An overview of all the steps we took can be seen in @standardml-bfs-steps.
-Note that from line 3 to line 5 there are two branches is parallel and order between branches is arbitrary.
+Note that from line 3 to line 5, there are two parallel branches, and the order between branches is arbitrary.
 #figure(
 sourcecode()[```hs
 ?goal : ([a], a -> String)
@@ -748,50 +749,50 @@ caption: [
   ],
 ) <standardml-bfs-steps>
 
-In the example above we see that BFS and propagating constraints to other subgoals can help us cut some search branches to speed up the search.
+In the example above, we see that BFS and propagating constraints to other subgoals can help us cut some search branches to speed up the search.
 However, this is not always the case.
-BFS is faster only if we manage to cut the proof before exhausting the search at the current goal.
-In case the first goal we focus at cannot be filled DFS is faster as it doesn't do any work on filling other goals.
+BFS is faster only if we manage to cut the proof before exhausting the search for the current goal.
+In case the first goal we focus on cannot be filled, DFS is faster as it doesn't do any work on filling other goals.
 
 === Term search in Haskell
 Wingman#cite-footnote("Hackage, Wingman plugin for Haskell Language Server", "2024-04-06", "https://hackage.haskell.org/package/hls-tactics-plugin", "https://web.archive.org/web/20240313211704/https://hackage.haskell.org/package/hls-tactics-plugin") is a plugin for Haskell Language Server that provides term search.
 For term search Wingman uses library called Refinery#cite-footnote("Github Refinery repository", "2024-04-06", "https://github.com/TOTBWF/refinery", "https://web.archive.org/web/20230615122227/https://github.com/TOTBWF/refinery") that is also based on @algebraic-foundations-of-proof-refinement similarly to the Standard ML tool we described in @standardml.
 
-As we described the core ideas in @standardml we won't cover them here.
+As we described the core ideas in @standardml, we won't cover them here.
 However, we will take a look at some implementation details.
 
 The most interesting implementation detail for us is how BFS is achieved.
-Refinery uses interleaving of subgoal generated by each tactic to get the desired effect.
-Let's look at the example to get a better idea what is going on.
+Refinery uses the interleaving of subgoals generated by each tactic to get the desired effect.
+Let's look at the example to get a better idea of what is going on.
 Suppose that at some point of the term search we have three pending subgoals: `[`#text(red)[`?1`]`, ?2, ?3]` and we have some tactic that produces two new subgoals `[`#text(blue)[`?4`]`, `#text(blue)[`?5`]`]` when refining #text(red)[`?1`].
 The DFS way of handling it would be
 #block()[
 `[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [`#text(blue)[`?4`]`, `#text(blue)[`?5`]`, ?2, ?3]`
 ]
-However with interleaving the goals are ordered in the following way
+However, with interleaving, the goals are ordered in the following way:
 #block()[
 `[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [?2, `#text(blue)[`?4`]`, ?3, `#text(blue)[`?5`]`]`
 ]
-Note that there is also a way to insert the new goals to back of the goals list which is the BFS way.
+Note that there is also a way to insert the new goals at the back of the goals list, which is the BFS way.
 #block()[
 `[`#text(red)[`?1`]`, ?2, ?3] -> tactic -> [?2, ?3, `#text(blue)[`?4`]`, `#text(blue)[`?5`]`]`
 ]
-However in Refinery they have decided to go with interleaving as it works well with tactics that produce infinite amounts of new holes due to not making any new process.
+However, in Refinery, they have decided to go with interleaving, as it works well with tactics that produce infinite amounts of new holes due to not making any new process.
 Note that this works especially well because of the lazy evaluation in Haskell.
-In case of eager evaluation the execution would still halt on producing all the subgoals, so interlining would have now effect.
+In the case of eager evaluation, the execution would still halt on producing all the subgoals, so interlining would now have an effect.
 
 
 === Term search in Idris2
-Idris2 @idris2-design-and-implementation is a dependently typed programming language that has term search built into its compiler.
-Internally the compiler makes use of a small language they call TT.
-TT is a dependently-typed λ -calculus with inductive families and pattern matching definitions.
+Idris2 (@idris2-design-and-implementation) is a dependently typed programming language that has term search built into its compiler.
+Internally, the compiler makes use of a small language they call TT.
+TT is a dependently-typed λ-calculus with inductive families and pattern-matching definitions.
 The language is kept as small as reasonably possible to make working with it easier.
 
-As the term search algorithm also works on TT we will take a closer look at it.
-More precise we will look at they call $"TT"_"dev"$ that is TT, but extended with hole and guess bindings.
+As the term search algorithm also works on TT, we will take a closer look at it.
+More precisely, we will look at what they call $"TT"_"dev"$, which is TT extended with hole and guess bindings.
 The guess binding is similar to a let binding, but without any reduction rules for guess bindings.
 Using binders to represent holes is useful in a dependently-typed setting since one value may determine another.
-Attaching a guess (generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies
+Attaching a guess (a generated term) to a binder ensures that instantiating one such variable also instantiates all of its dependencies.
 
 $"TT"_"dev"$ consists of terms, bindings and constants as shown in @idris-tt-syntax.
 #figure(
@@ -818,46 +819,46 @@ caption: [
   ],
 ) <idris-tt-syntax>
 
-Idris2 makes use of priority queue of hole and guess binders to keep track of subgoals to fill.
+Idris2 makes use of priority queue of holes and guess binders to keep track of subgoals to fill.
 The goal is considered filled once the queue becomes empty.
 
 In the implementation, the proof state is captured in an elaboration monad, which is a state monad with exceptions.
-The general flow of the algorithm is following:
-1. Create a new proof state
-2. Run series of tactics to build up the term
-3. Recheck the generated term
+The general flow of the algorithm is the following:
+1. Create a new proof state.
+2. Run a series of tactics to build up the term.
+3. Recheck the generated term.
 
-Proof state contains the context of the problem (local and global bindings), the proof term, unsolved unification problems and the holes queue.
+The proof state contains the context of the problem (local and global bindings), the proof term, unsolved unification problems, and the holes queue.
 The main parts of the state that change during the proof search are the holes queue and sometimes the unsolved unification problems.
-Holes queue changes as we try to empty it by filling all the holes.
-Unsolved unification problems only changes if new information about unification comes available when instantiating terms in the proof search.
-For example, we may have unification problem `Unify(f x, Int)` that cannot be solved without further without new information.
+The holes queue changes as we try to empty it by filling all the holes.
+Unsolved unification problems only change if new information about unification becomes available when instantiating terms in the proof search.
+For example, we may have a unification problem `Unify(f x, Int)` that cannot be solved without new information.
 Only when we provide some concrete `f` or `x` the problem can be solved further.
 
 Tactics in Idris2 operate on the sub-goal given by the hole at the head of the hole queue in the proof state.
-All tactics run relative to context which contains all the bindings in scope.
-They take a term (that is hole or guess binding) and produce new term that is of suitable type.
-Tactics are also allowed to have side effects that modify proof state.
+All tactics run relative to context, which contains all the bindings in scope.
+They take a term (that is, hole or guess binding) and produce a new term that is of suitable type.
+Tactics are also allowed to have side effects that modify the proof state.
 
-Next let's take a look at the primitive building blocks that are used by tactics to create and fill holes.
+Next, let's take a look at the primitive building blocks that are used by tactics to create and fill holes.
 
-Operation `claim` is used to create new holes in the context of current hole.
-The operation creates new hole binding to the head of the holes queue.
+Operation `claim` is used to create new holes in the context of a current hole.
+The operation creates a new hole binding to the head of the holes queue.
 Note that the binding is what associates the generated hole with the current hole.
 
 Operation `fill` is used to fill a goal with value. 
-Given value `v` the operation attempts to solve the hole by creating a guess binder with `v`.
-It also tries to fill other goals by attempting to unifying `v` with the types of holes.
-Note that the `fill` operation does not destroy the hole yet as the guess binding it created is allowed to have more holes in it.
+Given the value `v`, the operation attempts to solve the hole by creating a guess binder with `v`.
+It also tries to fill other goals by attempting to unify `v` with the types of holes.
+Note that the `fill` operation does not destroy the hole yet, as the guess binding it created is allowed to have more holes in it.
 
-To destroy holes, operation `solve` is used.
+To destroy holes, the operation `solve` is used.
 It operates on guess bindings and checks if they contain any more holes.
-If they don't, then the hole is destroyed and substituted with the value from guess binder.
+If they don't, then the hole is destroyed and substituted with the value from the guess binder.
 
-The two step process, with `fill` followed by `solve`, allows the elaborator to work safely with incomplete terms.
-This way incomplete terms do not affect other holes (by adding extra constraints) until we know we can solve them.
+The two-step process, with `fill` followed by `solve`, allows the elaborator to work safely with incomplete terms.
+This way, incomplete terms do not affect other holes (by adding extra constraints) until we know we can solve them.
 Once a term is complete in a guess binding, it may be substituted into the scope of the binding safely.
-In each of these tactics, if any step fails, or the term in focus does not solve the entire tactic fails.
+In each of these tactics, if any step fails, or the term in focus does not solve the problem, the entire tactic fails.
 This means that it roughly follows the DFS approach described in @standardml.
 
 
@@ -872,14 +873,14 @@ This is done by factorizing the terms into smaller terms that carry less context
 Smyth has many other optimizations, but they focus on using the information from examples and are therefore not interesting for us as they focus on optimizing the handling of data provided by examples.
 
 == Program synthesis in Rust
-RusSol is a proof of concept tool to synthesize Rust programs from both function declarations and pre- and post-conditions.
+RusSol is a proof-of-concept tool to synthesize Rust programs from both function declarations and pre- and post-conditions.
 It is based on separation logic as described in @rust-program-synthesis, and it is the first synthesizer for Rust code from functional correctness specifications.
-Internally it uses SuSLik’s @suslik general-purpose proof search framework.
+Internally, it uses SuSLik’s @suslik general-purpose proof search framework.
 RusSol itself is implemented as an extension to `rustc`, the official rust compiler.
-It has separate command line tool, but internally it reuses many parts of the compiler.
-Although the main use case for RusSol is quite different from our use case it shared a lot of common ground.
+It has a separate command-line tool, but internally, it reuses many parts of the compiler.
+Although the main use case for RusSol is quite different from our use case, they share a lot of common ground.
 
-The idea of the tool is to specify function declaration as following and then run the tool on it to synthesize the program to replace the ```rust todo!()``` macro on line 5 in @russol-input.
+The idea of the tool is to specify the function declaration as follows and then run the tool on it to synthesize the program to replace the ```rust todo!()``` macro on line 5 in @russol-input.
 
 #figure(
 sourcecode(highlighted: (5,))[```rs
@@ -894,8 +895,8 @@ caption: [
     RusSol input program
   ],
 ) <russol-input>
-From the preconditions (`requires` macro) and post-conditions (`ensures` macro) it is able to synthesize the body of the function.
-For the example in @russol-input the output is shown in @russol-output.
+From the preconditions (`requires` macro) and post-conditions (`ensures` macro), it is able to synthesize the body of the function.
+For the example in @russol-input, the output is shown in @russol-output.
 #figure(
 sourcecode(numbering: none)[```rs
 match y {
@@ -907,11 +908,11 @@ caption: [
     RusSol output for `todo!()` macro
   ],
 ) <russol-output>
-It can also insert ```rust unreachable!()``` macros to places that are never reached during the program execution.
+It can also insert ```rust unreachable!()``` macros in places that are never reached during program execution.
 
-RusSol works on the HIR level of abstraction.
+RusSol works at the HIR level of abstraction.
 It translates the information from HIR to separation logic rules that SuSLik can understand and feeds them into it.
-After getting back successful response it turns the response back into Rust code as shown in @russol-workflow.
+After getting a successful response, it turns the response back into Rust code, as shown in @russol-workflow.
 #figure(
   image("fig/russol-suslik.png", width: 100%),
   caption: [
@@ -921,25 +922,25 @@ After getting back successful response it turns the response back into Rust code
 
 All the programs synthesized by RusSol are guaranteed to be correct by construction.
 This is achieved by extracting the programs from separation logic derivations.
-However, in @rust-program-synthesis they noted that they cannot prove the correctness of separation logic rules for Rust as at this point rust lacks formal specification.
-Nevertheless, the tool was tested on 100 different crates and managed to always produce valid code.
+However, in @rust-program-synthesis, they noted that they cannot prove the correctness of separation logic rules for Rust as, at this point, Rust lacks formal specification.
+Nevertheless, the tool was tested on 100 different crates and managed to always produce a valid code.
 
-As the tool uses external engine to synthesize the programs we will not dive into its inner workings.
-However, we will take a look at the notes by the authors of @rust-program-synthesis as they are very relevant also for us.
+As the tool uses an external engine to synthesize the programs, we will not dive into its inner workings.
+However, we will take a look at the notes by the authors of @rust-program-synthesis, as they are very relevant to us.
 
-The authors found that quite often the types are descriptive enough to produce useful programs and the pre- and post-conditions are not required.
-This aligns with our intuition of synthesizing terms from types can be useful in practice.
+The authors found that quite often the types are descriptive enough to produce useful programs, and the pre- and post-conditions are not required.
+This aligns with our intuition that synthesizing terms from types can be useful in practice.
 
-The authors of RusSol pointed out the main limitations of the tool are:
-1. It does not support traits
-2. It does not support conditionals as it lacks branch abduction
-3. It does not synthesize arithmetic expressions
-4. It does not support ```rust unsafe``` code
+The authors of RusSol pointed out the main limitations of the tool, which are:
+1. It does not support traits.
+2. It does not support conditionals as it lacks branch abduction.
+3. It does not synthesize arithmetic expressions.
+4. It does not support ```rust unsafe``` code.
 
-They also noted that first three of them can be solved with some extra engineering effort, but the last one requires more fundamental changes to the tool.
+They also noted that the first three of them can be solved with some extra engineering effort, but the last one requires more fundamental changes to the tool.
 
-From the benchmarks on top 100 crates on crates.io it was measured that it takes about 0.5s on average to synthesize non-primitive expressions.
-Quite often the synthesis time was 2-3s and sometimes reached as high as 18.3s.
+From the benchmarks on the top 100 crates on crates.io, it was measured that it takes about 0.5s on average to synthesize non-primitive expressions.
+Quite often, the synthesis time was 2-3s and sometimes reached as high as 18.3s.
 This is fast enough to use for filling holes, but too slow to use for autocompletion.
 
 == Autocompletion
