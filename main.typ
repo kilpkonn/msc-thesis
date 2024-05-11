@@ -1764,25 +1764,24 @@ $
 */
 
 = Evaluation <evaluation>
-In this chapter we evaluate the performance of the three iterations of the algorithm as implemented in @term-search-iters.
+In this chapter, we evaluate the performance of the three iterations of the algorithm as implemented in @term-search-iters.
 The main focus is on the third and final iteration, but we compare it to previous iterations to highlight the differences.
 
-First we perform empirical evaluation of the tree algorithms by performing a resynthesis on existing Rust programs.
-Later we focus on some hand-picked examples to show the strengths and weaknesses of the tool.
+First, we perform an empirical evaluation of the tree algorithms by performing a resynthesis on existing Rust programs.
+Later, we focus on some hand-picked examples to show the strengths and weaknesses of the tool.
 
 == Resynthesis
-Resynthesis is using the tool to synthesize programs for which a reference implementation exist.
+Resynthesis is using the tool to synthesize programs for which a reference implementation exists.
 This allows us to compare the generated suggestions to known-good programs.
 For resynthesis, proceed as follows:
-1. Take existing open source project as a reference implementation
-2. Remove one expression from it, creating a hole in the program
-3. Run term search in the hole
-4. Compare the generated expressions to the reference implementation
-5. Put back the original expression and repeat on rest of the expressions
+1. Take an existing open-source project as a reference implementation.
+2. Remove one expression from it, creating a hole in the program.
+3. Run term search in the hole.
+4. Compare the generated expressions to the reference implementation.
+5. Put back the original expression and repeat on the rest of the expressions.
 
 ==== Choice of expressions
 We chose to perform resynthesis only on the #emph[tail expressions] of blocks, as we consider this the most common use case for our tool.
-// Other options that we considered are let assignments and arguments of function calls.
 A block expression is a sequence of statements followed by an optional tail expression, enclosed in braces (`{...}`).
 For example, the body of a function is a block expression, and the function evaluates to the value of its tail expression.
 Block expressions also appear as the branches of ```rust if``` expressions and ```rust match```-arms.
@@ -1822,48 +1821,47 @@ caption: [
 For resynthesis, we are interested in the following metrics:
 
 1. #metric[Holes filled] represents the fraction of tail expressions where the algorithm finds at least one term that satisfies the type system. The term may or may not be what was there originally.
-2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to total amount of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric as programs with different syntax may have the same meaning. For example ```rust Vec::new()``` and ```rust Vec::default()``` produce exactly the same behavior. As deciding of the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem we will not attempt to consider the equality of the programs and settle with the syntactic equality.
-   To make the metric slightly more robust we compare the programs ASTs effectively removing all the formatting before comparing.
-3. #metric[Average time] represents the average time for a single term search query. Note that although the cache in term search is not persisted between runs the lowering of the program is cached. This is however also true for the average use case as `rust-analyzer` as it only wipes the cache on restart.
+2. #metric[Holes filled (syntactic match)] represents the share of tail expressions in relation to the total number of terms that are syntactically equal to what was there before. Note that syntactical equality is a very strict metric, as programs with different syntax may have the same meaning. For example, ```rust Vec::new()``` and ```rust Vec::default()``` produce exactly the same behavior. As deciding the equality of the programs is generally undecidable according to Rice's theorem @rice-theorem, we will not attempt to consider the equality of the programs and settle for syntactic equality.
+   To make the metric slightly more robust, we compare the programs ASTs, effectively removing all the formatting before comparing.
+3. #metric[Average time] represents the average time for a single term search query. Note that although the cache in term search is not persisted between runs, the lowering of the program is cached. This is however also true for the average use case of `rust-analyzer` as it only wipes the cache on restart.
    To benchmark the implementation of term search rather than the rest of `rust-analyzer` we run term search on hot cache.
-4. #metric[Terms per hole] - This shows the average amount of options provided to the user.
+4. #metric[Terms per hole] - This shows the average number of options provided to the user.
 
 These metrics are relatively easy to measure and relevant to users:
 They tell us how often the tool offers assistance, how much of it is useful, and if it slows down the user's flow of development.
-All experiments are conducted on a consumer-grade computer with an AMD Ryzen 7 CPU and 32GB RAM.
+All experiments are conducted on a consumer-grade computer with an AMD Ryzen 7 CPU and 32GB of RAM.
 
 ==== Choice of reference implementations
-For our experiments, we select a number of open source Rust libraries.
+For our experiments, we select a number of open-source Rust libraries.
 In Rust, #emph[crate] is the name for a library.
 We use _crates.io_#cite-footnote("The Rust community’s crate registry", "2024-04-06", "https://crates.io/", "https://web.archive.org/web/20240409223247/https://crates.io/"), the Rust community’s crate registry as a source of information of the most popular crates.
-_Crates.io_ is _de facto_ standard crate registry, so we believe that it reflects the popularity of the crates in the Rust ecosystem very well.
+_Crates.io_ is the _de facto_ standard crate registry, so we believe that it reflects the popularity of the crates in the Rust ecosystem very well.
 
 We select representative examples of different kinds of Rust programs by picking crates from popular categories on _crates.io_. 
-For each category containing at least 1000 crates, we select its top 5 crates, sorted by all time downloads.
-This leaves us with 31 categories and total of 155 crates.
+For each category containing at least 1000 crates, we select its top 5 crates, sorted by all-time downloads.
+This leaves us with 31 categories and a total of 155 crates.
 The full list of crates can be seen in #ref(<appendix-crates>, supplement: "Appendix").
 
 ==== Results
-First we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
+First, we are going to take a look at how the hyperparameter of search depth affects the chosen metrics.
 
-We measured #metric[holes filled], and number of #metric[terms per hole] for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
+We measured #metric[holes filled] and the number of #metric[terms per hole] for search depths up to 5 (@term-search-depth-accuracy, @tbl-depth-hyper-param).
 For search depth 0, only trivial tactics (@tactic-trivial and @tactic-famous-types) are run.
-This results in 18.9% of the holes being filled, with only 2.5% of holes having syntactic matches.
-Beyond the search depth of 2 we noticed barely any improvements in portion of holes filled.
-At depth 2 the algorithm fills 74.9% of holes.
-By doubling the depth the amount of holes filled increases only by 1.5%pt to 76.4%.
-More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after depth of 3.
+This results in 18.9% of the holes being filled, with only 2.5% of the holes having syntactic matches.
+Beyond the search depth of 2, we noticed barely any improvements in the portion of holes filled.
+At depth 2, the algorithm fills 74.9% of holes.
+By doubling the depth, the number of holes filled increases only by 1.5%pt to 76.4%.
+More interestingly, we can see from @tbl-depth-hyper-param that syntactic matches starts to decrease after a depth of 3.
 This is because we get more results for subterms and squash them into ```rust Many```, i.e. replace them with a new hole.
-Terms that would result in syntactic matches get also squashed, resulting in a decrease in syntactic matches.
+Terms that would result in syntactic matches get squashed, resulting in a decrease in syntactic matches.
 
 The number of terms per hole follows a similar pattern to holes filled, but the curve is flatter.
-At depth 0 we have on average 15.1 terms per hole.
+At depth 0, we have, on average, 15.1 terms per hole.
 At depths above 4, this number plateaus at around 23 terms per hole.
-Note that a bigger number of terms per hole is not always better: too many terms might be overwhelming to user.
+Note that a larger number of terms per hole is not always better.
+Too many terms might be overwhelming to the user.
 
-Over 15 terms per hole at depth 0 is more than we expect, so we will more closely investigate the amount of terms per hole in @c-style-stuff.
-/*By using #note[See how to go about it here][median] instead of mean we find that the number of terms per hole ranges from 0.5 to 5.5 for depth 0 to 5.
-This is about what we expect.*/
+Over 15 terms per hole at depth 0 is more than we expected, so we will more closely investigate the number of terms per hole in @c-style-stuff.
 
 #figure(
   placement: auto,
@@ -1881,12 +1879,12 @@ This is about what we expect.*/
 ) <term-search-depth-accuracy>
 
 
-To more closely investigate the time complexity of the algorithm we run the experiment up to depth of 20.
+To more closely investigate the time complexity of the algorithm, we run the experiment up to a depth of 20.
 We estimate that running the experiment on all 155 crates would take about half a month.
-In order to speed up the process we select only the most popular crate for each category.
+In order to speed up the process, we select only the most popular crate for each category.
 This results in 31 crates in total (#ref(<appendix-reduced-crates>, supplement: "Appendix")).
 
-We observe that in the average case, execution time of the algorithm is in linear relation with the search depth (@term-search-depth-time).
+We observe that in the average case, the execution time of the algorithm is in linear relation to the search depth (@term-search-depth-time).
 Increasing depth by one adds about 8ms of execution time on average.
 
 #figure(
@@ -1898,11 +1896,11 @@ Increasing depth by one adds about 8ms of execution time on average.
   ],
 ) <term-search-depth-time>
 We can see that increasing the search depth over two can actually have somewhat negative effects.
-The search will take longer and there will be more terms.
-More terms often means more irrelevant suggestions.
-By examining the fraction of holes filled and holes filled with syntactic matches we see that both have reached a plateau at depth 2.
-From that we conclude that we are mostly increasing the amount of irrelevant suggestions.
-This can be also seen in @term-search-depth-accuracy where the fraction of holes filled has stalled after the 2nd iteration, but execution time keeps increasing linearly in @term-search-depth-time.
+The search will take longer, and there will be more terms.
+More terms often mean more irrelevant suggestions.
+By examining the fraction of holes filled and holes filled with syntactic matches, we see that both have reached a plateau at depth 2.
+From that, we conclude that we are mostly increasing the number of irrelevant suggestions.
+This can also be seen in @term-search-depth-accuracy, where the fraction of holes filled has stalled after the second iteration, but execution time keeps increasing linearly in @term-search-depth-time.
 
 #figure(
   placement: auto,
@@ -1927,28 +1925,28 @@ This can be also seen in @term-search-depth-accuracy where the fraction of holes
   ]
 ) <tbl-depth-hyper-param>
 
-With the depth of 2 the program manages to generate a term that satisfies the type for 74.9% of all holes.
-In 11.0% of searches the generated term syntactically matches the original term.
+With a depth of 2, the program manages to generate a term that satisfies the type for 74.9% of all holes.
+In 11.0% of searches, the generated term syntactically matches the original term.
 The average number of terms per hole is 20, and they are found in 49ms.
 However, the numbers vary a lot depending on the style of the program.
-Standard deviation between categories for average number of terms is about 56 terms, and standard deviation of average time is 135ms.
-Both of these are greater than the average numbers themselves indicating large differences between categories.
-We discuss the categories that push standard deviation so high in @c-style-stuff.
+The standard deviation between categories for the average number of terms is about 56 terms, and the standard deviation of the average time is 135ms.
+Both of these are greater than the average numbers themselves, indicating large differences between categories.
+We discuss the categories that push the standard deviation so high in @c-style-stuff.
 
 #let ver(x) = raw("v" + str(x))
 
-To give some context on the results we decided to compare them to results from previous iterations of the algorithm.
+To give some context to the results, we decided to compare them to results from previous iterations of the algorithm.
 However, both of the previous algorithms were so slow with some particular crates that we couldn't run them on the whole set of benchmarks.
-As some of the worst cases are eliminated the for iterations #ver(1) and #ver(2), the results in @tbl-versions-comparison are more optimistic for #ver(1) and #ver(2) than for the final iteration of the algorithm.
+As some of the worst cases are eliminated for iterations #ver(1) and #ver(2), the results in @tbl-versions-comparison are more optimistic for #ver(1) and #ver(2) than for the final iteration of the algorithm.
 Nevertheless, the final iteration manages to outperform both of the previous iterations.
 
-The first iteration performs significantly worse than others, running almost two orders of magnitude slower than other iterations, and filling about only a third of holes compared to the final iteration of the algorithm.
-As the performance of the first iteration is much worse than the later iterations, we will not dive into details of it.
+The first iteration performs significantly worse than others, running almost two orders of magnitude slower than other iterations and filling about only a third of the holes compared to the final iteration of the algorithm.
+As the performance of the first iteration is much worse than the later iterations, we will not dive into the details of it.
 
-Instead, we compare more closely the last two iterations.
-The final iteration manages to fill 1.6 times more holes than second iteration of the algorithm at depth 3.
+Instead, we compare the last two iterations more closely.
+The final iteration manages to fill 1.6 times more holes than the second iteration of the algorithm at depth 3.
 It also fills 1.8 times more holes with syntactic matches.
-These results are achieved 12% in less time than the second iteration.
+These results were achieved in 12% less time than the second iteration.
 
 #figure(
   // placement: auto,
@@ -1970,101 +1968,100 @@ These results are achieved 12% in less time than the second iteration.
   ]
 ) <tbl-versions-comparison>
 
-In addition to average execution time, we care about low latency of suggestions.
-We choose 100ms as a latency threshold, which we believe is low enough for responsive autocompletion.
-This is a recommended latency threshold for web applications (@usability-engineering), and mean latency of writing digraphs while programming is around 170ms (@typing-latency).
-We will use our algorithm with depth of 2 as this seems to be the optimal depth for autocompletion.
+In addition to average execution time, we care about the low latency of suggestions.
+We chose 100ms as a latency threshold, which we believe is low enough for responsive autocompletion.
+This is a recommended latency threshold for web applications (@usability-engineering), and the mean latency of writing digraphs while programming is around 170ms (@typing-latency).
+We will use our algorithm with a depth of 2, as this seems to be the optimal depth for autocompletion.
 
-We found that 87% holes can be filled within 100ms.
+We found that 87% of holes can be filled within 100ms.
 In 8 of the categories, all holes could be filled in 100ms.
-The main issues arose in categories "hardware-support" and "external-ffi-bindings" in which only 6% and 16% of the holes could be filled withing 100ms threshold.
+The main issues arose in the categories "hardware-support" and "external-ffi-bindings", in which only 6% and 16% of the holes could be filled within 100ms threshold.
 These categories were also problematic from the other aspects, and we will discuss the issues in them in detail in @c-style-stuff.
 
 
 == Usability <usability>
-In this section we study cases where our algorithm either performs very well or very poorly.
-We discuss the performance of our algorithm for different styles of programs, as well as in different context in which to perform term search. 
+In this section, we study cases where our algorithm either performs very well or very poorly.
+We discuss the performance of our algorithm for different styles of programs as well as in different contexts in which to perform term searches. 
 
 ==== Generics
 Although we managed to make the algorithm work decently with a low amount of generics, extensive use of generics slows it down.
-Crates in the category "mathematics" are highly generic, and as a result the average search time in this category is about 15 times longer than the average over all categories (767ms vs 50ms, @tbl-per-category-results).
+Crates in the category "mathematics" are highly generic, and as a result, the average search time in this category is about 15 times longer than the average over all categories (767ms vs 50ms, @tbl-per-category-results).
 One example is `nalgebra`#cite-footnote("Crates.io, nalgebra library", "2024-04-06", "https://crates.io/crates/nalgebra", "https://web.archive.org/web/20230928073209/https://crates.io/crates/nalgebra") crate,
 which uses generic parameters in almost all of its functions.
-The slowdown occurs because the wishlist of types grows very large, since there are many generic types with different trait bounds.
+The slowdown occurs because the wishlist of types grows very large since there are many generic types with different trait bounds.
 
 ==== Tail expressions
-We find that tail expressions are one of the best context to perform term search in.
-They are a good fit for both filling holes but also for providing autocompletion suggestions, for the following reasons:
+We find that tail expressions are one of the best contexts to perform term search in.
+They are a good fit for both filling holes and also for providing autocompletion suggestions, for the following reasons:
 1. Tail expressions usually have a known type.
   The type is either written explicitly (e.g. a function return type) or can be inferred from context (e.g. all match arms need to have the same type).
-2. Once the user starts writing the tail expression they usually have enough terms available in context to fill the hole.
-  For example, it is common to store `struct` fields in local variables and then to combine them into a `struct` only in the tail expression.
+2. Once the user starts writing the tail expression, they usually have enough terms available in context to fill the hole.
+  For example, it is common to store `struct` fields in local variables and then combine them into a `struct` only in the tail expression.
 
 Accurate type information is essential for term search to provide good suggestions.
-When filling holes, the user has often already done some extra effort narrowing down the type of the hole.
-// This however, is not the case for autocompletion.
-Non-tail expressions however often lack enough type information, and thus autocompletion produces no suggestions at all.
+When filling holes, the user has often already put in some extra effort by narrowing down the type of hole.
+Non-tail expressions, however, often lack enough type information, and thus autocompletion produces no suggestions at all.
 
 ==== Function arguments
-We found that letting the algorithm to search for parameters of a function call yields good results.
+We found that letting the algorithm search for parameters of a function call yields good results.
 This is especially true when the user is working in "exploration mode" and is looking to find different ways of calling the function.
-Similarly to tail, expressions function calls usually have accurate type information available for the arguments with some exceptions for generic types.
-Often there are also arguments of the right type available in context, so the term search can easily fill them in.
+Similarly to tail expressions, function calls usually have accurate type information available for the arguments, with some exceptions for generic types.
+Often, there are also arguments of the right type available in context, so the term search can easily fill them in.
 
 ==== Local variables
-In practice terms search is not very useful for generating the terms for local variables.
+In practice, term search is not very useful for generating terms for local variables.
 Usually, a local variable is bound in a `let`-statement, and it is common to omit its type and let the compiler infer it instead.
-This however means that there is no type information available for the term search.
+This, however, means that there is no type information available for the term search.
 Adding the type explicitly fixes the issue, but this results in non-idiomatic Rust code.
 In this regard, type inference and term search have opposite goals:
-One finds types for programs, the other finds programs for types.
+One finds types for programs, and the other finds programs for types.
 
 ==== Builder pattern
 As discussed in @machine-learning, term search struggles to suggest terms of types using the builder pattern.
-Suggestions like `Foo::builder().build()` are incomplete, but valid suggestions.
-However, we found that in some cases such suggestions provide value when the user is writing code in "exploration mode".
-Such suggestions indicate an way of getting something of desired type.
-Now the user has to evaluate if they want to manually call the relevant methods on the builder, or they do not wish to use the builder at all.
+Suggestions like `Foo::builder().build()` are incomplete but valid suggestions.
+However, we found that in some cases, such suggestions provide value when the user is writing code in "exploration mode".
+Such suggestions indicate a way of getting something of the desired type.
+Now the user has to evaluate if they want to manually call the relevant methods on the builder or if they do not wish to use the builder at all.
 Without these suggestions, the user may even not know that a builder exists for the type.
 
 ==== Procedural Macros
-An interesting observation was that filling holes in the implementation of procedural macros is less useful than usually and can even cause compile errors.
-The decrease in usability is caused by procedural macros mapping ```rust TokenStream``` to ```rust TokenStream``` (Rust syntax to Rust syntax) meaning we do not have useful type information available.
-This is very similar to builder pattern so the decrease in usefulness originates from the same reasons.
-However, procedural macros are somewhat special in Rust, and they can also rise compile time errors.
-For example one can assert that the input ```rust TokenStream``` contains a non-empty `struct` definition.
-As the term search has no way of knowing that the ```rust TokenStream``` has to contain certain tokens also suggest other options that clearly validate the rule causing the error to be thrown.
+An interesting observation was that filling holes in the implementation of procedural macros is less useful than usual and can even cause compile errors.
+The decrease in usability is caused by procedural macros mapping ```rust TokenStream``` to ```rust TokenStream``` (Rust syntax to Rust syntax), meaning we do not have useful type information available.
+This is very similar to the builder pattern, so the decrease in usefulness originates from the same reasons.
+However, procedural macros are somewhat special in Rust, and they can also rise compile-time errors.
+For example, one can assert that the input ```rust TokenStream``` contains a non-empty `struct` definition.
+As the term search has no way of knowing that the ```rust TokenStream``` has to contain certain tokens, it also suggests other options that clearly validate the rule, causing the error to be thrown.
 
 ==== Formatting
-We found that formatting of the expressions can cause significant impact on the usability of the term search in case of autocompletion.
-This is because is common for the LSP Clients to filter out suggestions that do not look similar to what the user is typing.
+We found that the formatting of the expressions can have a significant impact on the usability of the term search in cases of autocompletion.
+This is because it is common for LSP clients to filter out suggestions that do not look similar to what the user is typing.
 Similarity is measured at the level of text with no semantic information available.
-This means that even though ```rust x.foo()``` (method syntax) and ```rust Foo::foo(x)``` (universal function call syntax) are the same the second option is filtered out if the user has typed ```rust x.f``` as text wise they do not look similar.
-This causes some problems for our algorithm as we decided to use universal function call syntax whenever possible as this avoids ambiguity.
+This means that even though ```rust x.foo()``` (method syntax) and ```rust Foo::foo(x)``` (universal function call syntax) are the same, the second option is filtered out if the user has typed ```rust x.f``` as text wise they do not look similar.
+This causes some problems for our algorithm, as we decided to use universal function call syntax whenever possible, as this avoids ambiguity.
 However, users usually prefer method syntax as it is less verbose and easier to understand for humans.
 
 However, this is not a fundamental limitation of the algorithm.
-One option to solve this would be to produce suggestions with using both of the options.
-That however has its own issues as it might overwhelm the user with the amount of suggestions in case the suggestions are text wise similar.
-There can always be options when the user wishes to mix both of the syntaxes which causes the amount of suggestions to increase exponentially as every method call would double the amount of suggestions if we would suggest both options.
+One option to solve this would be to produce suggestions using both of the options.
+That, however, has its own issues, as it might overwhelm the user with the number of suggestions if the suggestions are text-wise similar.
+There can always be options when the user wishes to mix both of the syntaxes, which causes the number of suggestions to increase exponentially as every method call would double the number of suggestions if we would suggest both options.
 
 ==== Foreign function interface crates <c-style-stuff>
-We found that for some types of crates the performance of the term search was significantly worse than for others.
-It offers a lot more terms per hole by suggesting 303 terms per hole which is about 15 times more than average of 20.
-Such a big number of suggestions is overwhelming to user as 300 suggestions do not even fit onto screen.
-Interestingly almost all of the terms are found at depth 0 and only very few are added at later iterations.
+We found that for some types of crates, the performance of the term search was significantly worse than for others.
+It offers a lot more terms per hole by suggesting 303 terms per hole, which is about 15 times more than the average of 20.
+Such a large number of suggestions is overwhelming to the user, as 300 suggestions do not even fit on the screen.
+Interestingly, almost all of the terms are found at depth 0, and only a very few are added at later iterations.
 
-High number of suggestions are caused by those crates using only few primitive types, mostly integers.
-For example in C it is common to return errors, indexes and sometimes even pointers as integers.
+A high number of suggestions are caused by those crates using only a few primitive types, mostly integers.
+For example, in C, it is common to return errors, indexes, and sometimes even pointers as integers.
 Yet C's application binary interface (ABI) is the only stable ABI Rust has.
 Foreign function interface (FFI) crates are wrappers around C ABI and therefore often use integer types for many operations.
 
-Searching for an integer however is not very useful as many functions in C return integers which all fit to the hole based on type.
-For example the amount of terms found per hole reaches 300 already at depth 0 as there are many integer constants that all fit most holes.
+Searching for an integer, however, is not very useful as many functions in C return integers, which all fit into the hole based on type.
+For example, the number of terms found per hole reaches 300 already at depth 0, as there are many integer constants that all fit most holes.
 This means that there is a fundamental limitation of our algorithm when writing C-like code in Rust and working with FFI crates.
-As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to we are not very concerned with the poor performance of term search in FFI crates.
+As the point of FFI crates is to serve as a wrapper around C code so that other crates wouldn't have to, we are not very concerned with the poor performance of term search in FFI crates.
 
-To see how the results for crates with idiomatic Rust code would look like we filtered out all crates from categories "external-ffi-bindings", "os" and "no-std" (@tbl-depth-hyper-param-median).
+To see how the results for crates with idiomatic Rust code would look, we filtered out all crates from the categories "external-ffi-bindings", "os", and "no-std" (@tbl-depth-hyper-param-median).
 We can see that _terms per hole_ is the only metric that suffers from C-like code.
 
 #figure(
@@ -2090,48 +2087,48 @@ We can see that _terms per hole_ is the only metric that suffers from C-like cod
 ) <tbl-depth-hyper-param-median>
 
 == Limitations of the methods
-In this section we highlight some limitations of our evaluation.
-We point out that "holes filled" is too permissive metric and "syntactic matches" is too strict.
-Ideally we want something in between, but we don't have a way to measure it.
+In this section, we highlight some limitations of our evaluation.
+We point out that "holes filled" is a too permissive metric, and "syntactic matches" is too strict.
+Ideally, we want something in between, but we don't have a way to measure it.
 
 ==== Resynthesis
 Metric "holes filled" does not reflect the usability of the tool very well.
-This would be useful metric if we would use it as a proof search.
-When searching for proofs we often care that the proposition can be proved rather than which of the possible proofs it generated.
+This would be a useful metric if we used it as a proof search.
+When searching for proofs, we often care that the proposition can be proved rather than which of the possible proofs it generates.
 This is not the case for regular programs with side effects.
-For them, we only care about terms that are semantically correct e.g. do what the program is supposed to do.
-Other terms can be considered as a noise as they are programs that no-one asked for.
+For them, we only care about terms that are semantically correct, e.g. do what the program is supposed to do.
+Other terms can be considered noise, as they are programs that no one asked for.
 
-Syntactic matches (equality) is too strict metric as we actually care about semantic equality of programs.
+Syntactic matches (equality) is a too strict metric as we actually care about the semantic equality of programs.
 The metric may depend more on the style of the program and the formatting than on the real capabilities of the tool.
-Syntactic matches also suffers from squashing multiple terms to ```rust Many``` option as the new holes produced by _Many_ are obviously not what was written by user.
+Syntactic matches also suffer from squashing multiple terms to the ```rust Many``` option, as the new holes produced by _Many_ are obviously not what was written by the user.
 
-Average time and number of terms per hole are significantly affected by few categories that some may consider outliers.
-We have decided to not filter them out to also show that our tool is a poor fit for some types of programs.
+Average time and number of terms per hole are significantly affected by a few categories that some may consider outliers.
+We have decided not to filter them out to also show that our tool is a poor fit for some types of programs.
 
-Average execution can also be criticized of being irrelevant.
-Having the IDE freeze for a second once in a while is not acceptable even if at other times the algorithm is very fast.
-To also consider the worst case performance we have decided to also measure latency.
+Average execution can also be criticized for being irrelevant.
+Having the IDE freeze for a second once in a while is not acceptable, even if at other times the algorithm is very fast.
+To also consider the worst-case performance, we have decided to also measure latency.
 However, we must note that we only measure the latency of our algorithm.
-While using the tool in the IDE the latency is bigger due to LSP communication and IDE also taking some time.
-We only measure the latency of our algorithm as other sources of latency are outside of our control and highly dependent on the environment.
+While using the tool in the IDE, the latency is higher due to LSP communication and the IDE also taking some time.
+We only measure the latency of our algorithm, as other sources of latency are outside of our control and highly dependent on the environment.
 
 ==== Usability
-This sections is based on a personal experience of the author and may therefore not reflect the average user very well.
-Modeling average user is a hard task on its own and would require us to conduct a study on it.
-As studying usage of IDE tools is outside the scope of this thesis we only attempt to give general overview of strengths and weaknesses of the tool.
-Different issues may arise when using the tool for different context.
+This section is based on the personal experience of the author and may therefore not reflect the average user very well.
+Modeling the average user is a hard task on its own and would require us to conduct a study on it.
+As studying the usage of IDE tools is outside the scope of this thesis, we only attempt to give a general overview of the strengths and weaknesses of the tool.
+Different issues may arise when using the tool in different contexts.
 
 = Future work <future-work>
-In this section we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
-Some of these topics consist of features for which were not in scope of this thesis.
+In this section, we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
+Some of these topics consist of features that were not in the scope of this thesis.
 Other focus on improving the `rust-analyzer` functionality overall.
 
 ==== More permissive borrow checking
 The current borrow checking algorithm we implemented for `rust-analyzer` is rather conservative and also forbids many of the correct programs.
-This decreases the usefulness of term search usefulness whenever reference types are involved.
-The goal would be to make the borrow checking algorithm in `rust-analyzer` use parts of the algorithm that is in the official compiler, but somehow allow borrow checking also on incomplete programs.
-Lowering incomplete programs (user is still typing) to MIR and performing borrow checking incrementally is a complex problem however we believe that also many other parts of the `rust-analyzer` could benefit from it.
+This decreases the usefulness of term search whenever reference types are involved.
+The goal would be to make the borrow checking algorithm in `rust-analyzer` use parts of the algorithm that is in the official compiler but somehow allow borrow checking also on incomplete programs.
+Lowering incomplete programs (the user is still typing) to MIR and performing borrow checking incrementally is a complex problem, however, we believe that many other parts of the `rust-analyzer` could benefit from it.
 
 ==== Smarter handling of generics
 In projects with hundreds of functions that take generic parameters our algorithm effectiveness decreases.
@@ -2141,57 +2138,57 @@ However, that is always not required.
 Some methods on types with generic parameters do not require knowing exact generic parameters and therefore can be used without substituting in the generic types.
 Some examples of it are ```rust Option::is_some``` and ```rust Option::is_none```.
 Others only use some of the generic parameters of the type.
-In case not all generic parameters are used we could avoid substituting in the generic types that are not needed as long as we know that we have some options available for them.
+If not all generic parameters are used, we could avoid substituting in the generic types that are not needed, as long as we know that we have some options available for them.
 
 ==== Development of more tactics
 A fairly obvious improvement that we believe still should be touched on is the addition of new tactics.
-Addition of new tactics would allow usage in new context.
+The addition of new tactics would allow usage in a new context.
 Some ideas for new tactics:
 - Tuple projection - very similar to struct projection. Very easy to add.
-- Macro call - similarly to function calls macros can be used to produce terms of unexplored types.
-  As macros allow more custom syntax and work at the level of metaprogramming adding them can be more complex.
-- Higher order functions - generating terms for function types is more complex than working with simple types.
-  On the other hand higher order functions would allow usage of term search in iterators and therefore increase its usefulness by a considerable margin.
+- Macro call - similarly to function calls, macros can be used to produce terms of unexplored types.
+  As macros allow more custom syntax and work at the level of metaprogramming, adding them can be more complex.
+- Higher-order functions - generating terms for function types is more complex than working with simple types.
+  On the other hand, higher-order functions would allow the usage of term search in iterators and therefore increase its usefulness by a considerable margin.
 - Case analysis - Perform a case split and find a term of suitable type for all the match arms.
-  May require to change the algorithm slightly as each of the match arms has different context.
+  May require changing the algorithm slightly as each of the match arms has a different context.
 
 ==== Machine learning based techniques
-We find that machine learning based techniques could be used to prioritize generated suggestions.
-All the terms would be still generated by term search and would be valid programs by construction which is a guarantee that LLMs cannot have.
-On the other hand, ordering of suggestions is very hard to do analytically, and therefore we believe that it makes sense to train a model for it.
-With better ordering of suggestions we can be more permissive and allow suggestions that do not affect the type of the term (endofunctions).
-For example suggestions for builder pattern could be made more useful by also suggesting some setter methods.
+We find that machine-learning-based techniques could be used to prioritize generated suggestions.
+All the terms would still be generated by term search and would be valid programs by construction, which is a guarantee that LLMs cannot have.
+On the other hand, ordering suggestions is very hard to do analytically, and therefore we believe that it makes sense to train a model for it.
+With better ordering of suggestions, we can be more permissive and allow suggestions that do not affect the type of the term (endofunctions).
+For example, suggestions for builder patterns could be made more useful by also suggesting some setter methods.
 
 ==== LSP response streaming
 Adding LSP response streaming is an addition to `rust-analyzer` that would also benefit term search.
 Response streaming would be especially helpful in the context of autocompletion.
-It would allow us to incrementally present the user autocompletion suggestions meaning that latency would become less of an issue.
-With the latency issue solved we believe that term search based autocompletion suggestions could be turned on by default.
-Currently, the main reason for making them opt-in was that the autocompletion is already slow in `rust-analyzer` and term search makes in even slower.
+It would allow us to incrementally present the user autocompletion suggestions, meaning that latency would become less of an issue.
+With the latency issue solved, we believe that term-search-based autocompletion suggestions could be turned on by default.
+Currently, the main reason for making them opt-in was that the autocompletion is already slow in `rust-analyzer` and term search makes it even slower.
 
 = Conclusion <conclusion>
-In this thesis our main objective was to implement term search for the Rust programming language.
+In this thesis, our main objective was to implement term search for the Rust programming language.
 We achieved it by implementing it as an addition to `rust-analyzer`, the official LSP server for Rust.
 
-First we gave an overview of the Rust programming language to understand the context we are working in.
-We are focusing on type system and borrow checking as they are two fundamental concepts in Rust.
+First, we gave an overview of the Rust programming language to understand the context we were working in.
+We are focusing on the type system and the borrow checking, as they are two fundamental concepts in Rust.
 
-After that we gave an overview of term search and tools for it.
-We focused on tools used in Agda, Idris, Haskell and StandardML.
-We analyzed both their functionality and algorithms they use.
-By comparing them to one another we laid the groundwork for our own implementation.
+After that, we gave an overview of term search and the tools for it.
+We focused on the tools used in Agda, Idris, Haskell, and StandardML.
+We analyzed both their functionality and the algorithms they use.
+By comparing them to one another, we laid the groundwork for our own implementation.
 
-After that we covered the LSP protocol and some of the autocompletion tools to have some understanding of the constraints we have when trying to use the term search for autocompletion.
+After that, we covered the LSP protocol and some of the autocompletion tools to gain some understanding of the constraints we have when trying to use the term search for autocompletion.
 
-The term search algorithm we implemented is based on the tools used in Agda, Idris, Haskell and StandardML.
-We took the different approach from the previous implementations by using the bidirectional search.
-The bidirectional approach allowed us to implement each tactic for the direction that is the most natural fit for it.
-This yielded in a rather simple implementations of tactics that achieve relatively high performance.
+The term search algorithm we implemented is based on the tools used in Agda, Idris, Haskell, and StandardML.
+We took a different approach from the previous implementations by using a bidirectional search.
+The bidirectional approach allowed us to implement each tactic in the direction that was the most natural fit for it.
+This resulted in a rather simple implementation of tactics that achieved relatively high performance.
 
-To evaluate the performance of the algorithm we ran the algorithm on existing open source projects.
-For measuring the performance we chose top 5 projects of the most popular categories on crates.io, the Rust community’s crate registry.
+To evaluate the performance of the algorithm, we ran it on existing open-source projects.
+For measuring the performance, we chose the top 5 projects from the most popular categories on crates.io, the Rust community’s crate registry.
 This resulted in 155 crates.
 
-We added term search based autocompletion suggestions to evaluate the usability of term search for autocompletion.
-With small depth the algorithm proved to be fast enough and resulted in more advanced autocompletion suggestions compared to usual ones.
-As the autocompletion in `rust-analyzer` is already rather slow the feature is disabled by default, yet all the users of it can opt into it.
+We added term-search-based autocompletion suggestions to evaluate the usability of term search for autocompletion.
+With its small depth, the algorithm proved to be fast enough and resulted in more advanced autocompletion suggestions compared to the usual ones.
+As the autocompletion in `rust-analyzer` is already rather slow, the feature is disabled by default, yet all the users of it can opt into it.
