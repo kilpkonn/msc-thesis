@@ -948,95 +948,95 @@ Autocompletion is predicting of what the user is typing and then suggesting the 
 In case of programming the suggestions are usually derived form context and may be just a word from current buffer or maybe functions reachable in the current context.
 It is nowadays considered one of the basic features that any integrated development environment (IDE) has built in.
 
-We will explore the LSP protocol in @lsp-protocol to have the basic understanding of the constraints and features of the framework we are working in.
-This is essential to later understand some of our design choices for implementation later described in @design.
+We will explore the LSP protocol in @lsp-protocol to have a basic understanding of the constraints and features of the framework we are working in.
+This is essential to later understand some of our design choices for implementation, as described in @design.
 
-Let's take a look at some of the popular autocompletion tools and their autocompletion related features to give some intuition of what is the common approach for implementing them.
-We will be mostly looking at what kind of semantic information the tools used to provide suggestions.
+Let's take a look at some of the popular autocompletion tools and their autocompletion-related features to get some intuition of what the common approach is for implementing them.
+We will be mostly looking at the kind of semantic information the tools used to provide suggestions.
 
 ==== Clangd
 Clangd#cite-footnote("Clangd, what is clangd?", "2024-04-06", "https://clangd.llvm.org/", "https://web.archive.org/web/20240324053051/https://clangd.llvm.org/") is a popular autocompletion tool for C/C++.
-It is a language server extension to clang compiler and therefore can be used in many editors.
+It is a language server extension to the clang compiler and, therefore, can be used in many editors.
 It suggests functions, methods, variables, etc. are available in the context, and it can handle some mistyping and abbreviations of some words.
-For example using snake case instead of camel case still yields suggestions.
+For example, using a snake case instead of a camel case still yields suggestions.
 
-For method calls it does understand the receiver type and only suggests methods/fields that exist on the type.
-However, it does not try to infer the expected type of the expression that is being completed and therefore is unable to prioritize methods based on that.
-All in all it serves as a great example of autocompletion tool that has semantic understanding of the program, but does not provide any functionality beyond basics.
+For method calls, it does understand the receiver type and only suggests methods and fields that exist for the type.
+However, it does not try to infer the expected type of expression that is being completed and therefore is unable to prioritize methods based on that.
+All in all, it serves as a great example of an autocompletion tool that has a semantic understanding of the program but does not provide any functionality beyond the basics.
 
 ==== Pyright
 Pyright#cite-footnote("GitHub pyright repository", "2024-04-06", "https://github.com/microsoft/pyright", "https://web.archive.org/web/20240403213050/https://github.com/microsoft/pyright") is a popular language server for Python.
-It suggests all the item that are available in scope for autocompletion, and it also suggests the methods/fields that are on the receiver type.
+It suggests all the items that are available in scope for autocompletion, and it also suggests the methods and fields that are on the receiver type.
 
-Whilst it tries to provide more advanced features than `clangd` it does not get much further due to python being dynamically typed language.
+While it tries to provide more advanced features than `clangd`, it does not get much further due to Python being a dynamically typed language.
 There simply isn't that much information available before running the program.
-This seems to be a general limitation to all python autocompletion tools.
+This seems to be a general limitation of all Python autocompletion tools.
 
 ==== Intellij
 Intellij#cite-footnote("IntelliJ IDEA", "2024-04-06", "https://www.jetbrains.com/idea/", "https://web.archive.org/web/20240409180113/https://www.jetbrains.com/idea/") is an IDE by JetBrains for Java.
-Similarly to all other JetBrains products it does not use LSP but rather has all the tooling built into the product.
-It provides the completion of all the items in scope as well the methods and fields of receiver type.
-They call it the "basic completions".
-The tool has also understanding of expected type, so it attempts to order the suggestions based on their types.
+Similarly to all other JetBrains products, it does not use LSP but rather has all the tooling built into the product.
+It provides the completion of all the items in scope as well as the methods and fields of receiver type.
+They call them "basic completions".
+The tool also has an understanding of expected type, so it attempts to order the suggestions based on their types.
 This means that suggestions with expected type appear first in the list.
 
-In addition to "basic completion" they provide "type-matching completions" that is very similar to basic completion but filter out all the results that do not have matching type.
-There is also what they call "chain completion" that expands the list to also suggest chained method calls.
-Together with filtering out only matching types it gives similar results to what term search provides.
-However, as this is implemented differently it's depth is limited to two which makes it less useful.
-It also doesn't attempt to automatically fill all the arguments, so it works the best with functions that take no arguments.
-For Java, it is quite useful nonetheless as there are a lot of getter functions.
+In addition to "basic completion", they provide "type-matching completions", which are very similar to basic completion but filter out all the results that do not have matching types.
+There is also what they call "chain completion", which expands the list to also suggest chained method calls.
+Together with filtering out only matching types, it gives similar results to what term search provides.
+However, as this is implemented differently, its depth is limited to two, which makes it less useful.
+It also doesn't attempt to automatically fill all the arguments, so it works best with functions that take no arguments.
+For Java, it is quite useful nonetheless, as there are a lot of getter functions.
 
-In some sense the depth limit to two (or three together with the receiver type) is mainly a technical limitation, but it is also caused by Java using interfaces an in different way that what Rust does with traits.
-Interfaces in Java are meant to hide internal representation of classes which in some cases limits what we can provide just based on types.
-For example if we are expected to give something that implements `List` we cannot really prefer `ArrayList` to `LinkedList` just based on types.
+In some sense, the depth limit of two (or three together with the receiver type) is mainly a technical limitation, but it is also caused by Java using interfaces in a different way than what Rust does with traits.
+Interfaces in Java are meant to hide the internal representation of classes, which in some cases limits what we can provide just based on types.
+For example, if we are expected to give something that implements `List`, we cannot really prefer `ArrayList` to `LinkedList` just based on types.
 More common usage of static dispatch in Rust means that we more often know the concrete type and therefore can also provide more accurate suggestions based on it.
-In Java there is often not enough information to suggest longer chains as there are likely too many irrelevant suggestions.
+In Java, there is often not enough information to suggest longer chains, as there are likely too many irrelevant suggestions.
 
 ==== Rust-analyzer <rust-analyzer>
-Rust-analyzer#cite-footnote("rust-analyzer", "2024-04-06", "https://rust-analyzer.github.io/", "https://web.archive.org/web/20240406183402/https://rust-analyzer.github.io/") s an implementation of Language Server Protocol for the Rust programming language. 
-It provides features like completion and goto definition/references, smart refactorings etc.
+Rust-analyzer#cite-footnote("rust-analyzer", "2024-04-06", "https://rust-analyzer.github.io/", "https://web.archive.org/web/20240406183402/https://rust-analyzer.github.io/") is an implementation of the Language Server Protocol for the Rust programming language. 
+It provides features like completion and go-to definition/references, smart refactoring, etc.
 This is also the tool we are extending with term search functionality.
 
 Rust-analyzer provides all the "basic completions" that IntelliJ provides and also supports ordering suggestions by type.
-However, it does not support method chains so in that regard it is less powerful than IntelliJ for Java.
-Filtering by type is also not part of it but as it gathers all the information to do it, so it can be implemented rather trivially.
+However, it does not support method chains, so in that regard, it is less powerful than IntelliJ for Java.
+Filtering by type is also not part of it, but as it gathers all the information to do it, it can be implemented rather trivially.
 
-Other than autocompletion it does have interesting concept of typed holes.
+Other than autocompletion, it does have an interesting concept of typed holes.
 They are `_` (underscore) characters at expression positions that cause the program to be rejected by the compiler.
-Rust-analyzer treats them as holes in the program that are supposed to become terms of correct type to make the program valid.
-Based on that concept it suggest filling them with variables in scope which is very similar to what term search does.
+Rust-analyzer treats them as holes in the program that are supposed to become terms of the correct type to make the program valid.
+Based on that concept, it suggests filling them with variables in scope, which is very similar to what term search does.
 However, it only suggests trivial ways of filling holes, so we are looking to improve on it a lot.
 
 === Language Server Protocol <lsp-protocol>
 Implementing autocompletion for every language and for every IDE results in a $O(N * M)$ complexity where N is the number of languages supported and M is the number of IDEs supported.
-In other words one would have to write a tool for every language-IDE pair.
-This problem is very similar to problem in compiler design with N languages and M target architectures.
-The problem can be reduced from $O(N*M)$ to $O(N+M)$ by separating the compiler to front and back end @compiler-design[Section 1.3].
-The idea is that there is a unique front end for every language that lowers the language specific constructs to intermediate representation that is a common interface for all of them.
-To get machine code out of the intermediate representation there is also a unique back end for every target architecture.
+In other words, one would have to write a tool for every language-IDE pair.
+This problem is very similar to the problem of compiler design with N languages and M target architectures.
+The problem can be reduced from $O(N*M)$ to $O(N+M)$ by separating the compiler to the front- and backend @compiler-design[Section 1.3].
+The idea is that there is a unique front end for every language that lowers the language-specific constructs to an intermediate representation that is a common interface for all of them.
+To get machine code out of the intermediate representation, there is also a unique back end for every target architecture.
 
-Similar ideas can be also used in building language tooling.
+Similar ideas can also be used in building language tools.
 Language server protocol (LSP) has been invented to do exactly that.
-The Language Server Protocol#cite-footnote("Language Server Protocol", "2024-04-06", "https://microsoft.github.io/language-server-protocol/", "https://web.archive.org/web/20240406114122/https://microsoft.github.io/language-server-protocol/") (LSP) is an open, JSON-RPC-based#cite-footnote("JSON-RPC 2.0 Specification", "2024-04-06", "https://www.jsonrpc.org/specification", "https://web.archive.org/web/20240409000305/https://www.jsonrpc.org/specification") protocol for use between editors and servers that provide language specific tools for a programming language.
-The protocol takes the position of intermediate representation, front ends are the LSP clients in IDEs and backends are LSP servers.
-We will refer to LSP client as just client and LSP server as just server.
-As the protocol is standardized every client knows how to work with any server.
-LSP was first introduced to public in 2016 and now many#cite-footnote("The Language Server Protocol implementations: Tools supporting the LSP", "2024-04-06", "https://microsoft.github.io/language-server-protocol/implementors/tools/", "https://web.archive.org/web/20240226024547/https://microsoft.github.io/language-server-protocol/implementors/tools/") modern IDEs support it.
+The Language Server Protocol#cite-footnote("Language Server Protocol", "2024-04-06", "https://microsoft.github.io/language-server-protocol/", "https://web.archive.org/web/20240406114122/https://microsoft.github.io/language-server-protocol/") (LSP) is an open, JSON-RPC-based#cite-footnote("JSON-RPC 2.0 Specification", "2024-04-06", "https://www.jsonrpc.org/specification", "https://web.archive.org/web/20240409000305/https://www.jsonrpc.org/specification") protocol for use between editors and servers that provide language-specific tools for a programming language.
+The protocol takes the position of intermediate representation: frontends are the LSP clients in IDEs, and the backends are LSP servers.
+We will refer to LSP clients as just clients and LSP servers as just servers.
+As the protocol is standardized, every client knows how to work with any server.
+LSP was first introduced to the public in 2016, and now many#cite-footnote("The Language Server Protocol implementations: Tools supporting the LSP", "2024-04-06", "https://microsoft.github.io/language-server-protocol/implementors/tools/", "https://web.archive.org/web/20240226024547/https://microsoft.github.io/language-server-protocol/implementors/tools/") modern IDEs support it.
 
-Some of the common functionalities LSP servers provide are @editing-support-for-languages-lsp:
-- Go to definition / references
+Some of the common functionalities provided by LSP servers include  @editing-support-for-languages-lsp:
+- Go to definition / reference
 - Hover
 - Diagnostics (warnings / errors)
 - Autocompletion
 - Formatting
 - Refactoring routines (extract function, etc.)
 - Semantic syntax highlighting
-Note that the functionalities are optional and language server can choose which to provide.
+Note that the functionalities are optional, and the language server can choose which to provide.
 
-The high level communication of client and server is show in @lsp-data-flow.
-The idea is that when the programmer works in the IDE the client sends all text edits to server.
-The server can then process the updates and send new autocompletion suggestion / syntax highlighting / diagnostics back to client so that it can update the information in IDE.
+The high-level communication between client and server is shown in @lsp-data-flow.
+The idea is that when the programmer works in the IDE, the client sends all text edits to the server.
+The server can then process the updates and send new autocompletion suggestion, syntax highlighting and diagnostics back to the client so that it can update the information in the IDE.
 #figure(
   image("fig/lsp_data_flow.svg", width: 100%),
   caption: [
@@ -1044,27 +1044,27 @@ The server can then process the updates and send new autocompletion suggestion /
     The server responds by providing different functionalities to the client.
   ],
 ) <lsp-data-flow>
-Important thing to note here is that the client starts the server the first time it requires data from it.
-After that the server runs as daemon process usually until the editor is closed or until the client commands it to shut down.
-As it doesn't get restarted very often it can keep the state in memory which allows responding to client events faster.
+The important thing to note here is that the client starts the server the first time it requires data from it.
+After that, the server runs as a daemon process, usually until the editor is closed or until the client commands it to shut down.
+As it doesn't get restarted very often, it can keep the state in memory, which allows responding to client events faster.
 It is quite common that the server does semantic analysis fully only once and later only runs the analysis again for files that have changed.
-Caching the state and incrementally updating it is quite important as the full analysis can take up to considerable amount of time which is not an acceptable latency for autocompletion nor for other operations servers provide.
+Caching the state and incrementally updating it is quite important, as the full analysis can take up to a considerable amount of time, which is not an acceptable latency for autocompletion nor for other operations servers provide.
 Caching the abstract syntax tree is a common performance optimization strategy for servers @editing-support-for-languages-lsp.
 
 == Machine learning based autocompletions <machine-learning>
-In this chapter we will take a look at machine learning based autocompletion tools.
-As this is a very active field of development we are not competing against we will not dive into how good this or other models perform but rather look at what the models generally do.
-The main focus is to see how do they differ from the analytical approach we are taking with term search.
+In this chapter, we will take a look at machine-learning-based autocompletion tools.
+As this is a very active field of development and we are not competing against, we will not dive into how well the models perform but rather look at what the models generally do.
+The main focus is to see how they differ from the analytical approach we are taking with term search.
 
 One of the use cases for machine learning is to order the suggestions @code-prediction-trees-transformers.
 Using a model for ordering the suggestions is especially useful in dynamically typed languages as it is otherwise rather hard to order suggestions.
-Although the Rust language has strong type system we still suffer from prioritizing different terms that have the same type.
+Although the Rust language has a strong type system, we still suffer from prioritizing different terms that have the same type.
 
 In addition to ordering the analytically created suggestions, machine learning models can be used to generate code itself.
-Such models generate code for many different programming languages @pre-trained-llm-code-gen.
+Such models generate code in a variety of programming languages (@pre-trained-llm-code-gen).
 The general flow is that first the user writes the function signature and maybe some human-readable documentation, and then prompts the model to generate the body of the function.
-This is very different from ordering suggestions as the suggested code usually has many tokens in whilst the classical approach is usually limited to one or sometimes very few tokens.
-This is also different from what we are doing with the term search: we only try to produce code that contributes towards the parent term of correct type.
+This is very different from ordering suggestions, as the suggested code usually has many tokens, whereas the classical approach is usually limited to one or sometimes very few tokens.
+This is also different from what we are doing with the term search: we only try to produce code that contributes towards the parent term of the correct type.
 However, language models can also generate code where term search fails.
 Let's look at the example for the `ripgrep`#cite-footnote("GitHub ripgrep repository", "2024-04-06", "https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584", "https://web.archive.org/web/20240410184204/https://github.com/BurntSushi/ripgrep/blob/6ebebb2aaa9991694aed10b944cf2e8196811e1c/crates/core/flags/hiargs.rs#L584") crate shown in @rust-builder.
 #figure(
@@ -1084,15 +1084,15 @@ caption: [
     Setter methods return a value of the receiver type.
   ],
 ) <rust-builder>
-The type of the term only changes on the first and last line of the function body.
-As the lines in the middle do not affect the type of the builder in any way there is also no way for the term search to generate them.
-Machine learning models however are not affected by this as it may be possible to derive those lines from the function documentation, name or rest of the context.
+The type of term only changes on the first and last lines of the function body.
+As the lines in the middle do not affect the type of the builder in any way, there is also no way for the term search to generate them.
+Machine learning models, however, are not affected by this, as it may be possible to derive those lines from the function documentation, name, or rest of the context.
 
-Although the machine learning models are able to generate more complex code they have also downside of having lots of uncertainty in them.
-It is very hard to impossible for any human to understand what are the outputs for any given input.
-In the context of code generation for autocompletion this results in unexpected suggestions that may even not compile.
-These issues are usually addressed by filtering out syntactically invalid responses or working at the level of abstract syntax tree as they did it in @code-prediction-trees-transformers.
-However, neither of those accounts for type nor borrow checking which means that invalid programs can still be occasionally suggested.
+Although machine learning models are able to generate more complex code, they also have the downside of having lots of uncertainty in them.
+It is very hard, if not impossible, for any human to understand what the outputs are for any given input.
+In the context of code generation for autocompletion, this results in unexpected suggestions that may even not compile.
+These issues are usually addressed by filtering out syntactically invalid responses or working at the level of an abstract syntax tree, as they did in @code-prediction-trees-transformers.
+However, neither of those accounts for type nor borrow checking, which means that invalid programs can still be occasionally suggested.
 
 
 = Term search design <design>
@@ -1101,13 +1101,13 @@ examples of its usages in `rust-analyzer`.
 We will first take a look at using it for filling "holes" in the program and later dive into using it for autocompletion.
 
 == Filling holes
-Filling holes is a common use case for term search as we have found in @term-search.
-Timing constrains for it are not as strict as for autocompletion, yet the user certainly doesn't want to wait for a considerable amount of time.
+Filling holes is a common use case for term search, as we have found in @term-search.
+Timing constraints for it are not as strict as for autocompletion, yet the user certainly doesn't want to wait for a considerable amount of time.
 
 One example of a hole in Rust program is the ```rust todo!()``` macro.
-It is a "hole" as it denotes that there should be a program in the future, but there isn't now.
-These holes can be filled using term search to search for programs that fit in the hole.
-All the programs generated by term search are valid programs meaning that they compile.
+It is a "hole", as it denotes that there should be a program in the future, but there isn't now.
+These holes can be filled using a term search to search for programs that fit in the hole.
+All the programs generated by term search are valid programs, meaning that they compile.
 
 Example usages can be found in @rust-filling-todo:
 #figure(
@@ -1123,8 +1123,8 @@ caption: [
   ],
 ) <rust-filling-todo>
 
-In addition to `todo!()` macro holes `rust-analyzer` has a concept of typed holes as we described in @rust-analyzer.
-From term search perspective they work in the same way as ```rust todo!()``` macros - term search needs to come up with a term of some type to fill them.
+In addition to `todo!()` macro holes, `rust-analyzer` has a concept of typed holes, as we described in @rust-analyzer.
+From a term search perspective, they work in the same way as ```rust todo!()``` macros: term search needs to come up with a term of some type to fill them.
 The same example with typed holed instead of ```rust todo!()``` macros can be found in @rust-filling-typed-hole.
 #figure(
 sourcecode()[```rs
@@ -1141,23 +1141,23 @@ caption: [
 
 
 == Term search for autocompletion
-In addition to filling holes, term search can be used to give user "smarter" autocompletion suggestions as they are typing.
+In addition to filling holes, term search can be used to give users "smarter" autocompletion suggestions as they are typing.
 The general idea is the same as for filling holes.
 We start by attempting to infer the expected type at the cursor.
-If we manage to infer the type then we run the term search in order to get the suggestions which we can then show to the user.
+If we manage to infer the type, then we run the term search in order to get the suggestions, which we can then show to the user.
 
 The main difference between using term search for autocompletion and using it to fill holes is that we have decided to disable borrow checking when generating suggestions for autocompletion.
-This means that not all the suggestions are valid programs and may need some modifications by user.
+This means that not all the suggestions are valid programs and may need some modifications by the user.
 
-The rationale for it comes from both technical limitations of the tool and different expectations from the user.
-The main technical limitation is that borrow checking happens in the MIR layer of abstraction and `rust-analyzer` (nor `rustc`) does not support lowering partial (user is still typing) programs to MIR.
+The rationale for it comes from both the technical limitations of the tool and different expectations from the user.
+The main technical limitation is that borrow checking happens in the MIR layer of abstraction, and `rust-analyzer` (nor `rustc`) does not support lowering partial (the user is still typing) programs to MIR.
 This means that borrow checking is not really possible without big modifications to the algorithm.
-That however is out of scope of this thesis.
+That, however, is out of the scope of this thesis.
 
-In addition to technical limitations, there is also some motivation from user perspective for the tool to give also suggestions that do not borrow check.
+In addition to technical limitations, there is also some motivation from a user perspective for the tool to give suggestions that do not borrow check.
 It is very common that the programmer has to restructure the program to satisfy the borrow checker @usability-of-ownership.
-The simplest case for it is to either move some lines around in function or to add ```rust .clone()``` to avoid moving the value.
-For example consider @rust-autocompletion with the cursor at "```rust |```":
+The simplest case for it is to either move some lines around in the function or to add ```rust .clone()``` to avoid moving the value.
+For example, consider @rust-autocompletion with the cursor at "```rust |```":
 #figure(
 sourcecode(highlighted: (10,))[```rs
 /// A function that takes an argument by value
@@ -1176,49 +1176,49 @@ caption: [
     Autocompletion of moved values
   ],
 ) <rust-autocompletion>
-The user wants to also pass `my_string` to ```rust bar(...)``` but this does not satisfy the borrow checking rules as the value was moved to ```rust foo(...)``` on the previous line.
+The user wants to also pass `my_string` to ```rust bar(...)```, but this does not satisfy the borrow checking rules as the value was moved to ```rust foo(...)``` on the previous line.
 The simplest fix for it is to change the previous line to ```rust foo(my_string.clone())``` so that the value is not moved.
-This however can only be done by the programmer as there are other ways to solve it, for example making the functions take the reference instead of value.
+This, however, can only be done by the programmer, as there are other ways to solve it, for example, by making the functions take the reference instead of the value.
 As also described in @usability-of-ownership, a common way to handle borrow checker errors is to write the code first and then fix the errors as they come up.
-Inspired by this we believe that is better to suggest items that make the program do not borrow check than not suggest them at all.
-If we only suggest items that borrow check the ```rust bar(my_string)``` function call would be ruled out as there is no way to call it without modifying the rest of the program.
+Inspired by this, we believe that it is better to suggest items that make the program do not borrow check than not suggest them at all.
+If we only suggest items that borrow check the ```rust bar(my_string)``` function call would be ruled out, as there is no way to call it without modifying the rest of the program.
 
 
 == Implementation
 We have implemented term search as an addition to `rust-analyzer`, the official LSP server for the Rust language.
-To have better understanding of the context we are working in we will first describe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
+To have a better understanding of the context we are working in, we will first describe the main operations that happen in `rust-analyzer` in order to provide autocompletion or code actions (filling holes in our use case).
 
-When the LSP server is started, `rust-analyzer` first indexes whole project, including its dependencies as well as standard library.
-This is rather time-consuming operation.
-During indexing `rust-analyzer` lexes and parses all source files and lowers most of it to High-Level Intermediate Representation (HIR).
-Lowering to HIR is done to build up symbol table, that is a table that has knowledge of all symbols (identifiers) in the project.
-This includes but is not limited to functions, traits, modules, ADTs, etc.
+When the LSP server is started, `rust-analyzer` first indexes the whole project, including its dependencies as well as the standard library.
+This is a rather time-consuming operation.
+During indexing, `rust-analyzer` lexes and parses all source files and lowers most of them to High-Level Intermediate Representation (HIR).
+Lowering to HIR is done to build up a symbol table, which is a table that has knowledge of all symbols (identifiers) in the project.
+This includes, but is not limited to, functions, traits, modules, ADTs, etc.
 Lowering to HIR is done lazily.
-For example many function bodies are usually not lowered at this stage.
+For example, many function bodies are usually not lowered at this stage.
 One limitation of the `rust-analyzer` as of now is that it doesn't properly handle lifetimes.
-Explicit lifetimes are all mapped to ```rust 'static``` lifetimes and implicit lifetime bounds are ignored.
+Explicit lifetimes are all mapped to ```rust 'static``` lifetimes, and implicit lifetime bounds are ignored.
 This also limits our possibilities to do borrow checking as there simply isn't enough data available in the `rust-analyzer` yet.
-With the symbols table built up, `rust-analyzer` is ready to accept client requests.
+With the symbol table built up, `rust-analyzer` is ready to accept client requests.
 
-Now autocompletion request can be sent.
-Upon receiving a request that contains the cursor location in source code `rust-analyzer` finds the corresponding syntax node.
-In case it is in function body that has not yet been lowered the lowering is done.
+Now an autocompletion request can be sent.
+Upon receiving a request that contains the cursor location in source code, `rust-analyzer` finds the corresponding syntax node.
+If it is in a function body that has not yet been lowered, the lowering is done.
 Note that the lowering is always cached so that subsequent calls can be looked up from the table.
-With all the lowering done, `rust-analyzer` builds up context of the autocompletion.
-The context contains location in abstract syntax tree, all the items in scope, package configuration (e.g. is nightly enabled) etc.
-If expected type of the item under completion can be inferred it is also available in the context.
+With all the lowering done, `rust-analyzer` builds up the context of the autocompletion.
+The context contains location in the abstract syntax tree, all the items in scope, package configuration (e.g. is nightly enabled) etc.
+If the expected type of the item under completion can be inferred, it is also available in the context.
 From the context different completion providers (functions) suggest possible completions that are all accumulated to a list.
-To add the term search based autocompletion we introduce a new provider that takes in a context and produces a list of completion suggestions.
-Once the list is complete it is mapped to LSP protocol and sent back to client.
+To add the term-search-based autocompletion, we introduce a new provider that takes in a context and produces a list of completion suggestions.
+Once the list is complete, it is mapped to the LSP protocol and sent back to the client.
 
 === Term search <term-search-iters>
-The main implementation of term search is done in the HIR level of abstraction and borrow checking queries are made in MIR level of abstraction.
-Term search entry point can be found in `crates/hir/src/term_search.rs` and is named as `term_search`.
-The most important inputs to term search are scope of the program we are performing the search at and the target type.
+The main implementation of term search is done at the HIR level of abstraction, and borrow checking queries are made at the MIR level of abstraction.
+The term search entry point can be found in `crates/hir/src/term_search.rs` and is named `term_search`.
+The most important inputs to the term search are the scope of the program we are performing the search at and the target type.
 
-To better understand why the main algorithm is based around bidirectional BFS we will discuss three iterations of the algorithm.
-First we start with algorithm that quite closely follows the algorithm we described in @agsy.
-Then we will see how we managed to achieve better results with using BFS instead of DFS as suggested in @standardml.
+To better understand why the main algorithm is based around bidirectional BFS, we will discuss three iterations of the algorithm.
+First, we start with an algorithm that quite closely follows the algorithm we described in @agsy.
+Then we will see how we managed to achieve better results by using BFS instead of DFS, as suggested in @standardml.
 At last, we will see how the algorithm can benefit from bidirectional search.
 
 === First iteration: DFS <first-iter-dfs>
