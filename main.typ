@@ -50,10 +50,10 @@ caption: [
 
 
 From the types of values in scope and constructors of ```rust Option```, we can produce the expected result for ```rust todo!()``` by applying the constructor ```rust Some``` to ```rust arg``` and returning it.
-By combining multiple type constructors as well as functions in scope or methods on types, it is possible to produce more complex valid programs.
+By combining multiple constructors for types as well as functions in scope or methods on types, it is possible to produce more complex, valid programs.
 
 == Motivation
-Due to Rust's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of type constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://actix.rs/", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
+Due to Rust's expressive type system, programmers might find themselves quite often wrapping the result of some function behind multiple layers of constructors. For example, in the web backend framework `actix-web`#cite-footnote("Actix", "2024-04-06", "https://actix.rs/", "https://web.archive.org/web/20240329223953/https://actix.rs/"), a typical JSON endpoint function might look something like shown in @motivation-example-1.
 #figure(
 sourcecode()[
 ```rs
@@ -160,9 +160,9 @@ caption: [
 
 Rust has two kinds of algebraic types: _structures_ (also referred as `struct`s) and _enumerations_ (also referred as `enum`s).
 Structures are product types, and enumerations are sum types.
-Each of them comes with their own type constructors.
-Structures have one type constructor that takes arguments for all of its fields.
-Enumerations have one type constructor for each of their variants.
+Each of them comes with their own data constructors.
+Structures have one constructor that takes arguments for all of its fields.
+Enumerations have one constructor for each of their variants.
 
 Both of them are shown in @rust-type-constructor.
 
@@ -375,7 +375,7 @@ The refinement of a problem can produce multiple branches with subproblems.
 In some cases, we need to solve all the subproblems.
 In other cases, it is sufficient to solve just one of the subproblems to solve the "top-level" problem.
 An example where we need to solve just one of the subproblems is when we try different approaches to come up with a term.
-For example, we can either use some local variable, function or type constructor to solve the problem as shown in @agsy_transformation_branches.
+For example, we can either use some local variable, function or constructor to solve the problem as shown in @agsy_transformation_branches.
 
 #figure(
   image("fig/agsy_transformation_branches.svg", width: 60%),
@@ -384,7 +384,7 @@ For example, we can either use some local variable, function or type constructor
   ],
 ) <agsy_transformation_branches>
 
-In case we use type constructors or functions that take multiple arguments, we need to solve all the subproblems of finding terms for arguments.
+In case we use constructors or functions that take multiple arguments, we need to solve all the subproblems of finding terms for arguments.
 The same is true for case splitting: we have to solve subproblems for all the cases.
 For example, shown in @agsy_all_branches we see that function ```hs foo : (A, B, C) -> Foo```
 can only be used if we manage to solve the subproblems of finding terms of the correct type for all the arguments.
@@ -497,6 +497,7 @@ However, the authors of @tool-for-automated-theorem-proving-in-agda note that wh
 They suggest that more advanced search space reduction techniques can be used, as well as writing it in a language that does not suffer from automatic memory management.
 It is also noted that there seem to be many false subproblems that can never be solved, so they suggest a parallel algorithm that could potentially prove the uselessness of those subproblems and reduce the search space.
 
+#pagebreak()
 ==== Mimer
 Mimer @mimer is another proof-assistant tool for Agda that attempts to address some of the shortcomings in Agsy.
 As of February 2024, Mimer has become part of Agda#cite-footnote("Agda GitHub pull request, Mimer: a drop-in replacement for Agsy", "2024-04-06", "https://github.com/agda/agda/pull/6410", "https://web.archive.org/web/20240410183837/https://github.com/agda/agda/pull/6410") and will be released as a replacement for Agsy.
@@ -517,11 +518,10 @@ However, they noted that the costs of the tactics need to be tweaked in future w
 === Term search in Standard ML <standardml>
 As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "2024-04-06", "https://redprl.org/", "https://web.archive.org/web/20240316102035/https://redprl.org/") @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
 
-The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in an ordered sequence in which each induces a variable of the appropriate sort which the rest of the sequence may depend on.
-This sequence is also called a telescope @telescopic-mappings-typed-lambda-calc.
-The telescope is required to work on type systems with dependent types.
-In contrast, typesystems without dependent types can use ordinary ```hs List``` data structure as there are no relations between subproblems.
-This is also the case for Rust, so we will later resort to using `list` for its simplicity.
+The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in a telescope @telescopic-mappings-typed-lambda-calc.
+A telescope is a list of types with dependencies between them.
+It is a convenient data structure to keep the proof state for dependently typed languages.
+However, for languages without dependent types (this also includes Rust), they suggest to using a regular list instead.
 
 To more effectively propagate substitutions to subproblems in the telescope @algebraic-foundations-of-proof-refinement suggests using BFS instead of DFS.
 The idea is to run all the tactics once on each subproblem, repeatedly.
@@ -543,7 +543,8 @@ solve problem =
   let 
     pcs: [ProblemCollection] = tactics problem  -- Generate possible refinements
   in
-    head [combineToSolution x | Just x <- map solveDFS pcs] -- Find first solution
+    -- Find only the first solution
+    head [combineToSolution x | Just x <- map solveDFS pcs]
 
 solveDFS :: ProblemCollection -> Maybe SolutionCollection
 solveDFS [] = Just [] -- No subproblems => Empty solution collection
@@ -614,7 +615,8 @@ step (p:ps) =
     pcs: [ProblemCollection] = tactics p  -- Possible ways to refine head
   in
     -- Propagate constraints and step other goals
-    flatten . map (\pc -> step $ propagateContstraints ps (extractConstraints pc)) pcs
+    flatten . map (\pc -> 
+        step $ propagateContstraints ps (extractConstraints pc)) pcs
 
 propagateConstraints :: ProblemCollection -> Constraints -> ProblemCollection
 propagateConstraints ps constraints = fmap (addConstraints constraints) ps
@@ -861,7 +863,7 @@ Once a term is complete in a guess binding, it may be substituted into the scope
 In each of these tactics, if any step fails, or the term in focus does not solve the problem, the entire tactic fails.
 This means that it roughly follows the DFS approach described in @standardml.
 
-
+#pagebreak()
 === Term search in Elm with Smyth
 Smyth#cite-footnote("Smyth", "2024-04-06", "https://uchicago-pl.github.io/smyth/", "https://web.archive.org/web/20231005015038/https://uchicago-pl.github.io/smyth/") is a system for program sketching in a typed functional language, approximately Elm.
 In @smyth, they describe that it uses evaluation of ordinary assertions that give rise to input-output examples, which are then used to guide the search to complete the holes.
@@ -1258,8 +1260,8 @@ However, we can simplify it by only suggesting the use of a tuple constructor wi
 (todo!(), todo!())
 ```]
 If there are only a few possibilities to come up with a solution, then showing them all isn't a problem.
-However, it is quite common for type constructors or functions to take multiple arguments.
-As the number of terms increases exponentially relative to the number of arguments a function/type constructor takes, the number of suggestions grows very fast.
+However, it is quite common for constructors or functions to take multiple arguments.
+As the number of terms increases exponentially relative to the number of arguments a function/constructor takes, the number of suggestions grows very fast.
 As a result, quite often, all the results don't even fit on the screen.
 In @second-iter-bfs, we will introduce an algorithm to handle this case.
 For now, it is sufficient to acknowledge that fully traversing the search space to produce all possible terms is not the desired approach, and there is some motivation to cache the easy work to avoid the hard work, not vice versa.
@@ -1279,8 +1281,7 @@ The second iteration of our algorithm was based on BFS, as suggested in @algebra
 However, it differs from it by searching in the opposite direction.
 
 To not confuse the directions, we use _forward_ when we are constructing terms from what we have (working towards the goal) and _backward_ when we work backward from the goal.
-Forward is also what we, as humans, generally use when writing programs.
-For example, we usually write ```rust x.foo().bar()``` left to right (forwards from arguments to goal) instead of right to left (backward from goal to arguments).
+This aligns with the forward and the backward directions in generic path finding, where the forward direction is from source to target and backward direction is from target to source.
 
 The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backward from it toward what we already have.
 For example, if we have a function in scope that takes us to the goal, we create new goals for all the arguments of the function, therefore we move backward from the return type towards the arguments.
@@ -1288,7 +1289,7 @@ Our algorithm, however, works in the forward direction, meaning that we start fr
 We try to apply all the functions, etc. to then build new types from what we have and hopefully, at some point, arrive at the target type.
 
 In @graph-searching, they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
-We believe that this might be the case for term search, as there are many ways to build new types available (functions/type constructors/methods).
+We believe that this might be the case for term search, as there are many ways to build new types available (functions/constructors/methods).
 Going in the forward direction, all the terms we create are well-formed and do not have holes in them.
 This means that we do not need problem collections, as there are never multiple subproblems pending that have to all be solved for some term to be well-formed.
 As there is a potential speedup and the implementation seems to be easier, we decided to experiment with using the forward approach.
@@ -1344,7 +1345,7 @@ This speeds up the algorithm a lot, so now we can raise the depth of search to 1
 The algorithm itself is quite simple.
 The pseudocode for it can be seen in @rust-bfs-pseudocode.
 We start by gathering all the items in scope to `defs`.
-These items include local values and constants, as well as all visible functions, type constructors, etc.
+These items include local values and constants, as well as all visible functions, constructors, etc.
 Next, we initialize the lookup table with the desired _many threshold_ for the alternative expressions shown in @rust-alternative-exprs.
 The lookup table owns the cache, the state of the algorithm and some other values for optimizations.
 We will discuss the exact functionalities of the lookup table in @lookup-table.
@@ -1355,7 +1356,7 @@ More information about the `trivial` tactic can be found at @tactic-trivial.
 All the terms it produces get added to the lookup table and can be later used in other tactics.
 After that, we iteratively expand the search space by attempting different tactics until we have exceeded the preconfigured search depth.
 During every iteration, we sequentially attempt different tactics.
-All tactics build new types from existing types (type constructors, functions, methods, etc.) and are described in @tactics.
+All tactics build new types from existing types (constructors, functions, methods, etc.) and are described in @tactics.
 The search space is expanded by adding new types to the lookup table.
 An example of it can be seen in @term-search-state-expansion.
 We keep iterating after finding the first match, as there may be many terms of the given type.
@@ -1513,7 +1514,7 @@ We decided to filter at the end because it is hard to guarantee that different t
 
 ==== Tactic "trivial" <tactic-trivial>
 A tactic called "trivial" is one of the most trivial tactics we have.
-It only attempts items we have in scope and does not consider any functions/type constructors.
+It only attempts items we have in scope and does not consider any functions/constructors.
 The items in scope contain:
 1. Constants
 2. Static items
@@ -1558,10 +1559,9 @@ $
 $
 */
 
-==== Tactic "type constructor"
-
-"Type constructor" is the first of our tactics that takes us from some types to other types.
-The idea is to attempt to apply the constructors of types we have in scope.
+==== Tactic "data constructor"
+"Data constructor" is the first of our tactics that takes us from terms of some types to terms of other types.
+The idea is to attempt to apply the data constructors of the types we have in scope.
 We try them by looking for terms for each of the arguments the constructor has from the lookup table.
 If we have terms for all the arguments, then we have successfully applied the constructor.
 If not, then we cannot apply the constructor at this iteration of the algorithm.
