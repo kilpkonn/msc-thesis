@@ -1223,95 +1223,95 @@ At last, we will see how the algorithm can benefit from bidirectional search.
 
 === First iteration: DFS <first-iter-dfs>
 The first iteration of the algorithm follows the algorithm described in @agsy.
-The implementation for it is quite short as the DFS method seems to naturally follow the DFS as pointed out in @standardml.
-However, since our implementation does not use any caching it is very slow.
-Because of the poor performance we had to limit the search depth to 2 as bigger depth caused the algorithm to run for a considerable amount of time.
-The performance can be improved by caching some of the found terms but doing it efficiently is rather hard.
+The implementation for it is quite short, as the DFS method seems to naturally follow the DFS, as pointed out in @standardml.
+However, since our implementation does not use any caching, it is very slow.
+Because of the poor performance, we had to limit the search depth to 2, as bigger depth caused the algorithm to run for a considerable amount of time.
+The performance can be improved by caching some of the found terms, but doing it efficiently is rather hard.
 
-Caching the result means that once we have managed to produce a term of type `T` we want to store it in a lookup table so that we wouldn't have to search for it again.
-Storing the type first time we find it is rather trivial, but it's not very efficient.
-The issue arises from that there are no guarantees that the first term we come up with is the simplest.
-Consider the example of producing something of type ```rust Option<i32>```.
-We as human know that easiest way to produce a term of that type is to use the ```rust None``` constructor that takes no arguments.
-The algorithm however might first take the branch of using ```rust Some(...)``` constructor.
+Caching the result means that once we have managed to produce a term of type `T`, we want to store it in a lookup table so that we won't have to search for it again.
+Storing the type the first time we find it is rather trivial, but it's not very efficient.
+The issue arises from the fact that there are no guarantees that the first term we come up with is the simplest.
+Consider the example of producing something of the type ```rust Option<i32>```.
+We as humans know that the easiest way to produce a term of that type is to use the ```rust None``` constructor that takes no arguments.
+The algorithm, however, might first take the branch of using the ```rust Some(...)``` constructor.
 Now we have to also recurse to find something of type ```rust i32```, and potentially iterate again and again if we do not have anything suitable in scope.
 Even worse, we might end up not finding anything suitable after fully traversing the tree we got from using the ```rust Some(...)``` constructor.
-Now we have to also check the ```rust None``` subtree which means that we only benefit from the cache if we want to search for ```rust Option<i32>``` again.
+Now we have to also check the ```rust None``` subtree, which means that we only benefit from the cache if we want to search for ```rust Option<i32>``` again.
 
-This is not a problem if we want to retrieve all possible term for the target type, however that is not always what we want to do.
-We found that for bigger terms it is better to produce a term with new holes in it, even when we have solutions for them, just to keep amount of suggestions low.
-Consider the following example.
+This is not a problem if we want to retrieve all possible terms for the target type, however, that is not always what we want to do.
+We found that for bigger terms, it is better to produce a term with new holes in it, even when we have solutions for them, just to keep the number of suggestions low.
+Consider the following example:
 
 #sourcecode(numbering: none)[```rs
 let var: (bool, bool) = todo!();
 ```]
 
-If we give user back all possible terms then the user has to choose between following options:
+If we give the user back all possible terms, then the user has to choose between the following options:
 #sourcecode(numbering: none)[```rs
 (false, false)
 (false, true)
 (true, false)
 (true, true)
 ```]
-However, we can simplify it to only suggesting the use of tuple constructor with two new holes in it.
+However, we can simplify it by only suggesting the use of a tuple constructor with two new holes in it.
 #sourcecode(numbering: none)[```rs
 (todo!(), todo!())
 ```]
-If there are only few possibilities to come up with a solution then showing them all isn't really a problem.
-However, it is quite common for the type constructors or functions to take multiple arguments.
-This as the amount of terms is exponential relative to amount of arguments to function/type constructor takes the amount of suggestions grows very fast.
-As result quite often all the results don't even fit onto screen.
-In @second-iter-bfs we will introduce an algorithm to handle this case.
-For now, it is sufficient to acknowledge that fully traversing the search space to produce all possible terms is not the desired approach and there is some motivation to cache the easy work to avoid the hard work, not vice versa.
+If there are only a few possibilities to come up with a solution, then showing them all isn't really a problem.
+However, it is quite common for type constructors or functions to take multiple arguments.
+As the number of terms is increases exponentially relative to the number of arguments a function/type constructor takes, the number of suggestions grows very fast.
+As a result, quite often, all the results don't even fit on the screen.
+In @second-iter-bfs, we will introduce an algorithm to handle this case.
+For now, it is sufficient to acknowledge that fully traversing the search space to produce all possible terms is not the desired approach, and there is some motivation to cache the easy work to avoid the hard work, not vice versa.
 Branch costs suggested in @mimer can potentially improve this, but the issue still remains as this is simply a heuristic.
 
-Another observation from implementing the DFS algorithm is that whilst most of the algorithm looked very elegant the "struct projection" tactic described in @tactic-struct-projection was rather awkward to implement.
-The issue arose the projections having to include all the fields from the parent struct as well as from the child struct.
-Including only the child "leaf" fields is very elegant with DFS but also including the intermediate fields caused some extra boilerplate.
+Another observation from implementing the DFS algorithm is that, while most of the algorithm looked very elegant, the "struct projection" tactic described in @tactic-struct-projection was rather awkward to implement.
+The issue arose with the projections having to include all the fields from the parent struct as well as from the child struct.
+Including only the child "leaf" fields is very elegant with DFS, but also including the intermediate fields caused some extra boilerplate.
 
-Similar issues arose when we wanted to speed up the algorithm by running some tactics, for example "impl method" only on types that we have not yet ran it on.
+Similar issues arose when we wanted to speed up the algorithm by running some tactics, for example, the "impl method" only on types that we have not yet ran it on.
 Doing it with DFS is definitely possible, but it doesn't fit the algorithm conveniently.
-As there were many issues with optimizing the DFS approach we decided to not improve it further and turn to BFS based algorithm instead.
+As there were many issues with optimizing the DFS approach, we decided to not improve it further and turn to a BFS-based algorithm instead.
 
 
 === Second iteration: BFS <second-iter-bfs>
-The second iteration of our algorithm was based on BFS as suggested in @algebraic-foundations-of-proof-refinement.
+The second iteration of our algorithm was based on BFS, as suggested in @algebraic-foundations-of-proof-refinement.
 However, it differs from it by doing the search in the opposite direction.
 
-To not confuse the directions we use _forward_ when we are constructing term from what we have (working towards the goal) and _backward_ when we work backwards from the goal.
-Forward is also what we as humen generally use when writing programs.
-For example, we usually write ```rust x.foo().bar()``` left to right (forwards from arguments to goal) instead of right to left (backwards from goal to arguments)
+To not confuse the directions, we use _forward_ when we are constructing terms from what we have (working towards the goal) and _backward_ when we work backwards from the goal.
+Forward is also what we, as humans, generally use when writing programs.
+For example, we usually write ```rust x.foo().bar()``` left to right (forwards from arguments to goal) instead of right to left (backwards from goal to arguments).
 
 The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backwards from it towards what we already have.
-For example if we have function in scope that takes us to the goal we create new goals for all the arguments of the function, therefore move backwards from the return type towards the arguments.
-Our algorithm however works in the forward direction, meaning that we start from what we have in scope.
-We try to apply all the functions etc. to then build new types from what we have and hopefully at some point arrive at the target type.
+For example, if we have a function in scope that takes us to the goal, we create new goals for all the arguments of the function, therefore we move backwards from the return type towards the arguments.
+Our algorithm, however, works in the forward direction, meaning that we start from what we have in scope.
+We try to apply all the functions, etc. to then build new types from what we have and hopefully, at some point, arrive at the target type.
 
-In @graph-searching they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
-We believe that this might be the case for term search as there are many ways to build new types available (functions/type constructors/methods).
-Going in the forward direction all the terms we create are well-formed and do not have holes in them.
-This means that we do not need problem collections as there are never multiple subproblems pending that have to all be solved for some term to be well-formed.
-As there is a potential speedup as well as the implementation seems to be easier we decided to experiment with using the forward approach.
+In @graph-searching, they argue that taking the forward (bottom-up) approach will yield speedups when the active frontier is a substantial fraction of the total graph.
+We believe that this might be the case for term search, as there are many ways to build new types available (functions/type constructors/methods).
+Going in the forward direction, all the terms we create are well-formed and do not have holes in them.
+This means that we do not need problem collections, as there are never multiple subproblems pending that have to all be solved for some term to be well-formed.
+As there is a potential speedup and the implementation seems to be easier, we decided to experiment with using the forward approach.
 
 Going in the "forward" direction also makes writing some of the tactics easier.
 Consider the example of struct projections.
-In the backwards direction we would start with the struct field and then later search if we have the struct available.
-This works, but it is rather hard to understand as we usually write code for projections in the forward direction.
-With BFS going in the forward direction we can just visit all the fields of struct types in every iteration which roughly follows how we usually write code.
-The issue of awkward handling of fields together with their fields also goes away as we can consider only one level of fields in every iteration.
-With multiple iterations we manage to cover fields of nested structs without needing any boilerplate.
+In the backward direction, we would start with the struct field and then later search if we had the struct available.
+This works, but it is rather hard to understand, as we usually write code for projections in the forward direction.
+With BFS going in the forward direction, we can just visit all the fields of struct types in every iteration, which roughly follows how we usually write code.
+The issue of awkward handling of fields together with their fields also goes away, as we can consider only one level of fields in every iteration.
+With multiple iterations, we manage to cover fields of nested structs without needing any boilerplate.
 
-In this iteration we also introduce the cache to the algorithm.
+In this iteration, we also introduce the cache to the algorithm.
 The idea of the cache is to keep track of types we have reached so that we could query for terms of that type in $O(1)$ time complexity.
-Since in practice we also care about terms that unify with the type we get the complexity of $O(n)$ where the $n$ is a number of types in cache.
-This is still a lot faster than traversing the tree as iterating the entries in the map is quite cheap operation.
-With this kind of graph we managed to increase the search depth to 3-4 depending on the size of the project.
+Since in practice we also care about terms that unify with the type, we get the complexity of $O(n)$ where $n$ is a number of types in the cache.
+This is still a lot faster than traversing the tree, as iterating the entries in the map is a quite cheap operation.
+With this kind of graph, we managed to increase the search depth to 3-4, depending on the size of the project.
 
-In the DFS approach without cache the main limitation was time complexity, but now the limitation is the memory complexity.
+In the DFS approach without cache, the main limitation was time complexity, but now the limitation is memory complexity.
 The issue is producing too many terms for a type.
-In @first-iter-dfs we discussed that there are often too many terms to present for the user.
-However now we find that there are also too many terms to keep in memory due to exponential growth of them as the depth increases.
-Luckily the idea of suggesting users the terms that have new holes in them also reduces the memory complexity a lot.
+In @first-iter-dfs, we discussed that there are often too many terms to present for the user.
+However, now we find that there are also too many terms to keep in memory due to their exponential growth as the depth increases.
+Luckily, the idea of suggesting user terms that have new holes in them also reduces the memory complexity a lot.
 
 To avoid producing too many terms we cache terms using enum shown in @rust-alternative-exprs.
 #figure(
@@ -1329,37 +1329,38 @@ caption: [
     Cache data structure for term search
   ],
 ) <rust-alternative-exprs>
-The idea is that if there are only a few terms of given type we keep them all so that we can provide the full term to the user.
-However, if there are too many of them to keep track of we just remember that we can come up with a term for given type, but we won't store the terms themselves.
+The idea is that if there are only a few terms of a given type, we keep them all so that we can provide the full term to the user.
+However, if there are too many of them to keep track of, we just remember that we can come up with a term for a given type, but we won't store the terms themselves.
 The cases of ```rust Many``` later become the holes in the generated term.
 
-In addition to decreasing memory complexity this reduces also time complexity a lot.
-Now we do not have to construct the terms if we know that there are already many of the type.
+In addition to decreasing memory complexity, this also reduces time complexity a lot.
+Now we do not have to construct the terms if we know that there are already many of them.
 This can be achieved quite elegantly by using iterators in Rust.
-Iterators in Rust are lazy meaning that they only do work if we consume them.
-In our case consuming the iterator is extending the ```rust AlternativeExprs``` in the Cache.
-However, if we are already in the many cases we can throw away the iterator without performing any computation.
-This speeds up the algorithm a lot, so now we can raise the depth of search to 10+ with it still outperforming the previous algorithms on timescale.
+Iterators in Rust are lazy, meaning that they only do work if we consume them.
+In our case, consuming the iterator is extending the ```rust AlternativeExprs``` in the cache.
+However, if we are already in many cases, we can throw away the iterator without performing any computation.
+This speeds up the algorithm a lot, so now we can raise the depth of search to 10+ with it still outperforming the previous algorithms on a timescale.
 
-The algorithm itself is quite simple, the pseudocode for it can be seen in @rust-bfs-pseudocode.
+The algorithm itself is quite simple.
+The pseudocode for it can be seen in @rust-bfs-pseudocode.
 We start by gathering all the items in scope to `defs`.
-These items include local values, constants as well as all visible functions/type constructors etc.
-Next we initialize the lookup table with desired many thresholds for the alternative expressions shown in @rust-alternative-exprs.
+These items include local values ans constants, as well as all visible functions, type constructors, etc.
+Next, we initialize the lookup table with the desired _many threshold_ for the alternative expressions shown in @rust-alternative-exprs.
 The lookup table owns the cache, the state of the algorithm and some other values for optimizations.
 We will discuss the exact functionalities of the lookup table in @lookup-table.
 
-Before entering the main loop we populate the lookup table by running a tactic called `trivial`.
-Essentially it attempts to fulfill the goal by trying variables we have in scope.
-More information about the `trivial` tactic can be found in @tactic-trivial.
-All the terms it produces get added to lookup table and can be later used in other tactics.
-After that we iteratively expand the search space by attempting different tactics until we have exceeded the preconfigured search depth.
-During every iteration we sequentially attempt different tactics.
-All tactics build new types from existing types (type constructors, functions, methods, etc.), and are described in @tactics.
-The search space is expanded by adding new types to lookup table.
-Example for it can be seen in @term-search-state-expansion.
-We keep iterating after finding the first match as there may be many terms of the given type.
+Before entering the main loop, we populate the lookup table by running a tactic called `trivial`.
+Essentially, it attempts to fulfill the goal by trying the variables we have in scope.
+More information about the `trivial` tactic can be found at @tactic-trivial.
+All the terms it produces get added to the lookup table and can be later used in other tactics.
+After that, we iteratively expand the search space by attempting different tactics until we have exceeded the preconfigured search depth.
+During every iteration, we sequentially attempt different tactics.
+All tactics build new types from existing types (type constructors, functions, methods, etc.) and are described in @tactics.
+The search space is expanded by adding new types to the lookup table.
+An example of it can be seen in @term-search-state-expansion.
+We keep iterating after finding the first match, as there may be many terms of the given type.
 Otherwise, we would never get suggestions for ```rust Option::Some(..)```, as ```rust Option::None``` usually comes first as it has fewer arguments.
-In the end we filter out solutions that do not take us closer to the goal.
+In the end, we filter out solutions that do not take us closer to the goal.
 
 #figure(
 sourcecode()[```rs
@@ -1389,9 +1390,9 @@ caption: [
   ],
 ) <rust-bfs-pseudocode>
 
-As we can see from the @rust-bfs-pseudocode we start from what we have (locals, constants, statics) and work towards the target type.
-This is the opposite direction compared to tools we have looked at previously.
-To better understand how the search space is expanded let us look at @term-search-state-expansion.
+As we can see from the @rust-bfs-pseudocode, we start with what we have (locals, constants, and statics) and work towards the target type.
+This is in the opposite direction compared to the tools we have looked at previously.
+To better understand how the search space is expanded, let us look at @term-search-state-expansion.
 
 #figure(
   image("fig/state_expansion.svg", width: 60%),
@@ -1402,85 +1403,86 @@ To better understand how the search space is expanded let us look at @term-searc
   ],
 ) <term-search-state-expansion>
 We start with variables `a` of type `A` and `b` of type `B`.
-In the first iteration we are able to use function $f: A -> C$ on `a` and get something of type `C`.
-The iteration after that we are able to use $g: C times B -> D$ and produce something of type `D`.
+In the first iteration, we are able to use the function $f: A -> C$ on `a` and get something of the type `C`.
+in the iteration after that, we are able to use $g: C times B -> D$ and produce something of type `D`.
 
-Once we have reached the maximum depth we take all the elements that unify with the goal type we return all paths that take us to goal type.
+Once we have reached the maximum depth, we take all the elements that unify with the goal type and return all paths that take us to the goal type.
 
 ==== Lookup table <lookup-table>
-The main task for lookup table throughout the algorithm is to keep track of the state.
-The state consists of following components:
-1. _Terms reached_ (grouped by types)
+The main task of the lookup table throughout the algorithm is to keep track of the state.
+The state consists of the following components:
+1. _Terms reached_ (grouped by type)
 2. _New types reached_ (since last iteration)
-3. _Definitions used_ and _definitions exhausted_ (for example functions applied)
-4. _Types wishlist_ (Types that have been queried, but not reached)
+3. _Definitions used_ and _definitions exhausted_ (for example, functions applied)
+4. _Types wishlist_ (types that have been queried, but not reached)
 
 _Terms reached_ keeps track of the search space we have already covered (visited types) and allows querying terms them in $O(1)$ complexity for exact type and $O(n)$ complexity for types that unify.
-It is important to note that it also performs transformation of taking a reference if we query for reference type.
-This is only to keep the implementation simple and memory footprint low.
-Otherwise, having separate tactic for taking a reference of the type would be preferred.
+It is important to note that it also performs the transformation of taking a reference if we query for a reference type.
+This is only to keep the implementation simple and the memory footprint low.
+Otherwise, having a separate tactic for taking a reference of this type would be preferred.
 
 _New types reached_ keeps track of new types added to _terms reached_ so that we can iterate only over them in some tactics to speed up the execution.
 
 _Definitions used_ serves also only purpose for speeding up the algorithm by avoiding definitions that have already been used.
 
 _Types wishlist_ keeps track of all the types we have tried to look up from terms reached but not found.
-They are used in static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
-This is another optimization for speed described in @tactic-static-method.
+They are used in the static method tactic (see @tactic-static-method) to only search for static methods on types we haven't reached yet.
+This is another optimization for speed described in the @tactic-static-method.
 
 The main downside of the lookup table implementation we have is that it poorly handles types that take generics.
-We only store types that are normalized meaning that we have substituted the generic parameter with some concrete type.
-In case of generics, if often means that the lookup table starts growing exponentially.
-Consider the example of using `Option` type.
+We only store types that are normalized, meaning that we have substituted the generic parameter with some concrete type.
+In the case of generics, it often means that the lookup table starts growing exponentially.
+Consider the example of using the `Option` type.
 #sourcecode()[```rs
 Some(T) | None
 Some(Some(T)) | Some(None) | Some(T) | None
 Some(Some(Some(T))) | Some(Some(None)) | Some(Some(T)) | Some(None) | Some(T) | None
 ```]
-With every iteration two new terms of new type come available, even though it is unlikely one would ever use them.
-However, since `Option` takes only one generic argument the grown is linear as many of the term cancel out due to already being in the cache.
-If we have something with multiple generic parameters becomes exponential.
-Consider the example of wrapping the types we have to pair (tuple with two elements).
-At first, we have $n$ types. After first iteration we have $n^2$ new types as we are taking the Cartesian product.
-In the second iteration we can crate a pair by taking one of the elements from the original set of types and the second element from the set of pairs we have.
-As for every pair there are $n$ original types to choose from we get $n^3$ pairs and also all the pairs of pairs.
-Even without considering the pairs of pairs we see that tho growth is exponential.
+With every iteration, two new terms of a new type come available, even though it is unlikely one would ever use them.
+However, since `Option` takes only one generic argument, the growth is linear as many of the terms cancel out due to already being in the cache.
+If we have something with multiple generic parameters, it becomes exponential.
+Consider the example of wrapping the types we have to pair (a tuple with two elements).
+At first, we have $n$ types.
+After the first iteration, we have $n^2$ new types as we are taking the Cartesian product.
+In the second iteration, we can create a pair by taking one of the elements from the original set of types and the second element from the set of pairs we have.
+As for every pair, there are $n$ original types to choose from and we get $n^3$ pairs and also all the pairs of pairs.
+Even without considering the pairs of pairs, we see that the growth is exponential.
 
-To keep the search space to a reasonable size we ignore all types with generics unless if they take as directly to the goal.
-This means that we limit the depth for the generics to 1 which is a very severe however necessary limitation.
-In @third-iter-bidirectional-bfs we will discuss how to get around this limitation.
+To keep the search space to a reasonable size, we ignore all types with generics unless they are directly related to the goal.
+This means that we limit the depth for the generics to 1, which is a very severe but necessary limitation.
+In @third-iter-bidirectional-bfs, we will discuss how to get around this limitation.
 
 === Third iteration: Bidirectional BFS <third-iter-bidirectional-bfs>
-The third iteration of our algorithm is a small, yet powerful improvement on the second iteration described in @second-iter-bfs.
+The third iteration of our algorithm is a small yet powerful improvement on the second iteration described in @second-iter-bfs.
 This iteration differs from the previous one by improving the handling of generics.
-We note that the handling of generics is a lot smaller problem if going in the backwards direction as other term search tools do.
+We note that the handling of generics is a much smaller problem if going in the backwards direction similarly to other term search tools.
 This is because we can only construct the types that actually contribute towards reaching the goal.
-However, if we only go in the backwards direction we can still end up with terms such as ```rust Some(Some(...)).is_some()``` that do contribute towards the goal but not in a very meaningful way.
-BFS copes with these kinds of terms quite well as the easiest paths are taken first.
-However, with multiple iteration many not so useful types get added to the lookup table nonetheless.
-Note that the trick with lazy evaluation of iterators does not work here as the terms have types not yet in the lookup meaning we cannot discard them.
-Filtering them out in backwards direction is possible but not trivial.
+However, if we only go in the backwards direction, we can still end up with terms such as ```rust Some(Some(...)).is_some()``` that do contribute towards the goal but not in a very meaningful way.
+BFS copes with these kinds of terms quite well, as the easiest paths are taken first.
+However, with multiple iterations, many not-so-useful types get added to the lookup table nonetheless.
+Note that the trick with lazy evaluation of iterators does not work here as the terms have types not yet in the lookup, meaning we cannot discard them.
+Filtering them out in a backward direction is possible but not trivial.
 
-To benefit from better handling of generics going in the backwards direction and otherwise more intuitive approach of going forwards we decided to make the search bidirectional.
-The forward direction starts from the locals we have and starts expanding the search space from there.
+To benefit from better handling of generics going in the backward direction and an otherwise more intuitive approach of going in forward direction, we decided to make the search bidirectional.
+The forward direction starts with the locals we have and starts expanding the search space from there.
 Tactics that work in the forward direction ignore all types where we need to provide generic parameters.
 Other tactics start working backwards from the goal.
 All the tactics that work backwards do so to better handle generics.
 
-Going backwards is achieved by using the types wishlist component of the lookup table.
+Going backward is achieved by using the types wishlist component of the lookup table.
 We first seed the wishlist with the target type.
-During every iteration the tactics working backwards from the target type only work with concrete types we have in wishlist.
-For example if there is ```rust Option<Foo>``` in the wishlist, and we work with the ```rust Option<T>``` type we know to substitute the generic type parameter `T` with ```rust Foo```.
-This way we avoid polluting the lookup table with many types that likely do not contribute towards the goal.
+During every iteration, the tactics working backwards from the target type only work with the concrete types we have in our wishlist.
+For example, if there is ```rust Option<Foo>``` in the wishlist and we work with the ```rust Option<T>``` type, we know to substitute the generic type parameter `T` with ```rust Foo```.
+This way, we avoid polluting the lookup table with many types that likely do not contribute towards the goal.
 All the tactics add types to the wishlist, so forward tactics can benefit from the backwards tactics (and vice versa) before meeting in the middle.
-With some tactics such as using methods on type only working in the forward direction we can conveniently avoid adding complex types to wishlist if we only need them to get something simple such as ```rust bool``` in the ```rust Some(Some(...)).is_some()``` example.
+With some tactics, such as using methods on types only working in the forward direction, we can conveniently avoid adding complex types to the wishlist if we only need them to get something simple, such as ```rust bool``` in the ```rust Some(Some(...)).is_some()``` example.
 
 
 == Tactics <tactics>
 We use tactics to expand the search space for the term search algorithm.
-All the tactics are applied sequentially which causes a phase ordering problem as tactics generally depend on results of others.
+All the tactics are applied sequentially, which causes a phase-ordering problem as tactics generally depend on the results of others.
 However, the ordering of tactics problem can be fixed by running the algorithm for more iterations.
-Note that some tactics also use heuristics for performance optimization that also suffer from the phase ordering problem, but they can not be fixed by running the algorithm for more iterations.
+Note that some tactics also use heuristics for performance optimization that also suffer from the phase ordering problem, but they cannot be fixed by running the algorithm for more iterations.
 
 All the tactic function signatures follow the simplified function signature shown in @rust-tactic-signature.
 #figure(
@@ -1499,26 +1501,26 @@ caption: [
     All tactics return iterator that yields terms that unify with goal.
   ],
 ) <rust-tactic-signature>
-All the tactics take in the context of term search, definitions in scope and a lookup table and produce an iterator that yields expressions that unify with the goal type (provided by the context).
-The context encapsulates semantics of the program, configuration for the term search and the goal type.
+All the tactics take in the context of term search, definitions in scope, and a lookup table and produce an iterator that yields expressions that unify with the goal type (provided by the context).
+The context encapsulates the semantics of the program, the configuration for the term search, and the goal type.
 Definitions are all the definitions in scope that can be used by tactics.
-Some of the examples of definitions are local variables, functions, constants and macros.
+Some examples of definitions are local variables, functions, constants, and macros.
 The definitions in scope can also be derived from the context, but they are kept track of separately to speed up the execution by filtering out definitions that have already been used.
-Keeping track of them separately also allows querying them only once as they do not change throughout the execution of the algorithm.
-Lookup table is used to keep track of the state of the term search as described in @lookup-table.
-The iterator produced by tactics is allowed to have duplicates as filtering of them is done at the end of the algorithm.
-We decided to filter at the end because it is hard to guarantee that different tactics do not produce same elements, but without the guarantee of uniqueness there would have to be another round of deduplication nevertheless.
+Keeping track of them separately also allows querying them only once, as they do not change throughout the execution of the algorithm.
+The lookup table is used to keep track of the state of the term search, as described in @lookup-table.
+The iterator produced by tactics is allowed to have duplicates, as filtering of them is done at the end of the algorithm.
+We decided to filter at the end because it is hard to guarantee that different tactics do not produce the same elements, but without the guarantee of uniqueness, there would have to be another round of deduplication nevertheless.
 
 ==== Tactic "trivial" <tactic-trivial>
-Tactic called "trivial" is one of the most trivial tactics we have.
+A tactic called "trivial" is one of the most trivial tactics we have.
 It only attempts items we have in scope and does not consider any functions / type constructors.
-The items in scope contains:
+The items in scope contain:
 1. Constants
 2. Static items
 3. Generic parameters (constant generics#cite-footnote("The Rust Reference, Generic parameters", "2024-04-06", "https://doc.rust-lang.org/reference/items/generics.html", "https://web.archive.org/web/20240324062312/https://doc.rust-lang.org/reference/items/generics.html"))
 4. Local items
 
-As this tactic only depends on the values in scope we don't have to call it every iteration.
+As this tactic only depends on the values in scope, we don't have to call it every iteration.
 In fact, we only call it once before any of the other tactics to populate the lookup table for forward direction tactics with the values in scope.
 /*
 $
@@ -1534,20 +1536,20 @@ $
 
 ==== Tactic "famous types" <tactic-famous-types>
 "Famous types" is another rather trivial tactic.
-The idea of the tactic is to attempt values of well known types.
+The idea of the tactic is to attempt values of well-known types.
 Those types and values are:
 1. ```rust true``` and ```rust false``` of type ```rust bool```
 2. ```rust ()``` of unit type ```rust ()```
-Whilst we usually try to avoid creating values out of the blue we make an exception here.
-The rationale of making types we generate depend on types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
+While we usually try to avoid creating values out of the blue, we make an exception here.
+The rationale for making the types we generate depend on the types we have in scope is that usually the programmer writes the code that depends on inputs or previous values.
 Suggesting something else can be considered distracting.
-However, we find these values to be common enough to be usually a good suggestion.
+However, we find these values to be common enough to usually be a good suggestion.
 Another reason is that we experienced our algorithm "cheating" around depending on values anyway.
-It constructed expressions like ```rust None.is_none()```, ```rust None.is_some()``` for ```rust true```/```rust false``` which are valid but all most never what the user wants.
-For unit types it can use any function that has "no return type" meaning it returns unit type.
-There is usually at least one that kind of function in scope but suggesting it is unexpected more often than suggesting `()`.
-Moreover, suggesting a random function with `()` return type can often be wrong as the functions can have side effects.
-Similarly to tactic "trivial" this tactic helps to populate the lookup table for the forward pass tactics.
+It constructed expressions like ```rust None.is_none()``` and ```rust None.is_some()``` for ```rust true```/```rust false``` which are valid but most likely never what the user wants.
+For unit types, it can use any function that has "no return type", meaning it returns a unit type.
+There is usually at least one that kind of function in scope, but suggesting it is unexpected more often than suggesting `()`.
+Moreover, suggesting a random function with a `()` return type can often be wrong as the functions can have side effects.
+Similarly to tactic "trivial", this tactic helps to populate the lookup table for the forward pass tactics.
 /*
 $
 (?: "bool") / (? := "true" #h(0.5cm) ? := "false")
@@ -1558,28 +1560,28 @@ $
 
 ==== Tactic "type constructor"
 
-"Type constructor" is first of our tactics that takes us from some types to another types.
-The idea is to attempt to apply type constructors we have in scope.
+"Type constructor" is the first of our tactics that takes us from some types to other types.
+The idea is to attempt to apply the constructors of types we have in scope.
 We try them by looking for terms for each of the arguments the constructor has from the lookup table.
-If we have terms for all the arguments then we have successfully applied the constructor.
-If not then we cannot apply the constructor at this iteration of the algorithm.
+If we have terms for all the arguments, then we have successfully applied the constructor.
+If not, then we cannot apply the constructor at this iteration of the algorithm.
 
 The tactic includes both sum and product types (`enum` and `struct` for rust).
 
-As compound types may contain generic arguments, the tactic works in both forward and backward direction.
+As compound types may contain generic arguments, the tactic works in both forward and backward directions.
 The forward direction is used if the ADT does not have any generic parameters.
 The backward direction is used for types that have generic parameters.
-In the backward direction all the generic type arguments are taken from the types in wishlist.
-By doing that we know that we only produce types that somehow contribute towards our search.
+In the backward direction, all the generic type arguments are taken from the types in the wishlist.
+By doing that, we know that we only produce types that somehow contribute to our search.
 
 The tactic avoids types that have unstable generic parameters that do not have default values.
-Unstable generics with default values are allowed as many of the well known types have unstable generic parameters that have default values.
-For example the definition for ```rust Vec``` type in Rust is following:
+Unstable generics with default values are allowed, as many of the well-known types have unstable generic parameters that have default values.
+For example, the definition for ```rust Vec``` type in Rust is the following:
 ```rs 
 struct Vec<T, #[unstable] A: Allocator = Global>
 ```
-As the users normally avoid providing generics arguments that have default values we also decided to avoid filling them.
-This means that for the ```rust Vec``` type above the algorithm only tries different types for `T`, but never touches the `A` (allocator) generic argument.
+As the users normally avoid providing generic arguments that have default values, we also decided to avoid filling them.
+This means that for the ```rust Vec``` type above, the algorithm only tries different types for `T` but never touches the `A` (allocator) generic argument.
 /*
 #todo("How to indicate arbitary number of fields / variants?")
 #todo("Should we indicate that we actually need type constructor, arguments and type is not enough or is it implementation detail?")
@@ -1605,7 +1607,7 @@ This tactic attempts to apply free functions we have in scope.
 It only tries functions that are not part of any ```rust impl``` block (associated with type or trait) and therefore considered "free".
 
 A function can be successfully applied if we have terms in the lookup table for all the arguments that the function takes.
-If we are missing terms for some arguments we cannot use the function, and we try again the next iteration when we hopefully have more terms in the lookup table.
+If we are missing terms for some arguments, we cannot use the function, and we try again in the next iteration when we hopefully have more terms in the lookup table.
 
 We have decided to filter out all the functions that have non-default generic parameters.
 This is because `rust-analyzer` does not have proper checking for the function to be well-formed with a set of generic parameters.
@@ -1622,10 +1624,10 @@ $
 */
 
 ==== Tactic "impl method"
-This tactic attempts functions that take ```rust self``` parameter.
+This tactic attempts functions that take a ```rust self``` parameter.
 This includes both trait methods and methods implemented directly on type.
 Examples for both of these cases are shown in @rust-impl-method.
-Both of the impl blocks are highlighted and each of them has a single method that takes ```rust self``` parameter.
+Both of the impl blocks are highlighted, and each of them has a single method that takes a ```rust self``` parameter.
 These methods can be called as ```rust example.get_number()``` and ```rust example.do_thingy()```.
 
 #figure(
@@ -1655,17 +1657,17 @@ caption: [
   ],
 ) <rust-impl-method>
 
-Similarly to "free function" tactic it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
+Similarly to the "free function" tactic, it also ignores functions that have non-default generic parameters defined on the function for the same reasons.
 However, generics defined on the ```rust impl``` block pose no issues as they are associated with the target type, and we can provide concrete values for them.
 
-A performance tweak for this tactic is to only search the ```rust impl``` blocks for types that are new to us meaning that they were not present in the last iteration.
-This implies we run this tactic only in the forward direction i.e. we need to have term for the receiver type before using this tactic.
-This is a heuristic that speeds up the algorithm quite a bit as searching for all ```rust impl``` blocks is a costly operation.
+A performance tweak for this tactic is to only search the ```rust impl``` blocks for types that are new to us, meaning that they were not present in the last iteration.
+This implies we run this tactic only in the forward direction, i.e. we need to have a term for the receiver type before using this tactic.
+This is a heuristic that speeds up the algorithm quite a bit, as searching for all ```rust impl``` blocks is a costly operation.
 However, this optimization does suffer from the phase ordering problem.
-For example, it may happen that we can use some method from the ```rust impl``` block later when we have reached more types and covered a type that we need for an argument of the function.
+For example, it may happen that we can use some method from the ```rust impl``` block later, when we have reached more types and covered a type that we need for an argument of the function.
 
 We considered also running this tactic in the reverse direction, but it turned out to be very hard to do efficiently.
-The main issue is that there are many ```rust impl``` blocks for generic `T` which do not work well with the types wishlist we have as it pretty much says that all types belong to the wishlist.
+The main issue is that there are many ```rust impl``` blocks for generic `T` that do not work well with the types wishlist we have, as it pretty much says that all types belong to the wishlist.
 One example of this is shown in @rust-blanket-impl.
 
 #figure(
@@ -1680,10 +1682,10 @@ caption: [
   ],
 ) <rust-blanket-impl>
 
-One interesting aspect of Rust to note here is that even though we can query the ```rust impl``` blocks for type we still have to check that the receiver argument is of the same type.
-This is because Rust allows also some other types that dereference to type of ```rust Self``` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://doc.rust-lang.org/reference/items/associated-items.html#methods", "https://web.archive.org/web/20240324062328/https://doc.rust-lang.org/reference/items/associated-items.html#methods").
-These types include but are not limited to ```rust Box<S>```, ```rust Rc<S>```, ```rust Arc<S>```, ```rust Pin<S>```.
-For example there is a method signature for ```rust Option<T>``` type in standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://doc.rust-lang.org/src/core/option.rs.html#715", "https://web.archive.org/web/20240317121015/https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
+One interesting aspect of Rust to note here is that even though we can query the ```rust impl``` blocks for type, we still have to check that the receiver argument is of the same type.
+This is because Rust allows also some other types that dereference to the type of ```rust Self``` for the receiver argument#cite-footnote("The Rust Reference, Associated Items", "2024-04-06", "https://doc.rust-lang.org/reference/items/associated-items.html#methods", "https://web.archive.org/web/20240324062328/https://doc.rust-lang.org/reference/items/associated-items.html#methods").
+These types include but are not limited to ```rust Box<S>```, ```rust Rc<S>```, ```rust Arc<S>```, and ```rust Pin<S>```.
+For example, there is a method signature for the ```rust Option<T>``` type in the standard library#cite-footnote("Rust standard library source code", "2024-04-06", "https://doc.rust-lang.org/src/core/option.rs.html#715", "https://web.archive.org/web/20240317121015/https://doc.rust-lang.org/src/core/option.rs.html#715") shown in @rust-receiver-type.
 
 #figure(
 sourcecode(numbering: none)[```rs
@@ -1695,13 +1697,13 @@ caption: [
     Reciver argument with type other than ```rust Self```
   ],
 ) <rust-receiver-type>
-As we can see from the snippet above the Type of ```rust Self``` in ```rust impl``` block is ```rust Option<T>```.
-However, the type of ```rust self``` parameter in the method is ```rust Pin<&Self>``` which means that to call the `as_pin_ref` method we actually need to have expression of type ```rust Pin<&Self>```.
+As we can see from the snippet above, the type of ```rust Self``` in the ```rust impl``` block is ```rust Option<T>```.
+However, the type of ```rust self``` parameter in the method is ```rust Pin<&Self>```, which means that to call the `as_pin_ref` method, we actually need to have an expression of type ```rust Pin<&Self>```.
 
 We have also decided to ignore all the methods that return the same type as the type of ```rust self``` parameter.
-This is because they do not take us any closer to goal type, and we have considered it unhelpful to show user all the possible options.
-If we allowed them then we would also receive expressions such as ```rust some_i32.reverse_bits().reverse_bits().reverse_bits()``` which is valid Rust code but unlikely something the user wished for.
-Similar issues often arise when using the builder pattern as shown in @rust-builder
+This is because they do not take us any closer to goal type, and we have considered it unhelpful to show users all the possible options.
+If we allowed them, then we would also receive expressions such as ```rust some_i32.reverse_bits().reverse_bits().reverse_bits()``` which is valid Rust code but unlikely something the user wished for.
+Similar issues often arise when using the builder pattern, as shown in @rust-builder.
 /*
 #todo("same as free function as the self is not really that special")
 $
@@ -1712,15 +1714,15 @@ $
 
 ==== Tactic "struct projection" <tactic-struct-projection>
 "Struct projection" is a simple tactic that attempts all field accesses of struct.
-The tactic runs only in the forward direction meaning we only try to access fields of target type rather than search for structs that have field with target type.
-In a single iteration it only goes one level deep, but with multiple iterations we cover also all the fields of substructs.
+The tactic runs only in the forward direction, meaning we only try to access fields of the target type rather than search for structs that have field with target type.
+In a single iteration, it only goes one level deep, but with multiple iterations we cover all the fields of substructs.
 
-This tactic highly benefitted from the use of BFS over DFS as the implementation for accessing all the fields of parent struct is rather trivial and with multiple iterations we get the full coverage including substruct fields.
-With DFS the implementation was much more cumbersome as simple recurring on all the fields leaves out the fields themselves.
-As a result the implementation for DFS was about 2 times longer than the implementation for BFS.
+This tactic greatly benefits from the use of BFS over DFS, as the implementation for accessing all the fields of the parent struct is rather trivial, and with multiple iterations, we get the full coverage, including substruct fields.
+With DFS, the implementation was much more cumbersome, as simple recurring on all the fields leaves out the fields themselves.
+As a result, the implementation for DFS was about two times longer than the implementation for BFS.
 
 As a performance optimization we only run this tactic on every type once.
-For this tactic this optimization does not reduce the total search space covered as accessing the fields doesn't depend on rest of the search space covered.
+For this tactic, this optimization does not reduce the total search space covered, as accessing the fields doesn't depend on the rest of the search space covered.
 /*
 #todo("Should we show all fields and how to name them?")
 $
@@ -1732,14 +1734,14 @@ $
 */
 
 ==== Tactic "static method" <tactic-static-method>
-"Static method" tactic attempts static methods of ```rust impl``` blocks, that is methods that are associated with either type or trait, but do not take ```rust self``` parameter.
+"Static method" tactic attempts static methods of ```rust impl``` blocks, that is, methods that are associated with either type or trait, but do not take the ```rust self``` parameter.
 Some examples of static methods are ```rust Vec::new()``` and ```rust Default::default()```.
 
-As a performance optimization we query the ```rust impl``` block for types that we have a wishlist meaning we only go in the backwards direction.
+As a performance optimization, we query the ```rust impl``` block for types we have a wishlist, meaning we only go in the backward direction.
 This is because we figured that the most common use case for static methods is the factory method design pattern described in @design-patterns-elements-of-reusable-oo-software.
-Querying ```rust impl``` blocks is a costly operation, so we only do it for types that are contributing towards the goal meaning they are in wishlist.
+Querying ```rust impl``` blocks is a costly operation, so we only do it for types that are contributing towards the goal, meaning they are in wishlist.
 
-Similarly to "Impl method" tactic we ignore all the methods that have generic parameters defined on the method level for the same reasoning.
+Similarly to the "Impl method" tactic, we ignore all the methods that have generic parameters defined at the method level for the same reasoning.
 /*
 #todo("This is same as free function again...")
 $
@@ -1749,11 +1751,11 @@ $
 */
 
 ==== Tactic "make tuple"
-"Make tuple" tactic attempts to build types by constructing a tuple of other types.
-This is another tactic that runs only in the backwards direction as otherwise the search space would grow exponentially.
-In Rust the issue is even works as there is no limit for how many items can be in a tuple meaning that even with only one term in scope we can create infinitely many tuples by repeating the term infinite amount of times.
+The "make tuple" tactic attempts to build types by constructing a tuple of other types.
+This is another tactic that runs only in the backward direction, as otherwise the search space would grow exponentially.
+In Rust, the issue is even worse as there is no limit for how many items can be in a tuple, meaning that even with only one term in scope, we can create infinitely many tuples by repeating the term an infinite number of times.
 
-Going in the backwards direction we can only construct tuples that are useful and therefore keep the search space in reasonably small.
+Going in the backward direction, we can only construct tuples that are useful and therefore keep the search space reasonably small.
 /*
 $
 (a: A, b: B in Gamma #h(0.5cm) ?: (A, B)) /
