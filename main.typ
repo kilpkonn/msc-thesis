@@ -168,13 +168,13 @@ Both of them are shown in @rust-type-constructor.
 
 #figure(
 sourcecode()[```rs
-// Product type, has values for both `x` and `y`
+// Product type has values for both `x` and `y`
 struct Foo {
   x: i32,
   y: bool,
 }
 
-// Sum type, has values for either constructor `A` or `B`
+// Sum type has values for either constructor `A` or `B`
 enum Bar {
   A(i32),
   B(bool),
@@ -518,10 +518,10 @@ However, they noted that the costs of the tactics need to be tweaked in future w
 === Term search in Standard ML <standardml>
 As a part of the RedPRL#cite-footnote("The red* family of proof assistants", "2024-04-06", "https://redprl.org/", "https://web.archive.org/web/20240316102035/https://redprl.org/") @redprl project, @algebraic-foundations-of-proof-refinement implements term search for Standard ML.
 
-The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of subproblems in a telescope @telescopic-mappings-typed-lambda-calc.
+The algorithm suggested in @algebraic-foundations-of-proof-refinement keeps track of the subproblems in a telescope @telescopic-mappings-typed-lambda-calc.
 A telescope is a list of types with dependencies between them.
 It is a convenient data structure to keep the proof state for dependently typed languages.
-However, for languages without dependent types (this also includes Rust), they suggest to using a regular list instead.
+However, for languages without dependent types (this also includes Rust), they suggest using a regular list instead.
 
 To more effectively propagate substitutions to subproblems in the telescope @algebraic-foundations-of-proof-refinement suggests using BFS instead of DFS.
 The idea is to run all the tactics once on each subproblem, repeatedly.
@@ -629,7 +629,7 @@ caption: [
 Consider the example where we are searching for a goal ```hs ?goal :: ([a], a -> String)``` that is a pair of a list of some type and a function of that type to `String`.
 Similar goals in everyday life could arise from finding a list together with a function that can map the elements to strings to print them (`show` function).
 
-Note that in this example, we want the first member of the pair to be list, but we do not care about the types inside the list.
+Note that in this example, we want the first member of the pair to be a list, but we do not care about the types inside the list.
 The only requirement is that the second member of the pair can map the same type to ```hs String```.
 We have the following items in scope:
 ```hs
@@ -930,7 +930,7 @@ Nevertheless, the tool was tested on 100 different crates and managed to always 
 As the tool uses an external engine to synthesize the programs, we will not dive into its inner workings.
 However, we will take a look at the notes by the authors of @rust-program-synthesis, as they are very relevant to us.
 
-The authors found that quite often the types are descriptive enough to produce useful programs, and the pre- and post-conditions are not required.
+The authors found that quite often the types are descriptive enough to produce useful programs, and the preconditions and postconditions are not required.
 This aligns with our intuition that synthesizing terms from types can be useful in practice.
 
 The authors of RusSol pointed out the main limitations of the tool, which are:
@@ -1281,7 +1281,7 @@ The second iteration of our algorithm was based on BFS, as suggested in @algebra
 However, it differs from it by searching in the opposite direction.
 
 To not confuse the directions, we use _forward_ when we are constructing terms from what we have (working towards the goal) and _backward_ when we work backward from the goal.
-This aligns with the forward and the backward directions in generic path finding, where the forward direction is from source to target and backward direction is from target to source.
+This aligns with the forward and the backward directions in generic path finding, where the forward direction is from source to target and the backward direction is from target to source.
 
 The algorithm in @algebraic-foundations-of-proof-refinement starts from the target type and starts working backward from it toward what we already have.
 For example, if we have a function in scope that takes us to the goal, we create new goals for all the arguments of the function, therefore we move backward from the return type towards the arguments.
@@ -2079,7 +2079,7 @@ We can see that _terms per hole_ is the only metric that suffers from C-like cod
   ),
   caption: [
     Results without crates from categories _external-ffi-bindings_, _os_ and _no-std_.
-    _Holes filled_, _syntatic matches_ and _average time_ have similar results to overall average.
+    _Holes filled_, _syntactic matches_ and _average time_ have similar results to overall average.
     There are about 14 terms less per hole at all depths.
   ]
 ) <tbl-depth-hyper-param-median>
@@ -2120,7 +2120,7 @@ Different issues may arise when using the tool in different contexts.
 = Future work <future-work>
 In this section, we will discuss some of the work that could be done to improve term search in `rust-analyzer`.
 Some of these topics consist of features that were not in the scope of this thesis.
-Other focus on improving the `rust-analyzer` functionality overall.
+Others focus on improving the `rust-analyzer` functionality overall.
 
 ==== More permissive borrow checking
 The current borrow checking algorithm we implemented for `rust-analyzer` is rather conservative and also forbids many of the correct programs.
@@ -2168,7 +2168,7 @@ Currently, the main reason for making them opt-in was that the autocompletion is
 In this thesis, our main objective was to implement a term search for the Rust programming language.
 We achieved it by implementing it as an addition to `rust-analyzer`, the official LSP server for Rust.
 
-First, we gave an overview of the Rust programming language to understand the context we were working in.
+First, we gave an overview of the Rust programming language to understand the context of our work.
 We are focusing on the type system and the borrow checking, as they are two fundamental concepts in Rust.
 
 After that, we gave an overview of term search and the tools for it.
