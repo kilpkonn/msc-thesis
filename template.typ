@@ -224,6 +224,9 @@
   // Hack to insert end label for page count
   text[#text(" ")<end>]
 
+  show heading: none
+  heading[Appendixes]
+  
   set heading(numbering: "1.1", outlined: false)
   counter(heading).update(0)
   show heading: it => {
