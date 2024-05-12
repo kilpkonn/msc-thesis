@@ -785,7 +785,7 @@ In the case of eager evaluation, the execution would still halt, producing all t
 
 
 === Term search in Idris2
-Idris2 (@idris2-design-and-implementation) is a dependently typed programming language that has term search built into its compiler.
+Idris2 @idris2-design-and-implementation is a dependently typed programming language that has term search built into its compiler.
 Internally, the compiler makes use of a small language they call TT.
 TT is a dependently typed λ-calculus with inductive families and pattern-matching definitions.
 The language is kept as small as reasonably possible to make working with it easier.
@@ -1566,7 +1566,7 @@ We try them by looking for terms for each of the arguments the constructor has f
 If we have terms for all the arguments, then we have successfully applied the constructor.
 If not, then we cannot apply the constructor at this iteration of the algorithm.
 
-The tactic includes both sum and product types (`enum` and `struct` for rust).
+The tactic includes both sum and product types (`enum` and `struct` for Rust).
 
 As compound types may contain generic arguments, the tactic works in both forward and backward directions.
 The forward direction is used if the ADT does not have any generic parameters.

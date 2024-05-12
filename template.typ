@@ -239,7 +239,7 @@
   include("appendixes.typ")
 }
 
-#let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
+/* #let todo(txt) = box[\u{1F534} #text(rgb("EE1122"))[TODO: ] #text(rgb("220099"))[#txt] ]
 #let todo-philipp(txt) = inline-note(
   stroke: orange,
   rect: rect.with(inset: 1em, radius: 0.5em, fill: orange.lighten(90%)),
@@ -247,6 +247,7 @@
 )
 #let note(note, txt) = margin-note(stroke: aqua, text(size: 0.7em, note)) + highlight(txt)
 #let suggestion(old, new) = highlight(fill: red, old) + highlight(fill: green, new)
+*/
 
 #let metric(name) = emph(name)
 #let cite-footnote(title, accessed, url, archivedurl) = footnote[#title, Accessed: #accessed, #smallcaps("url:") #link(url)]
